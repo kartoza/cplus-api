@@ -6,7 +6,7 @@ RUN apt-get update -y && \
     spatialite-bin libsqlite3-mod-spatialite \
     python3-dev python3-gdal python3-psycopg2 python3-ldap \
     python3-pip python3-pil python3-lxml python3-pylibmc \
-    uwsgi uwsgi-plugin-python3 git gnupg2
+    uwsgi uwsgi-plugin-python3
 
 # Install pip packages
 ADD deployment/docker/requirements.txt /requirements.txt
@@ -50,6 +50,7 @@ RUN groupadd --gid $USER_GID $USERNAME \
 # ********************************************************
 # * Anything else you want to do like clean up goes here *
 # ********************************************************
+RUN apt-get update && apt-get install -y git gnupg2 openssh-client
 
 # [Optional] Set the default user. Omit if you want to keep the default as root.
 USER $USERNAME
