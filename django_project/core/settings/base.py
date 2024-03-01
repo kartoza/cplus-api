@@ -51,7 +51,6 @@ STATICFILES_DIRS = (
     # Put strings here, like "/home/html/static" or "C:/www/django/static".
     # Always use forward slashes, even on Windows.
     # Don't forget to use absolute paths, not relative paths.
-    absolute_path('core', 'static'),
 )
 
 # Every cache key will get prefixed with this value - here we set it to
@@ -129,9 +128,9 @@ INSTALLED_APPS = (
 )
 
 SITE_ID = 1
-STATICFILES_STORAGE = (
-    'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
-)
+# STATICFILES_STORAGE = (
+#     'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+# )
 
 CACHES = {
     'default': {

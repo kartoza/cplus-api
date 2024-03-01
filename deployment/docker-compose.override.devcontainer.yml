@@ -11,6 +11,24 @@ services:
     volumes:
       - ./volumes/backups:/backups
 
+  gcs:
+    container_name: googlecloudstorage
+    image: fsouza/fake-gcs-server:1.47.8
+    command:
+    - '-scheme'
+    - 'http'
+    - '-port'
+    - '4443'
+    - '-public-host'
+    - '127.0.0.1:4443'
+    - '-external-url'
+    - 'http://127.0.0.1:4443'
+    volumes:
+      - ./volumes/gcs_data:/storage
+      - ./gcs_emulator:/data
+    ports:
+      - 4443:4443
+
   worker:
     image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_worker_dev
     build:
@@ -20,6 +38,8 @@ services:
     volumes:
       - ../:/home/web/project
       - ../django_project:/home/web/django_project
+    links:
+      - gcs
 
   celery_beat:
     image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_worker_dev
@@ -38,6 +58,8 @@ services:
       dockerfile: deployment/docker/Dockerfile
       target: vscode
     entrypoint: []
+    environment:
+      - STORAGE_EMULATOR_HOST=http://gcs:4443
     volumes:
       - ../:/home/web/project
       - ./volumes/static:/home/web/static

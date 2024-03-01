@@ -42,3 +42,21 @@ DEFAULT_EXCEPTION_REPORTER_FILTER = (
 )
 
 CODE_RELEASE_VERSION = code_release_version()
+
+# google cloud storage
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+        "OPTIONS": {
+          "custom_endpoint": "http://127.0.0.1:4443",
+          "bucket_name": "sample-bucket",
+          "project_id": "test",
+          "file_overwrite": False,
+          "max_memory_size": 150 * 1024 * 1024,  # 150MB
+          "blob_chunk_size": 256 * 1024 * 200  # 52 MB
+        },
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage",
+    },
+}
