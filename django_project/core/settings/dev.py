@@ -54,8 +54,3 @@ LOGGING = {
         'level': 'WARNING'
     }
 }
-
-WEBPACK_LOADER['DEFAULT']['CACHE'] = DEBUG
-WEBPACK_LOADER['DEFAULT']['STATS_FILE'] = absolute_path(
-    'frontend', 'webpack-stats.dev.json'
-)

@@ -5,7 +5,7 @@ services:
       - ./volumes/database:/opt/postgres/data
       - ./volumes/backups:/backups
     ports:
-      - "${DB_PORT:-6432}:5432"
+      - "${DB_PORT:-7432}:5432"
 
   dbbackups:
     volumes:
@@ -21,23 +21,19 @@ services:
       - ./volumes/static:/home/web/static
       - ./volumes/media:/home/web/media
 
-  worker:
-    image: kartoza/django_react_base_dev
-    build:
-      context: ../
-      dockerfile: deployment/docker/Dockerfile
-      target: dev
+  celery_beat:
     volumes:
       - ../django_project:/home/web/django_project
-      - ./volumes/static:/home/web/static
-      - ./volumes/media:/home/web/media
+
+  worker:
+    volumes:
+      - ../django_project:/home/web/django_project
 
   dev:
     build:
       context: ../
       dockerfile: deployment/docker/Dockerfile
       target: dev
-    command: python -m debugpy --listen 0.0.0.0:5678 --wait manage.py runserver 0.0.0.0:8000
     volumes:
       - ../django_project:/home/web/django_project
       - ./volumes/static:/home/web/static

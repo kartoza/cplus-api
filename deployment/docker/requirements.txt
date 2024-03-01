@@ -37,3 +37,13 @@ django-celery-beat==2.5.0
 redis==4.3.4
 
 psycopg2-binary==2.9.9
+
+# flower worker monitoring
+pytest-env==0.8.1
+
+#django storages
+django-storages==1.13.2
+django-storages[google]
+
+# drf yasg
+drf-yasg==1.21.7

@@ -1,4 +1,5 @@
 version: '3.9'
+name: 'cplus'
 
 volumes:
   static-data:
@@ -26,24 +27,24 @@ x-common-django:
     - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS:-[]}
     - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
     - SENTRY_DSN=${SENTRY_DSN:-}
-
     # Email where alters should be sent. This will be used by let's encrypt and as the django admin email.
     - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
     - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
     - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
-  volumes:
-    - static-data:/home/web/static
-    - media-data:/home/web/media
+    # worker variables
+    - CPLUS_QUEUE_CONCURRENCY=${CPLUS_QUEUE_CONCURRENCY:-1}
   restart: on-failure
 
 services:
   redis:
     image: bitnami/redis:7.0.2
+    container_name: "cplus_api_redis"
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-redis_password}
 
   db:
     image: kartoza/postgis:14-3.3
+    container_name: "cplus_api_db"
     volumes:
       - data-volume:/opt/postgres/data
     environment:
@@ -55,10 +56,11 @@ services:
 
   dbbackups:
     image: kartoza/pg-backup:14-3.3
+    container_name: "cplus_api_dbbackups"
     environment:
       # take care to let the project name below match that
       # declared in the top of the makefile
-      - DUMPPREFIX=PG_GeoSight
+      - DUMPPREFIX=PG_Cplus_API
       # These are all defaults anyway, but setting explicitly in
       # case we ever want to ever use different credentials
       - POSTGRES_USER=${DATABASE_USERNAME:-docker}
@@ -73,24 +75,49 @@ services:
 
   django:
     <<: *default-common-django
+    container_name: "cplus_api_django"
     command: 'uwsgi --ini /uwsgi.conf'
+    volumes:
+      - static-data:/home/web/static
+      - media-data:/home/web/media
     links:
       - db
+      - redis
       - worker
+
+  celery_beat:
+    <<: *default-common-django
+    container_name: "cplus_api_celery_beat"
+    entrypoint: []
+    command: 'celery -A core beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler'
+    links:
+      - db
+      - redis
 
   worker:
     <<: *default-common-django
+    container_name: "cplus_api_worker"
     entrypoint: []
-    command: 'celery -A core worker -l info'
+    command: '/bin/bash -c /home/web/django_project/worker_entrypoint.sh'
     links:
-      - redis
+      - celery_beat
 
   dev:
+    image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_dev
     <<: *default-common-django
+    container_name: "cplus_api_dev_django"
     entrypoint: []
+    volumes:
+      - static-data:/home/web/static
+      - media-data:/home/web/media
+    links:
+      - db
+      - redis
+      - worker
 
   nginx:
     image: nginx
+    container_name: "cplus_api_nginx"
     hostname: nginx
     volumes:
       - conf-data:/etc/nginx/conf.d:ro

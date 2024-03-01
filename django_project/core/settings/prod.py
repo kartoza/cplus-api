@@ -54,7 +54,7 @@ LOGGING = {
             'level': 'ERROR',
             'handlers': ['console'],
             'propagate': False
-        },
+        }
     }
 }
 
@@ -64,6 +64,28 @@ LOGGING = {
 if SENTRY_DSN is not None and SENTRY_DSN.strip():
     import sentry_sdk
     from sentry_sdk.integrations.django import DjangoIntegration
+    from rest_framework.exceptions import (
+        NotAuthenticated,
+        PermissionDenied as RestPermissionDenied,
+        AuthenticationFailed
+    )
+    from django.core.exceptions import (
+        PermissionDenied
+    )
+
+    def before_send(event, hint):
+        if 'exc_info' in hint:
+            errors_to_ignore = (
+                NotAuthenticated,
+                RestPermissionDenied,
+                PermissionDenied,
+                AuthenticationFailed,
+            )
+            exc_value = hint['exc_info'][1]
+
+            if isinstance(exc_value, errors_to_ignore):
+                return None
+        return event
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
@@ -78,7 +100,8 @@ if SENTRY_DSN is not None and SENTRY_DSN.strip():
 
         # If you wish to associate users to errors (assuming you are using
         # django.contrib.auth) you may enable sending PII data.
-        send_default_pii=True
+        send_default_pii=True,
+        before_send=before_send
     )
 
 

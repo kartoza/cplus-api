@@ -8,6 +8,7 @@ repository!
 import os  # noqa
 
 from .contrib import *  # noqa
+from .utils import code_release_version
 
 ALLOWED_HOSTS = ['*']
 ADMINS = (
@@ -31,9 +32,13 @@ DEBUG = TEMPLATE_DEBUG = False
 # Extra installed apps
 INSTALLED_APPS = INSTALLED_APPS + (
     'core',
-    'frontend',
+    'cplus',
+    'cplus_api'
 )
 
-TEMPLATES[0]['DIRS'] += [
-    absolute_path('frontend', 'templates'),
-]
+# use custom filter to hide other sensitive informations
+DEFAULT_EXCEPTION_REPORTER_FILTER = (
+    'core.settings.filter.ExtendSafeExceptionReporterFilter'
+)
+
+CODE_RELEASE_VERSION = code_release_version()

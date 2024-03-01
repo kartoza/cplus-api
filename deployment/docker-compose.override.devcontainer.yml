@@ -4,21 +4,32 @@ services:
     volumes:
       - ./volumes/database:/opt/postgres/data
       - ./volumes/backups:/backups
+    ports:
+      - "${DATABASE_PORT:-7432}:5432"
 
   dbbackups:
     volumes:
       - ./volumes/backups:/backups
 
   worker:
-    image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_dev
+    image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_worker_dev
     build:
       context: ../
       dockerfile: deployment/docker/Dockerfile
-      target: vscode
+      target: worker
     volumes:
       - ../:/home/web/project
-      - ./volumes/static:/home/web/static
-      - ./volumes/media:/home/web/media
+      - ../django_project:/home/web/django_project
+
+  celery_beat:
+    image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_worker_dev
+    build:
+      context: ../
+      dockerfile: deployment/docker/Dockerfile
+      target: worker
+    volumes:
+      - ../:/home/web/project
+      - ../django_project:/home/web/django_project
 
   dev:
     image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_dev
@@ -34,14 +45,3 @@ services:
     links:
       - db
       - worker
-
-  django:
-    build:
-      context: ../
-      dockerfile: deployment/docker/Dockerfile
-      target: vscode
-    volumes:
-      - ../django_project:/home/web/django_project
-      - ./volumes/static:/home/web/static
-      - ./volumes/media:/home/web/media
-

@@ -27,5 +27,16 @@ def ensure_secret_key_file():
             f.write("SECRET_KEY = " + repr(secret_key) + "\n")
 
 
+def code_release_version():
+    """ Read code release version from file."""
+    version = absolute_path('version', 'version.txt')
+    if os.path.exists(version):
+        version = (open(version, 'rb').read()).decode("utf-8")
+        if version:
+            return version
+    return '0.0.1'
+
+
+
 # Import the secret key
 ensure_secret_key_file()

@@ -52,7 +52,6 @@ STATICFILES_DIRS = (
     # Always use forward slashes, even on Windows.
     # Don't forget to use absolute paths, not relative paths.
     absolute_path('core', 'static'),
-    absolute_path('frontend', 'bundles'),
 )
 
 # Every cache key will get prefixed with this value - here we set it to
@@ -69,6 +68,7 @@ MIDDLEWARE = (
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.contrib.redirects.middleware.RedirectFallbackMiddleware',
+    'core.middleware.VersionMiddleware'
 )
 
 ROOT_URLCONF = 'core.urls'

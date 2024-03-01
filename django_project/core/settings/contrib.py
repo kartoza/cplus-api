@@ -6,22 +6,12 @@ from .base import *  # noqa
 INSTALLED_APPS = INSTALLED_APPS + (
     'rest_framework',
     'rest_framework_gis',
-    'webpack_loader',
     'guardian',
     'django_cleanup.apps.CleanupConfig',
     'django_celery_beat',
     'django_celery_results',
+    'drf_yasg',
 )
-WEBPACK_LOADER = {
-    'DEFAULT': {
-        'BUNDLE_DIR_NAME': 'frontend/',  # must end with slash
-        'STATS_FILE': absolute_path('frontend', 'webpack-stats.prod.json'),
-        'POLL_INTERVAL': 0.1,
-        'TIMEOUT': None,
-        'IGNORE': [r'.+\.hot-update.js', r'.+\.map'],
-        'LOADER_CLASS': 'webpack_loader.loader.WebpackLoader',
-    }
-}
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -34,7 +24,7 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_VERSIONING_CLASS': (
         'rest_framework.versioning.NamespaceVersioning'
-    ),
+    )
 }
 
 AUTHENTICATION_BACKENDS = (
