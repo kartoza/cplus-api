@@ -1,6 +1,7 @@
 .idea
 .venv
 .iml
+.env
 deployment/.env
 deployment/docker-compose.override.yml
 deployment/volumes
