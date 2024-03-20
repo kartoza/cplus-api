@@ -6,7 +6,16 @@ RUN apt-get update -y && \
     spatialite-bin libsqlite3-mod-spatialite \
     python3-dev python3-gdal python3-psycopg2 python3-ldap \
     python3-pip python3-pil python3-lxml python3-pylibmc \
-    uwsgi uwsgi-plugin-python3
+    uwsgi uwsgi-plugin-python3 wget \
+    gnupg software-properties-common
+    
+# qgis python3-qgis qgis-plugin-grass
+RUN mkdir -m755 -p /etc/apt/keyrings
+RUN wget -O /etc/apt/keyrings/qgis-archive-keyring.gpg https://download.qgis.org/downloads/qgis-archive-keyring.gpg
+ADD deployment/docker/qgis.sources /etc/apt/sources.list.d/qgis.sources
+
+RUN apt-get update -y && \
+    apt-get install -y qgis python-qgis qgis-plugin-grass
 
 # Install pip packages
 ADD deployment/docker/requirements.txt /requirements.txt
