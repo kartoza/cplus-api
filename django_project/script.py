@@ -5,6 +5,7 @@ sys.path.insert(0, '/usr/share/qgis/python/plugins')
 print(sys.path)
 import os
 # os.environ['LD_LIBRARY_PATH'] = '/usr/lib/python3'
+# QT HEADLESS MODE
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 import qgis

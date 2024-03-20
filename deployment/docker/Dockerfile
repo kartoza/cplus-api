@@ -25,6 +25,9 @@ RUN pip3 install --upgrade pip && pip install --upgrade pip
 ARG CPUCOUNT=1
 RUN pip3 install -r /requirements.txt
 
+# Fix pyqgis missing core lib
+RUN cp /usr/lib/python3/dist-packages/qgis/_core.cpython-311-x86_64-linux-gnu.so /usr/lib/python3/dist-packages/qgis/_core.so
+
 ADD django_project /home/web/django_project
 
 EXPOSE 8080
