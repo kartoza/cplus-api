@@ -1,4 +1,4 @@
-FROM python:3.12.0-slim-bookworm AS prod
+FROM python:3.11.8-slim-bookworm AS prod
 
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends \
@@ -26,7 +26,7 @@ ARG CPUCOUNT=1
 RUN pip3 install -r /requirements.txt
 
 # Fix pyqgis missing core lib
-RUN cp /usr/lib/python3/dist-packages/qgis/_core.cpython-311-x86_64-linux-gnu.so /usr/lib/python3/dist-packages/qgis/_core.so
+# RUN cp /usr/lib/python3/dist-packages/qgis/_core.cpython-311-x86_64-linux-gnu.so /usr/lib/python3/dist-packages/qgis/_core.so
 
 ADD django_project /home/web/django_project
 
