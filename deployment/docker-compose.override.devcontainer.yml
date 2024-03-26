@@ -62,8 +62,6 @@ services:
       - STORAGE_EMULATOR_HOST=http://gcs:4443
     volumes:
       - ../:/home/web/project
-      - ./volumes/static:/home/web/static
-      - ./volumes/media:/home/web/media
     links:
       - db
       - worker
