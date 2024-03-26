@@ -70,7 +70,7 @@ def log(
     """
     level = logging.INFO if info else logging.WARNING
     logger.log(level, message)
-    print(message)
+    # print(message)
     # level = Qgis.Info if info else Qgis.Warning
     # QgsMessageLog.logMessage(
     #     message,

@@ -382,33 +382,37 @@ class SettingsManager(QtCore.QObject):
         """
         priority_layer = None
 
-        settings_key = self._get_priority_layers_settings_base(identifier)
-        with qgis_settings(settings_key) as settings:
-            groups_key = f"{settings_key}/groups"
-            groups = []
+        # settings_key = self._get_priority_layers_settings_base(identifier)
+        # with qgis_settings(settings_key) as settings:
+        #     groups_key = f"{settings_key}/groups"
+        #     groups = []
 
-            if len(settings.childKeys()) <= 0:
-                return priority_layer
+        #     if len(settings.childKeys()) <= 0:
+        #         return priority_layer
 
-            with qgis_settings(groups_key) as groups_settings:
-                for name in groups_settings.childGroups():
-                    group_settings_key = f"{groups_key}/{name}"
-                    with qgis_settings(group_settings_key) as group_settings:
-                        stored_group = {}
-                        stored_group["uuid"] = group_settings.value("uuid")
-                        stored_group["name"] = group_settings.value("name")
-                        stored_group["value"] = group_settings.value("value")
-                        groups.append(stored_group)
+        #     with qgis_settings(groups_key) as groups_settings:
+        #         for name in groups_settings.childGroups():
+        #             group_settings_key = f"{groups_key}/{name}"
+        #             with qgis_settings(group_settings_key) as group_settings:
+        #                 stored_group = {}
+        #                 stored_group["uuid"] = group_settings.value("uuid")
+        #                 stored_group["name"] = group_settings.value("name")
+        #                 stored_group["value"] = group_settings.value("value")
+        #                 groups.append(stored_group)
 
-            priority_layer = {"uuid": str(identifier)}
-            priority_layer["name"] = settings.value("name")
-            priority_layer["description"] = settings.value("description")
-            priority_layer["path"] = settings.value("path")
-            priority_layer["selected"] = settings.value("selected", type=bool)
-            priority_layer["user_defined"] = settings.value(
-                "user_defined", defaultValue=True, type=bool
-            )
-            priority_layer["groups"] = groups
+        #     priority_layer = {"uuid": str(identifier)}
+        #     priority_layer["name"] = settings.value("name")
+        #     priority_layer["description"] = settings.value("description")
+        #     priority_layer["path"] = settings.value("path")
+        #     priority_layer["selected"] = settings.value("selected", type=bool)
+        #     priority_layer["user_defined"] = settings.value(
+        #         "user_defined", defaultValue=True, type=bool
+        #     )
+        #     priority_layer["groups"] = groups
+        priority_layers = self.get_priority_layers()
+        filtered = [f for f in priority_layers if f['uuid'] == str(identifier)]
+        if filtered:
+            priority_layer = filtered[0]
         return priority_layer
 
     def get_priority_layers(self) -> typing.List:
@@ -417,37 +421,113 @@ class SettingsManager(QtCore.QObject):
         :returns: Priority layers list
         :rtype: list
         """
-        priority_layer_list = []
-        with qgis_settings(
-            f"{self.BASE_GROUP_NAME}/" f"{self.PRIORITY_LAYERS_GROUP_NAME}"
-        ) as settings:
-            for uuid in settings.childGroups():
-                priority_layer_settings = self._get_priority_layers_settings_base(uuid)
-                with qgis_settings(priority_layer_settings) as priority_settings:
-                    groups_key = f"{priority_layer_settings}/groups"
-                    groups = []
+        # priority_layer_list = []
+        # with qgis_settings(
+        #     f"{self.BASE_GROUP_NAME}/" f"{self.PRIORITY_LAYERS_GROUP_NAME}"
+        # ) as settings:
+        #     for uuid in settings.childGroups():
+        #         priority_layer_settings = self._get_priority_layers_settings_base(uuid)
+        #         with qgis_settings(priority_layer_settings) as priority_settings:
+        #             groups_key = f"{priority_layer_settings}/groups"
+        #             groups = []
 
-                    with qgis_settings(groups_key) as groups_settings:
-                        for name in groups_settings.childGroups():
-                            group_settings_key = f"{groups_key}/{name}"
-                            with qgis_settings(group_settings_key) as group_settings:
-                                stored_group = {}
-                                stored_group["uuid"] = group_settings.value("uuid")
-                                stored_group["name"] = group_settings.value("name")
-                                stored_group["value"] = group_settings.value("value")
-                                groups.append(stored_group)
-                    layer = {
-                        "uuid": uuid,
-                        "name": priority_settings.value("name"),
-                        "description": priority_settings.value("description"),
-                        "path": priority_settings.value("path"),
-                        "selected": priority_settings.value("selected", type=bool),
-                        "user_defined": priority_settings.value(
-                            "user_defined", defaultValue=True, type=bool
-                        ),
-                        "groups": groups,
-                    }
-                    priority_layer_list.append(layer)
+        #             with qgis_settings(groups_key) as groups_settings:
+        #                 for name in groups_settings.childGroups():
+        #                     group_settings_key = f"{groups_key}/{name}"
+        #                     with qgis_settings(group_settings_key) as group_settings:
+        #                         stored_group = {}
+        #                         stored_group["uuid"] = group_settings.value("uuid")
+        #                         stored_group["name"] = group_settings.value("name")
+        #                         stored_group["value"] = group_settings.value("value")
+        #                         groups.append(stored_group)
+        #             layer = {
+        #                 "uuid": uuid,
+        #                 "name": priority_settings.value("name"),
+        #                 "description": priority_settings.value("description"),
+        #                 "path": priority_settings.value("path"),
+        #                 "selected": priority_settings.value("selected", type=bool),
+        #                 "user_defined": priority_settings.value(
+        #                     "user_defined", defaultValue=True, type=bool
+        #                 ),
+        #                 "groups": groups,
+        #             }
+        #             priority_layer_list.append(layer)
+        
+        # harcoded ones
+        priority_layer_list = [
+            {
+                "uuid": "3e0c7dff-51f2-48c5-a316-15d9ca2407cb",
+                "name": "Ecological Infrastructure inverse",
+                "description": "Placeholder text for ecological infrastructure inverse",
+                "path": "ei_all_gknp_clip_norm.tif",
+                "selected": False,
+                "user_defined": False,
+                "groups": []
+            },
+            {
+                "uuid": "88c1c7dd-c5d1-420c-a71c-a5c595c1c5be",
+                "name": "Ecological Infrastructure",
+                "description": "Placeholder text for ecological infrastructure",
+                "path": "ei_all_gknp_clip_norm.tif",
+                "selected": False,
+                "user_defined": False,
+                "groups": []
+            },
+            {
+                "uuid": "9ab8c67a-5642-4a09-a777-bd94acfae9d1",
+                "name": "Biodiversity norm",
+                "description": "Placeholder text for biodiversity norm",
+                "path": "biocombine_clip_norm.tif",
+                "selected": False,
+                "user_defined": False,
+                "groups": []
+            },
+            {
+                "uuid": "c2dddd0f-a430-444a-811c-72b987b5e8ce",
+                "name": "Biodiversity norm inverse",
+                "description": "Placeholder text for biodiversity norm inverse",
+                "path": "biocombine_clip_norm_inverse.tif",
+                "selected": False,
+                "user_defined": False,
+                "groups": []
+            },
+            {
+                "uuid": "c931282f-db2d-4644-9786-6720b3ab206a",
+                "name": "Social norm",
+                "description": "Placeholder text for social norm ",
+                "path": "social_int_clip_norm.tif",
+                "selected": True,
+                "user_defined": False,
+                "groups": []
+            },
+            {
+                "uuid": "f5687ced-af18-4cfc-9bc3-8006e40420b6",
+                "name": "Social norm inverse",
+                "description": "Placeholder text for social norm inverse",
+                "path": "social_int_clip_norm_inverse.tif",
+                "selected": False,
+                "user_defined": False,
+                "groups": []
+            },
+            {
+                "uuid": "fce41934-5196-45d5-80bd-96423ff0e74e",
+                "name": "Climate Resilience norm",
+                "description": "Placeholder text for climate resilience norm",
+                "path": "cccombo_clip_norm.tif",
+                "selected": False,
+                "user_defined": False,
+                "groups": []
+            },
+            {
+                "uuid": "fef3c7e4-0cdf-477f-823b-a99da42f931e",
+                "name": "Climate Resilience norm inverse",
+                "description": "Placeholder text for climate resilience",
+                "path": "cccombo_clip_norm_inverse.tif",
+                "selected": False,
+                "user_defined": False,
+                "groups": []
+            }
+        ]
         return priority_layer_list
 
     def find_layer_by_name(self, name) -> typing.Dict:

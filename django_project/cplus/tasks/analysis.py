@@ -1,6 +1,8 @@
 import math
 import os
 import uuid
+import logging
+import traceback
 
 import datetime
 
@@ -8,30 +10,16 @@ from pathlib import Path
 
 from qgis.core import (
     Qgis,
-    QgsApplication,
     QgsCoordinateReferenceSystem,
-    QgsCoordinateTransform,
-    QgsFeedback,
-    QgsGeometry,
-    QgsProject,
     QgsProcessing,
-    QgsProcessingAlgRunnerTask,
     QgsProcessingContext,
     QgsProcessingFeedback,
     QgsRasterLayer,
-    QgsRectangle,
-    QgsTask,
-    QgsWkbTypes,
-    QgsColorRampShader,
-    QgsSingleBandPseudoColorRenderer,
-    QgsRasterShader,
-    QgsPalettedRasterRenderer,
-    QgsStyle,
-    QgsRasterMinMaxOrigin
+    QgsRectangle
 )
 
 from qgis import processing
-from cplus.utils.conf import Settings, settings_manager
+from cplus.utils.conf import settings_manager
 from cplus.models.helpers import clone_implementation_model
 from cplus.models.base import ScenarioResult
 from cplus.utils.helper import (
@@ -44,6 +32,9 @@ from cplus.utils.helper import (
 from cplus.definitions.defaults import (
     SCENARIO_OUTPUT_FILE_NAME,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class ScenarioAnalysisTask(object):
@@ -134,7 +125,6 @@ class ScenarioAnalysisTask(object):
                     break
 
         target_layer = QgsRasterLayer(selected_pathway.path, selected_pathway.name)
-
         dest_crs = (
             target_layer.crs()
             if selected_pathway and selected_pathway.path
@@ -299,6 +289,7 @@ class ScenarioAnalysisTask(object):
             return QgsRectangle(left, bottom, right, top)
 
         except Exception as e:
+            log(traceback.format_exc())
             log(
                 tr(
                     f"Problem snapping area of "
@@ -536,6 +527,7 @@ class ScenarioAnalysisTask(object):
 
                 pathway.path = results["OUTPUT"]
         except Exception as e:
+            log(traceback.format_exc())
             log(f"Problem running pathway analysis,  {e}")
             self.error = e
             # TODO: cancel task
@@ -730,6 +722,7 @@ class ScenarioAnalysisTask(object):
                     model.priority_layers = priority_layers
 
         except Exception as e:
+            log(traceback.format_exc())
             log(f"Problem snapping layers, {e} \n")
             self.error = e
             # TODO: cancel task
@@ -963,6 +956,7 @@ class ScenarioAnalysisTask(object):
                 pathway.path = results["OUTPUT"]
 
         except Exception as e:
+            log(traceback.format_exc())
             log(f"Problem normalizing pathways layers, {e} \n")
             self.error = e
             # TODO: cancel task
@@ -1075,6 +1069,7 @@ class ScenarioAnalysisTask(object):
                 model.path = results["OUTPUT"]
 
         except Exception as e:
+            log(traceback.format_exc())
             log(f"Problem creating models layers, {e}")
             self.error = e
             # TODO: cancel task
@@ -1227,6 +1222,7 @@ class ScenarioAnalysisTask(object):
                 model.path = results["OUTPUT"]
 
         except Exception as e:
+            log(traceback.format_exc())
             log(f"Problem normalizing models layers, {e} \n")
             self.error = e
             # TODO: cancel task
@@ -1303,9 +1299,11 @@ class ScenarioAnalysisTask(object):
                     continue
 
                 # TODO: check here whether it's working
-                settings_model = settings_manager.get_implementation_model(
-                    str(model.uuid)
-                )
+                # settings_model = settings_manager.get_implementation_model(
+                #     str(model.uuid)
+                # )
+                # hardcode to first im
+                settings_model = self.analysis_implementation_models[0]
 
                 for layer in settings_model.priority_layers:
                     if layer is None:
@@ -1400,6 +1398,7 @@ class ScenarioAnalysisTask(object):
                 weighted_models.append(model)
 
         except Exception as e:
+            log(traceback.format_exc())
             log(f"Problem weighting implementation models, {e}\n")
             self.error = e
             # TODO: cancel task
@@ -1483,6 +1482,7 @@ class ScenarioAnalysisTask(object):
                 model.path = results["OUTPUT"]
 
         except Exception as e:
+            log(traceback.format_exc())
             log(f"Problem cleaning implementation models, {e}")
             self.error = e
             # TODO: cancel task
@@ -1590,6 +1590,7 @@ class ScenarioAnalysisTask(object):
             )
 
         except Exception as err:
+            log(traceback.format_exc())
             log(
                 tr(
                     "An error occurred when running task for "
@@ -1602,5 +1603,3 @@ class ScenarioAnalysisTask(object):
             return False
 
         return True
-
-

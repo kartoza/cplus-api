@@ -2,6 +2,7 @@ from __future__ import absolute_import, unicode_literals
 
 import os
 import logging
+import sys
 from celery import Celery, signals
 from celery.utils.serialization import strtobool
 from celery.worker.control import inspect_command
@@ -31,6 +32,9 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 # https://stackoverflow.com/questions/27310899/
 # celery-is-rerunning-long-running-completed-tasks-over-and-over
 app.conf.broker_transport_options = {'visibility_timeout': 3 * 3600}
+
+# use max task = 1 to avoid memory leak from qgis processing tools
+app.conf.worker_max_tasks_per_child = 1
 
 # ------------------------------------
 # Task event handlers
@@ -134,3 +138,15 @@ def conf(state, with_defaults=False, **kwargs):
     (Celery makes an attempt to remove sensitive info,but it is not foolproof)
     """
     return {'error': 'Config inspection has been disabled.'}
+
+
+is_worker = os.environ.get('CPLUS_WORKER', 0)
+if is_worker:
+    # init qgis
+    sys.path.insert(0, '/usr/share/qgis/python/plugins')
+    sys.path.insert(0, '/usr/share/qgis/python')
+    sys.path.append('/usr/lib/python3/dist-packages')
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    from qgis.core import *
+    QgsApplication.setPrefixPath("/usr/bin/qgis", True)
+    logger.info('*******QGIS INIT DONE*********')

@@ -1,4 +1,5 @@
 import sys
+import time
 # sys.path.insert(0, '/usr/share/qgis/python')
 sys.path.insert(0, '/usr/share/qgis/python/plugins')
 sys.path.insert(0, '/usr/share/qgis/python')
@@ -11,6 +12,7 @@ import os
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 # os.environ["QT_PLUGIN_PATH"] = "/usr/lib/x86_64-linux-gnu/qt5/plugins"
 
+start_time = time.time()
 from qgis.core import *
 # Supply path to qgis install location
 QgsApplication.setPrefixPath("/usr/bin/qgis", True)
@@ -124,6 +126,7 @@ analysis_task = ScenarioAnalysisTask(
 )
 
 analysis_task.run()
+print(f'execution time: {time.time() - start_time} seconds')
  
 # Finally, exitQgis() is called to remove the
 # provider and layer registries from memory

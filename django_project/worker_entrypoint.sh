@@ -23,7 +23,6 @@ CPLUS_C=${CPLUS_QUEUE_CONCURRENCY:-1}
 
 # start tile and validate workers
 celery -A core multi start cplus -c:cplus $CPLUS_C -Q:cplus cplus -l INFO --logfile=/proc/1/fd/1
-# celery -A core multi start cplus -c:cplus $CPLUS_C -Q:cplus cplus -l INFO
 
 # start default worker
 celery -A core worker -l INFO --logfile=/proc/1/fd/1
