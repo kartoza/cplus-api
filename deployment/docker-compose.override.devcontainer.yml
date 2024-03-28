@@ -38,6 +38,7 @@ services:
     volumes:
       - ../:/home/web/project
       - ../django_project:/home/web/django_project
+      - ./volumes/media:/home/web/media
     links:
       - gcs
 
@@ -62,6 +63,7 @@ services:
       - STORAGE_EMULATOR_HOST=http://gcs:4443
     volumes:
       - ../:/home/web/project
+      - ./volumes/media:/home/web/media
     links:
       - db
       - worker

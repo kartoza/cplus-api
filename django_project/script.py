@@ -34,7 +34,6 @@ print("Success!")
 import uuid
 from cplus.models.base import ImplementationModel, Scenario, SpatialExtent, LayerType, NcsPathway
 from cplus.tasks.analysis import ScenarioAnalysisTask
-from cplus.utils.conf import settings_manager
 
 
 analysis_scenario_name = 'Test'

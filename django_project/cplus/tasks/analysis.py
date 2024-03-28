@@ -19,7 +19,8 @@ from qgis.core import (
 )
 
 from qgis import processing
-from cplus.utils.conf import settings_manager
+# from cplus.utils.conf import settings_manager
+from cplus.utils.conf import TaskConfig, Settings
 from cplus.models.helpers import clone_implementation_model
 from cplus.models.base import ScenarioResult
 from cplus.utils.helper import (
@@ -41,21 +42,16 @@ class ScenarioAnalysisTask(object):
     """Prepares and runs the scenario analysis"""
 
     def __init__(
-        self,
-        analysis_scenario_name,
-        analysis_scenario_description,
-        analysis_implementation_models,
-        analysis_priority_layers_groups,
-        analysis_extent,
-        scenario,
+        self, task_config: TaskConfig
     ):
         super().__init__()
-        self.analysis_scenario_name = analysis_scenario_name
-        self.analysis_scenario_description = analysis_scenario_description
+        self.task_config = task_config
+        self.analysis_scenario_name = self.task_config.scenario_name
+        self.analysis_scenario_description = self.task_config.scenario_desc
 
-        self.analysis_implementation_models = analysis_implementation_models
-        self.analysis_priority_layers_groups = analysis_priority_layers_groups
-        self.analysis_extent = analysis_extent
+        self.analysis_implementation_models = self.task_config.analysis_implementation_models
+        self.analysis_priority_layers_groups = self.task_config.priority_layer_groups
+        self.analysis_extent = self.task_config.analysis_extent
         self.analysis_extent_string = None
 
         self.analysis_weighted_ims = []
@@ -73,12 +69,13 @@ class ScenarioAnalysisTask(object):
         self.feedback = QgsProcessingFeedback()
         self.processing_context = QgsProcessingContext()
 
-        self.scenario = scenario
+        self.scenario = self.task_config.scenario
 
     def run(self):
         """Runs the main scenario analysis task operations"""
 
         base_dir = '/home/web/media'
+        self.runner_uuid = uuid.uuid4()
         log("**********TEST**********\n")
         log("***im***\n")
         for model in self.analysis_implementation_models:
@@ -105,9 +102,13 @@ class ScenarioAnalysisTask(object):
         log(f"priority_layer_groups: {len(self.scenario.priority_layer_groups)}\n")
         log("**********TEST**********\n")
 
+        # self.scenario_directory = os.path.join(
+        #     f"{base_dir}",
+        #     f'scenario_{datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}',
+        # )
         self.scenario_directory = os.path.join(
             f"{base_dir}",
-            f'scenario_{datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}',
+            f'{str(self.runner_uuid)}',
         )
 
         FileUtils.create_new_dir(self.scenario_directory)
@@ -155,8 +156,8 @@ class ScenarioAnalysisTask(object):
         #     Settings.SNAPPING_ENABLED, default=False, setting_type=bool
         # )
         # reference_layer = settings_manager.get_value(Settings.SNAP_LAYER, default="")
-        snapping_enabled = False
-        reference_layer = ""
+        snapping_enabled = self.task_config.get_value(Settings.SNAPPING_ENABLED, False)
+        reference_layer = self.task_config.get_value(Settings.SNAP_LAYER, "")
         reference_layer_path = Path(reference_layer)
         if (
             snapping_enabled
@@ -435,8 +436,8 @@ class ScenarioAnalysisTask(object):
             # carbon_coefficient = float(
             #     settings_manager.get_value(Settings.CARBON_COEFFICIENT, default=0.0)
             # )
-            suitability_index = 0.0
-            carbon_coefficient = 0.0
+            suitability_index = self.task_config.get_value(Settings.PATHWAY_SUITABILITY_INDEX, 0)
+            carbon_coefficient = self.task_config.get_value(Settings.CARBON_COEFFICIENT, 0.0)
 
             for pathway in pathways:
                 basenames = []
@@ -590,9 +591,9 @@ class ScenarioAnalysisTask(object):
             # resampling_method = settings_manager.get_value(
             #     Settings.RESAMPLING_METHOD, default=0
             # )
-            reference_layer_path = ''
-            rescale_values = False
-            resampling_method = 0
+            reference_layer_path = self.task_config.get_value(Settings.SNAP_LAYER, '')
+            rescale_values = self.task_config.get_value(Settings.RESCALE_VALUES, False)
+            resampling_method = self.task_config.get_value(Settings.RESAMPLING_METHOD, 0)
 
             if pathways is not None and len(pathways) > 0:
                 snapped_pathways_directory = os.path.join(
@@ -683,11 +684,9 @@ class ScenarioAnalysisTask(object):
                         if priority_layer is None:
                             continue
 
-                        priority_layer_settings = None
-                        # TODO: get_priority_layer
-                        # priority_layer_settings = settings_manager.get_priority_layer(
-                        #     priority_layer.get("uuid")
-                        # )
+                        priority_layer_settings = self.task_config.get_priority_layer(
+                            priority_layer.get("uuid")
+                        )
                         if priority_layer_settings is None:
                             continue
 
@@ -864,8 +863,8 @@ class ScenarioAnalysisTask(object):
             #         Settings.PATHWAY_SUITABILITY_INDEX, default=0
             #     )
             # )
-            carbon_coefficient = 0.0
-            suitability_index = 0.0
+            carbon_coefficient = self.task_config.get_value(Settings.CARBON_COEFFICIENT, 0.0)
+            suitability_index = self.task_config.get_value(Settings.PATHWAY_SUITABILITY_INDEX, 0)
 
             normalization_index = carbon_coefficient + suitability_index
 
@@ -1172,8 +1171,9 @@ class ScenarioAnalysisTask(object):
                 #         Settings.PATHWAY_SUITABILITY_INDEX, default=0
                 #     )
                 # )
-                carbon_coefficient = 0.0
-                suitability_index = 0.0
+                carbon_coefficient = self.task_config.get_value(Settings.CARBON_COEFFICIENT, 0.0)
+                suitability_index = self.task_config.get_value(Settings.PATHWAY_SUITABILITY_INDEX, 0)
+
 
                 normalization_index = carbon_coefficient + suitability_index
 
@@ -1303,13 +1303,18 @@ class ScenarioAnalysisTask(object):
                 #     str(model.uuid)
                 # )
                 # hardcode to first im
-                settings_model = self.analysis_implementation_models[0]
+                settings_model = self.task_config.get_implementation_model(
+                    str(model.uuid)
+                )
 
                 for layer in settings_model.priority_layers:
                     if layer is None:
                         continue
 
-                    settings_layer = settings_manager.get_priority_layer(
+                    # settings_layer = settings_manager.get_priority_layer(
+                    #     layer.get("uuid")
+                    # )
+                    settings_layer = self.task_config.get_priority_layer(
                         layer.get("uuid")
                     )
                     if settings_layer is None:
@@ -1335,7 +1340,8 @@ class ScenarioAnalysisTask(object):
 
                     path_basename = pwl_path.stem
 
-                    for priority_layer in settings_manager.get_priority_layers():
+                    # for priority_layer in settings_manager.get_priority_layers():
+                    for priority_layer in self.task_config.get_priority_layers():
                         if priority_layer.get("name") == layer.get("name"):
                             for group in priority_layer.get("groups", []):
                                 value = group.get("value")
