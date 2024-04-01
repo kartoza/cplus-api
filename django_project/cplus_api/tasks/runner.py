@@ -3,7 +3,6 @@
 from celery import shared_task
 import logging
 import time
-import uuid
 import json
 
 logger = logging.getLogger(__name__)
@@ -19,6 +18,7 @@ def run_dummy_task():
 
     analysis_task.run()
 
+
 @shared_task(name="run_scenario_analysis_task")
 def run_scenario_analysis_task():
     logger.info('Triggered run_scenario_analysis_task')
@@ -32,7 +32,7 @@ def run_scenario_analysis_task():
     # Load providers
     qgs.initQgis()
     # init processing plugins
-    import processing
+    import processing  # noqa
     from processing.core.Processing import Processing
     Processing.initialize()
     print("Success!")
@@ -41,4 +41,3 @@ def run_scenario_analysis_task():
     # use qgs.exit() if worker can be reused to execute another task
     # qgs.exit()
     qgs.exitQgis()
-

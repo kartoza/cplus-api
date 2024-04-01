@@ -40,12 +40,13 @@ app.conf.worker_max_tasks_per_child = 1
 # Task event handlers
 # ------------------------------------
 
+
 @signals.after_task_publish.connect
 def task_sent_handler(sender=None, headers=None, body=None, **kwargs):
     # task is sent to celery, but might not be queued to worker yet
     info = headers if 'task' in headers else body
-    task_id = info['id']
-    task_args = info['argsrepr'] if 'argsrepr' in info else ''
+    # task_id = info['id']
+    # task_args = info['argsrepr'] if 'argsrepr' in info else ''
     if info['task'] in EXCLUDED_TASK_LIST:
         return
 
@@ -53,8 +54,8 @@ def task_sent_handler(sender=None, headers=None, body=None, **kwargs):
 @signals.task_received.connect
 def task_received_handler(sender, request=None, **kwargs):
     # task should be queued
-    task_id = request.id if request else None
-    task_args = request.args
+    # task_id = request.id if request else None
+    # task_args = request.args
     task_name = request.name if request else ''
     if task_name in EXCLUDED_TASK_LIST:
         return
@@ -74,7 +75,7 @@ def task_success_handler(sender, **kwargs):
     task_name = sender.name if sender else ''
     if task_name in EXCLUDED_TASK_LIST:
         return
-    task_id = sender.request.id
+    # task_id = sender.request.id
 
 
 @signals.task_failure.connect
@@ -90,7 +91,7 @@ def task_revoked_handler(sender, request = None, **kwargs):
     task_name = sender.name if sender else ''
     if task_name in EXCLUDED_TASK_LIST:
         return
-    task_id = request.id if request else None
+    # task_id = request.id if request else None
 
 
 @signals.task_internal_error.connect
@@ -126,6 +127,7 @@ app.conf.beat_scheduler = 'django_celery_beat.schedulers.DatabaseScheduler'
 #     },
 # }
 
+
 @inspect_command(
     alias='dump_conf',
     signature='[include_defaults=False]',
@@ -147,6 +149,6 @@ if is_worker:
     sys.path.insert(0, '/usr/share/qgis/python')
     sys.path.append('/usr/lib/python3/dist-packages')
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
-    from qgis.core import *
+    from qgis.core import *  # noqa
     QgsApplication.setPrefixPath("/usr/bin/qgis", True)
     logger.info('*******QGIS INIT DONE*********')

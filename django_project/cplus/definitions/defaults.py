@@ -25,20 +25,20 @@ REPORT_DOCUMENTATION = (
 OPTIONS_TITLE = "CPLUS"  # Title in the QGIS settings
 ICON_PATH = ":/plugins/cplus_plugin/icon.svg"
 ICON_PDF = (
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    + "/icons/mActionSaveAsPDF.svg"
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))) +
+    "/icons/mActionSaveAsPDF.svg"
 )
 ICON_LAYOUT = (
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    + "/icons/mActionNewLayout.svg"
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))) +
+    "/icons/mActionNewLayout.svg"
 )
 ICON_REPORT = (
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    + "/icons/mIconReport.svg"
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))) +
+    "/icons/mIconReport.svg"
 )
 ICON_HELP = (
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    + "/icons/mActionHelpContents_green.svg"
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))) +
+    "/icons/mActionHelpContents_green.svg"
 )
 
 ADD_LAYER_ICON_PATH = ":/plugins/cplus_plugin/cplus_left_arrow.svg"
@@ -93,18 +93,19 @@ IM_COLOUR_RAMPS = {
 QGIS_GDAL_PROVIDER = "gdal"
 
 DEFAULT_LOGO_PATH = (
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + "/icons/ci_logo.png"
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))) +
+    "/icons/ci_logo.png"
 )
 CPLUS_LOGO_PATH = str(
     os.path.normpath(
-        os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-        + "/icons/cplus_logo.svg"
+        os.path.dirname(os.path.dirname(os.path.realpath(__file__))) +
+        "/icons/cplus_logo.svg"
     )
 )
 CI_LOGO_PATH = str(
     os.path.normpath(
-        os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-        + "/icons/ci_logo.svg"
+        os.path.dirname(os.path.dirname(os.path.realpath(__file__))) +
+        "/icons/ci_logo.svg"
     )
 )
 
@@ -124,10 +125,8 @@ PRIORITY_GROUP_WEIGHT_TABLE_ID = "assigned_weights_table"
 
 # Initiliazing the plugin default data as found in the data directory
 priority_layer_path = (
-    Path(__file__).parent.parent.resolve()
-    / "data"
-    / "default"
-    / "priority_weighting_layers.json"
+    Path(__file__).parent.parent.resolve() / "data" / "default" /
+    "priority_weighting_layers.json"
 )
 
 with priority_layer_path.open("r") as fh:
@@ -136,20 +135,20 @@ PRIORITY_LAYERS = priority_layers_dict["layers"]
 
 
 pathways_path = (
-    Path(__file__).parent.parent.resolve() / "data" / "default" / "ncs_pathways.json"
+    Path(__file__).parent.parent.resolve() / "data" / "default" /
+    "ncs_pathways.json"
 )
 
 with pathways_path.open("r") as fh:
     pathways_dict = json.load(fh)
-# Path just contains the file name and is relative to {download_folder}/ncs_pathways
+# Path just contains the file name and is relative to
+# {download_folder}/ncs_pathways
 DEFAULT_NCS_PATHWAYS = pathways_dict["pathways"]
 
 
 models_path = (
-    Path(__file__).parent.parent.resolve()
-    / "data"
-    / "default"
-    / "implementation_models.json"
+    Path(__file__).parent.parent.resolve() / "data" / "default" /
+    "implementation_models.json"
 )
 
 with models_path.open("r") as fh:
