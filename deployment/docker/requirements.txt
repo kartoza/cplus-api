@@ -47,3 +47,6 @@ django-storages[google]
 
 # drf yasg
 drf-yasg==1.21.7
+
+# fix pyqgis
+PyQt5-sip

@@ -75,7 +75,7 @@ jobs:
           python manage.py collectstatic --noinput --verbosity 0
           export DJANGO_SETTINGS_MODULE=core.settings.test && coverage run manage.py test && coverage xml
           EOF
-          docker cp cplus_api_dev_django:/home/web/django_project/coverage.xml ../coverage.xml
+          docker cp cplus-api-dev-django:/home/web/django_project/coverage.xml ../coverage.xml
       - name: Show Coverage
         if: ${{ github.event_name == 'pull_request' }}
         uses: orgoro/coverage@v3

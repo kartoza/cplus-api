@@ -66,7 +66,8 @@ urlpatterns = [
         name='site-preferences'
     ),
     path('admin/', admin.site.urls),
-    re_path(r'^api/v1/', include(('cplus_api.urls_v1', 'api'), namespace='v1')),
+    re_path(r'^api/v1/',
+            include(('cplus_api.urls_v1', 'api'), namespace='v1')),
 ]
 
 if settings.DEBUG:

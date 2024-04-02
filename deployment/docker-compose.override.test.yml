@@ -26,11 +26,7 @@ services:
       - 4443:4443
 
   worker:
-    image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_worker_dev
-    build:
-      context: ../
-      dockerfile: deployment/docker/Dockerfile
-      target: worker
+    image: kartoza/cplus-api:test
     volumes:
       - ../django_project:/home/web/django_project
       - ./volumes/media:/home/web/media
@@ -38,17 +34,12 @@ services:
       - gcs
 
   dev:
-    image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_dev
-    build:
-      context: ../
-      dockerfile: deployment/docker/Dockerfile
-      target: dev
+    image: kartoza/cplus-api:test
     entrypoint: []
-    environment:
-      - STORAGE_EMULATOR_HOST=http://gcs:4443
     volumes:
       - ../django_project:/home/web/django_project
       - ./volumes/static:/home/web/static
+      - ./volumes/media:/home/web/media
     links:
       - db
       - worker

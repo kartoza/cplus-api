@@ -38,6 +38,7 @@ services:
     volumes:
       - ../:/home/web/project
       - ../django_project:/home/web/django_project
+      - ./volumes/media:/home/web/media
     links:
       - gcs
 
@@ -58,12 +59,10 @@ services:
       dockerfile: deployment/docker/Dockerfile
       target: vscode
     entrypoint: []
-    environment:
-      - STORAGE_EMULATOR_HOST=http://gcs:4443
     volumes:
       - ../:/home/web/project
-      - ./volumes/static:/home/web/static
       - ./volumes/media:/home/web/media
+      - ./volumes/static:/home/web/static
     links:
       - db
       - worker

@@ -11,4 +11,3 @@ class UserInfo(APIView):
         return Response(status=200, data={
             'detail': 'OK'
         })
-

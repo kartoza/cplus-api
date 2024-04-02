@@ -1,4 +1,4 @@
-FROM python:3.12.0-slim-bookworm AS prod
+FROM python:3.11.8-slim-bookworm AS prod
 
 RUN apt-get update -y && \
     apt-get install -y --no-install-recommends \
@@ -6,7 +6,16 @@ RUN apt-get update -y && \
     spatialite-bin libsqlite3-mod-spatialite \
     python3-dev python3-gdal python3-psycopg2 python3-ldap \
     python3-pip python3-pil python3-lxml python3-pylibmc \
-    uwsgi uwsgi-plugin-python3
+    uwsgi uwsgi-plugin-python3 wget \
+    gnupg software-properties-common
+    
+# qgis python3-qgis qgis-plugin-grass
+RUN mkdir -m755 -p /etc/apt/keyrings
+RUN wget -O /etc/apt/keyrings/qgis-archive-keyring.gpg https://download.qgis.org/downloads/qgis-archive-keyring.gpg
+ADD deployment/docker/qgis.sources /etc/apt/sources.list.d/qgis.sources
+
+RUN apt-get update -y && \
+    apt-get install -y qgis python-qgis qgis-plugin-grass
 
 # Install pip packages
 ADD deployment/docker/requirements.txt /requirements.txt
@@ -15,6 +24,9 @@ RUN pip3 install --upgrade pip && pip install --upgrade pip
 # Fix uwsgi build failure missing cc1
 ARG CPUCOUNT=1
 RUN pip3 install -r /requirements.txt
+
+# Fix pyqgis missing core lib
+# RUN cp /usr/lib/python3/dist-packages/qgis/_core.cpython-311-x86_64-linux-gnu.so /usr/lib/python3/dist-packages/qgis/_core.so
 
 ADD django_project /home/web/django_project
 

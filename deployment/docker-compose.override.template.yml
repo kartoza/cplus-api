@@ -19,32 +19,67 @@ services:
     volumes:
       - ../django_project:/home/web/django_project
       - ./volumes/static:/home/web/static
-      - ./volumes/media:/home/web/media
 
   celery_beat:
+    image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_worker_dev
+    build:
+      context: ../
+      dockerfile: deployment/docker/Dockerfile
+      target: worker
     volumes:
+      - ../:/home/web/project
       - ../django_project:/home/web/django_project
 
   worker:
+    image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_worker_dev
+    build:
+      context: ../
+      dockerfile: deployment/docker/Dockerfile
+      target: worker
     volumes:
+      - ../:/home/web/project
       - ../django_project:/home/web/django_project
+      - ./volumes/media:/home/web/media
 
   dev:
+    image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_dev
     build:
       context: ../
       dockerfile: deployment/docker/Dockerfile
       target: dev
+    entrypoint: []
     volumes:
       - ../django_project:/home/web/django_project
       - ./volumes/static:/home/web/static
       - ./volumes/media:/home/web/media
+    links:
+      - db
+      - worker
+      - gcs
 
   nginx:
     volumes:
       - ./nginx/sites-enabled:/etc/nginx/conf.d:ro
       - ./volumes/static:/home/web/static
-      - ./volumes/media:/home/web/media
     ports:
       - "${HTTP_PORT:-8888}:80"
     links:
       - django
+
+  gcs:
+    container_name: googlecloudstorage
+    image: fsouza/fake-gcs-server:1.47.8
+    command:
+    - '-scheme'
+    - 'http'
+    - '-port'
+    - '4443'
+    - '-public-host'
+    - '127.0.0.1:4443'
+    - '-external-url'
+    - 'http://127.0.0.1:4443'
+    volumes:
+      - ./volumes/gcs_data:/storage
+      - ./gcs_emulator:/data
+    ports:
+      - 4443:4443
