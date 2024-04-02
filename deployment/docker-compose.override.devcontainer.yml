@@ -59,8 +59,6 @@ services:
       dockerfile: deployment/docker/Dockerfile
       target: vscode
     entrypoint: []
-    environment:
-      - STORAGE_EMULATOR_HOST=http://gcs:4443
     volumes:
       - ../:/home/web/project
       - ./volumes/media:/home/web/media

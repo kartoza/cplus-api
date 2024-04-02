@@ -44,8 +44,6 @@ services:
       dockerfile: deployment/docker/Dockerfile
       target: dev
     entrypoint: []
-    environment:
-      - STORAGE_EMULATOR_HOST=http://gcs:4443
     volumes:
       - ../django_project:/home/web/django_project
       - ./volumes/static:/home/web/static

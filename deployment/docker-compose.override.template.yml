@@ -38,8 +38,7 @@ services:
     volumes:
       - ../:/home/web/project
       - ../django_project:/home/web/django_project
-    links:
-      - gcs
+      - ./volumes/media:/home/web/media
 
   dev:
     image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_dev
@@ -48,10 +47,12 @@ services:
       dockerfile: deployment/docker/Dockerfile
       target: dev
     entrypoint: []
-    environment:
-      - STORAGE_EMULATOR_HOST=http://gcs:4443
     volumes:
       - ../django_project:/home/web/django_project
+    links:
+      - db
+      - worker
+      - gcs
 
   nginx:
     volumes:

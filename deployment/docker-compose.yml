@@ -40,13 +40,13 @@ x-common-django:
 services:
   redis:
     image: bitnami/redis:7.0.2
-    container_name: "cplus_api_redis"
+    container_name: "cplus-api-redis"
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-redis_password}
 
   db:
     image: kartoza/postgis:14-3.3
-    container_name: "cplus_api_db"
+    container_name: "cplus-api-db"
     volumes:
       - data-volume:/opt/postgres/data
     environment:
@@ -58,7 +58,7 @@ services:
 
   dbbackups:
     image: kartoza/pg-backup:14-3.3
-    container_name: "cplus_api_dbbackups"
+    container_name: "cplus-api-dbbackups"
     environment:
       # take care to let the project name below match that
       # declared in the top of the makefile
@@ -77,7 +77,7 @@ services:
 
   django:
     <<: *default-common-django
-    container_name: "cplus_api_django"
+    container_name: "cplus-api-django"
     command: 'uwsgi --ini /uwsgi.conf'
     links:
       - db
@@ -86,7 +86,7 @@ services:
 
   celery_beat:
     <<: *default-common-django
-    container_name: "cplus_api_celery_beat"
+    container_name: "cplus-api-celery-beat"
     entrypoint: []
     command: 'celery -A core beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler'
     links:
@@ -95,7 +95,7 @@ services:
 
   worker:
     <<: *default-common-django
-    container_name: "cplus_api_worker"
+    container_name: "cplus-api-worker"
     entrypoint: []
     command: '/bin/bash -c /home/web/django_project/worker_entrypoint.sh'
     environment:
@@ -107,7 +107,7 @@ services:
   dev:
     image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_dev
     <<: *default-common-django
-    container_name: "cplus_api_dev_django"
+    container_name: "cplus-api-dev-django"
     entrypoint: []
     links:
       - db
@@ -116,7 +116,7 @@ services:
 
   nginx:
     image: nginx
-    container_name: "cplus_api_nginx"
+    container_name: "cplus-api-nginx"
     hostname: nginx
     volumes:
       - conf-data:/etc/nginx/conf.d:ro
