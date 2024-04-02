@@ -1,0 +1,54 @@
+version: '3.9'
+services:
+  db:
+    volumes:
+      - ./volumes/database:/opt/postgres/data
+      - ./volumes/backups:/backups
+    ports:
+      - "${DATABASE_PORT:-7432}:5432"
+
+  gcs:
+    container_name: googlecloudstorage
+    image: fsouza/fake-gcs-server:1.47.8
+    command:
+    - '-scheme'
+    - 'http'
+    - '-port'
+    - '4443'
+    - '-public-host'
+    - '127.0.0.1:4443'
+    - '-external-url'
+    - 'http://127.0.0.1:4443'
+    volumes:
+      - ./volumes/gcs_data:/storage
+      - ./gcs_emulator:/data
+    ports:
+      - 4443:4443
+
+  worker:
+    image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_worker_dev
+    build:
+      context: ../
+      dockerfile: deployment/docker/Dockerfile
+      target: worker
+    volumes:
+      - ../django_project:/home/web/django_project
+      - ./volumes/media:/home/web/media
+    links:
+      - gcs
+
+  dev:
+    image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_dev
+    build:
+      context: ../
+      dockerfile: deployment/docker/Dockerfile
+      target: dev
+    entrypoint: []
+    environment:
+      - STORAGE_EMULATOR_HOST=http://gcs:4443
+    volumes:
+      - ../django_project:/home/web/django_project
+      - ./volumes/static:/home/web/static
+    links:
+      - db
+      - worker
