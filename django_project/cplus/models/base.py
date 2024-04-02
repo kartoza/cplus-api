@@ -29,7 +29,6 @@ from cplus.definitions.constants import (
     COLOR_RAMP_TYPE_ATTRIBUTE,
     IM_LAYER_STYLE_ATTRIBUTE,
     IM_SCENARIO_STYLE_ATTRIBUTE,
-    STYLE_ATTRIBUTE,
 )
 
 
@@ -281,7 +280,8 @@ class NcsPathway(LayerModelComponent):
         if the path is not defined.
         :rtype: list
         """
-        return [QgsRasterLayer(carbon_path) for carbon_path in self.carbon_paths]
+        return [
+            QgsRasterLayer(carbon_path) for carbon_path in self.carbon_paths]
 
     def is_carbon_valid(self) -> bool:
         """Checks if the carbon layers are valid.
@@ -322,7 +322,8 @@ class ImplementationModel(LayerModelComponent):
     """
 
     pathways: typing.List[NcsPathway] = dataclasses.field(default_factory=list)
-    priority_layers: typing.List[typing.Dict] = dataclasses.field(default_factory=list)
+    priority_layers: typing.List[typing.Dict] = dataclasses.field(
+        default_factory=list)
     layer_styles: dict = dataclasses.field(default_factory=dict)
     style_pixel_value: int = -1
 
@@ -378,7 +379,8 @@ class ImplementationModel(LayerModelComponent):
         return True
 
     def clear_layer(self):
-        """Removes a reference to the layer URI defined in the path attribute."""
+        """Removes a reference to the layer URI defined in the path attribute.
+        """
         self.path = ""
 
     def remove_ncs_pathway(self, pathway_uuid: str) -> bool:
@@ -391,7 +393,10 @@ class ImplementationModel(LayerModelComponent):
          else False if there is no object matching the given UUID.
         :rtype: bool
         """
-        idxs = [i for i, p in enumerate(self.pathways) if str(p.uuid) == pathway_uuid]
+        idxs = [
+            i for i, p in enumerate(self.pathways) if
+            str(p.uuid) == pathway_uuid
+        ]
 
         if len(idxs) == 0:
             return False
@@ -401,7 +406,8 @@ class ImplementationModel(LayerModelComponent):
 
         return True
 
-    def pathway_by_uuid(self, pathway_uuid: str) -> typing.Union[NcsPathway, None]:
+    def pathway_by_uuid(
+            self, pathway_uuid: str) -> typing.Union[NcsPathway, None]:
         """Returns an NCS pathway matching the given UUID.
 
         :param pathway_uuid: UUID for the NCS pathway to retrieve.
@@ -426,7 +432,10 @@ class ImplementationModel(LayerModelComponent):
         if the path is not defined.
         :rtype: list
         """
-        return [QgsRasterLayer(layer.get("path")) for layer in self.priority_layers]
+        return [
+            QgsRasterLayer(layer.get("path")) for
+            layer in self.priority_layers
+        ]
 
     def is_pwls_valid(self) -> bool:
         """Checks if the priority layers are valid.
@@ -472,8 +481,8 @@ class ImplementationModel(LayerModelComponent):
         :rtype: dict
         """
         if (
-            len(self.layer_styles) == 0
-            or IM_SCENARIO_STYLE_ATTRIBUTE not in self.layer_styles
+            len(self.layer_styles) == 0 or
+            IM_SCENARIO_STYLE_ATTRIBUTE not in self.layer_styles
         ):
             return dict()
 
@@ -489,8 +498,8 @@ class ImplementationModel(LayerModelComponent):
         :rtype: dict
         """
         if (
-            len(self.layer_styles) == 0
-            or IM_LAYER_STYLE_ATTRIBUTE not in self.layer_styles
+            len(self.layer_styles) == 0 or
+            IM_LAYER_STYLE_ATTRIBUTE not in self.layer_styles
         ):
             return dict()
 
@@ -521,7 +530,8 @@ class ImplementationModel(LayerModelComponent):
         if len(model_layer_info) == 0:
             return None
 
-        ramp_info = model_layer_info.get(COLOR_RAMP_PROPERTIES_ATTRIBUTE, None)
+        ramp_info = model_layer_info.get(
+            COLOR_RAMP_PROPERTIES_ATTRIBUTE, None)
         if ramp_info is None or len(ramp_info) == 0:
             return None
 

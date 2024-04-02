@@ -8,7 +8,7 @@ import typing
 import uuid
 
 from qgis.PyQt import QtCore
-from qgis.core import QgsRectangle, QgsSettings
+from qgis.core import QgsSettings
 
 from cplus.definitions.defaults import PRIORITY_LAYERS
 
@@ -191,7 +191,8 @@ class SettingsManager(QtCore.QObject):
         :param name: Name of setting key
         :type name: str
 
-        :param default: Default value returned when the setting key does not exist
+        :param default: Default value returned when
+            the setting key does not exist
         :type default: Any
 
         :param setting_type: Type of the store setting
@@ -303,7 +304,7 @@ class SettingsManager(QtCore.QObject):
             )
         return scenario_settings
 
-    def get_scenario(self, scenario_id):
+    def get_scenario_by_id(self, scenario_id):
         """Retrieves the first scenario that matched the passed scenario id.
 
         :param scenario_id: Scenario id
@@ -313,15 +314,18 @@ class SettingsManager(QtCore.QObject):
         :rtype: ScenarioSettings
         """
 
-        result = []
         with qgis_settings(
             f"{self.BASE_GROUP_NAME}/" f"{self.SCENARIO_GROUP_NAME}"
         ) as settings:
-            for uuid in settings.childGroups():
-                scenario_settings_key = self._get_scenario_settings_base(uuid)
-                with qgis_settings(scenario_settings_key) as scenario_settings:
+            for scenario_uuid in settings.childGroups():
+                scenario_settings_key = (
+                    self._get_scenario_settings_base(scenario_uuid)
+                )
+                with (
+                    qgis_settings(scenario_settings_key)
+                ) as scenario_settings:
                     scenario = ScenarioSettings.from_qgs_settings(
-                        uuid, scenario_settings
+                        scenario_uuid, scenario_settings
                     )
                     if scenario.id == scenario_id:
                         return scenario
@@ -337,15 +341,18 @@ class SettingsManager(QtCore.QObject):
         with qgis_settings(
             f"{self.BASE_GROUP_NAME}/" f"{self.SCENARIO_GROUP_NAME}"
         ) as settings:
-            for uuid in settings.childGroups():
-                scenario_settings_key = self._get_scenario_settings_base(uuid)
+            for scenario_uuid in settings.childGroups():
+                scenario_settings_key = self._get_scenario_settings_base(
+                    scenario_uuid
+                )
                 with qgis_settings(scenario_settings_key) as scenario_settings:
                     scenario = ScenarioSettings.from_qgs_settings(
-                        uuid, scenario_settings
+                        scenario_uuid, scenario_settings
                     )
                     scenario.extent = self.get_scenario_
                     result.append(
-                        ScenarioSettings.from_qgs_settings(uuid, scenario_settings)
+                        ScenarioSettings.from_qgs_settings(
+                            scenario_uuid, scenario_settings)
                     )
         return result
 
@@ -383,37 +390,33 @@ class SettingsManager(QtCore.QObject):
         """
         priority_layer = None
 
-        # settings_key = self._get_priority_layers_settings_base(identifier)
-        # with qgis_settings(settings_key) as settings:
-        #     groups_key = f"{settings_key}/groups"
-        #     groups = []
+        settings_key = self._get_priority_layers_settings_base(identifier)
+        with qgis_settings(settings_key) as settings:
+            groups_key = f"{settings_key}/groups"
+            groups = []
 
-        #     if len(settings.childKeys()) <= 0:
-        #         return priority_layer
+            if len(settings.childKeys()) <= 0:
+                return priority_layer
 
-        #     with qgis_settings(groups_key) as groups_settings:
-        #         for name in groups_settings.childGroups():
-        #             group_settings_key = f"{groups_key}/{name}"
-        #             with qgis_settings(group_settings_key) as group_settings:
-        #                 stored_group = {}
-        #                 stored_group["uuid"] = group_settings.value("uuid")
-        #                 stored_group["name"] = group_settings.value("name")
-        #                 stored_group["value"] = group_settings.value("value")
-        #                 groups.append(stored_group)
+            with qgis_settings(groups_key) as groups_settings:
+                for name in groups_settings.childGroups():
+                    group_settings_key = f"{groups_key}/{name}"
+                    with qgis_settings(group_settings_key) as group_settings:
+                        stored_group = {}
+                        stored_group["uuid"] = group_settings.value("uuid")
+                        stored_group["name"] = group_settings.value("name")
+                        stored_group["value"] = group_settings.value("value")
+                        groups.append(stored_group)
 
-        #     priority_layer = {"uuid": str(identifier)}
-        #     priority_layer["name"] = settings.value("name")
-        #     priority_layer["description"] = settings.value("description")
-        #     priority_layer["path"] = settings.value("path")
-        #     priority_layer["selected"] = settings.value("selected", type=bool)
-        #     priority_layer["user_defined"] = settings.value(
-        #         "user_defined", defaultValue=True, type=bool
-        #     )
-        #     priority_layer["groups"] = groups
-        priority_layers = self.get_priority_layers()
-        filtered = [f for f in priority_layers if f['uuid'] == str(identifier)]
-        if filtered:
-            priority_layer = filtered[0]
+            priority_layer = {"uuid": str(identifier)}
+            priority_layer["name"] = settings.value("name")
+            priority_layer["description"] = settings.value("description")
+            priority_layer["path"] = settings.value("path")
+            priority_layer["selected"] = settings.value("selected", type=bool)
+            priority_layer["user_defined"] = settings.value(
+                "user_defined", defaultValue=True, type=bool
+            )
+            priority_layer["groups"] = groups
         return priority_layer
 
     def get_priority_layers(self) -> typing.List:
@@ -422,113 +425,50 @@ class SettingsManager(QtCore.QObject):
         :returns: Priority layers list
         :rtype: list
         """
-        # priority_layer_list = []
-        # with qgis_settings(
-        #     f"{self.BASE_GROUP_NAME}/" f"{self.PRIORITY_LAYERS_GROUP_NAME}"
-        # ) as settings:
-        #     for uuid in settings.childGroups():
-        #         priority_layer_settings = self._get_priority_layers_settings_base(uuid)
-        #         with qgis_settings(priority_layer_settings) as priority_settings:
-        #             groups_key = f"{priority_layer_settings}/groups"
-        #             groups = []
+        priority_layer_list = []
+        with qgis_settings(
+            f"{self.BASE_GROUP_NAME}/" f"{self.PRIORITY_LAYERS_GROUP_NAME}"
+        ) as settings:
+            for scenario_uuid in settings.childGroups():
+                priority_layer_settings = (
+                    self._get_priority_layers_settings_base(scenario_uuid)
+                )
+                with (
+                    qgis_settings(priority_layer_settings)
+                ) as priority_settings:
+                    groups_key = f"{priority_layer_settings}/groups"
+                    groups = []
 
-        #             with qgis_settings(groups_key) as groups_settings:
-        #                 for name in groups_settings.childGroups():
-        #                     group_settings_key = f"{groups_key}/{name}"
-        #                     with qgis_settings(group_settings_key) as group_settings:
-        #                         stored_group = {}
-        #                         stored_group["uuid"] = group_settings.value("uuid")
-        #                         stored_group["name"] = group_settings.value("name")
-        #                         stored_group["value"] = group_settings.value("value")
-        #                         groups.append(stored_group)
-        #             layer = {
-        #                 "uuid": uuid,
-        #                 "name": priority_settings.value("name"),
-        #                 "description": priority_settings.value("description"),
-        #                 "path": priority_settings.value("path"),
-        #                 "selected": priority_settings.value("selected", type=bool),
-        #                 "user_defined": priority_settings.value(
-        #                     "user_defined", defaultValue=True, type=bool
-        #                 ),
-        #                 "groups": groups,
-        #             }
-        #             priority_layer_list.append(layer)
-        
-        # harcoded ones
-        priority_layer_list = [
-            {
-                "uuid": "3e0c7dff-51f2-48c5-a316-15d9ca2407cb",
-                "name": "Ecological Infrastructure inverse",
-                "description": "Placeholder text for ecological infrastructure inverse",
-                "path": "ei_all_gknp_clip_norm.tif",
-                "selected": False,
-                "user_defined": False,
-                "groups": []
-            },
-            {
-                "uuid": "88c1c7dd-c5d1-420c-a71c-a5c595c1c5be",
-                "name": "Ecological Infrastructure",
-                "description": "Placeholder text for ecological infrastructure",
-                "path": "ei_all_gknp_clip_norm.tif",
-                "selected": False,
-                "user_defined": False,
-                "groups": []
-            },
-            {
-                "uuid": "9ab8c67a-5642-4a09-a777-bd94acfae9d1",
-                "name": "Biodiversity norm",
-                "description": "Placeholder text for biodiversity norm",
-                "path": "biocombine_clip_norm.tif",
-                "selected": False,
-                "user_defined": False,
-                "groups": []
-            },
-            {
-                "uuid": "c2dddd0f-a430-444a-811c-72b987b5e8ce",
-                "name": "Biodiversity norm inverse",
-                "description": "Placeholder text for biodiversity norm inverse",
-                "path": "biocombine_clip_norm_inverse.tif",
-                "selected": False,
-                "user_defined": False,
-                "groups": []
-            },
-            {
-                "uuid": "c931282f-db2d-4644-9786-6720b3ab206a",
-                "name": "Social norm",
-                "description": "Placeholder text for social norm ",
-                "path": "social_int_clip_norm.tif",
-                "selected": True,
-                "user_defined": False,
-                "groups": []
-            },
-            {
-                "uuid": "f5687ced-af18-4cfc-9bc3-8006e40420b6",
-                "name": "Social norm inverse",
-                "description": "Placeholder text for social norm inverse",
-                "path": "social_int_clip_norm_inverse.tif",
-                "selected": False,
-                "user_defined": False,
-                "groups": []
-            },
-            {
-                "uuid": "fce41934-5196-45d5-80bd-96423ff0e74e",
-                "name": "Climate Resilience norm",
-                "description": "Placeholder text for climate resilience norm",
-                "path": "cccombo_clip_norm.tif",
-                "selected": False,
-                "user_defined": False,
-                "groups": []
-            },
-            {
-                "uuid": "fef3c7e4-0cdf-477f-823b-a99da42f931e",
-                "name": "Climate Resilience norm inverse",
-                "description": "Placeholder text for climate resilience",
-                "path": "cccombo_clip_norm_inverse.tif",
-                "selected": False,
-                "user_defined": False,
-                "groups": []
-            }
-        ]
+                    with qgis_settings(groups_key) as groups_settings:
+                        for name in groups_settings.childGroups():
+                            group_settings_key = f"{groups_key}/{name}"
+                            with (
+                                qgis_settings(group_settings_key)
+                            ) as group_settings:
+                                stored_group = {}
+                                stored_group["uuid"] = (
+                                    group_settings.value("uuid")
+                                )
+                                stored_group["name"] = (
+                                    group_settings.value("name")
+                                )
+                                stored_group["value"] = (
+                                    group_settings.value("value")
+                                )
+                                groups.append(stored_group)
+                    layer = {
+                        "uuid": scenario_uuid,
+                        "name": priority_settings.value("name"),
+                        "description": priority_settings.value("description"),
+                        "path": priority_settings.value("path"),
+                        "selected": priority_settings.value(
+                            "selected", type=bool),
+                        "user_defined": priority_settings.value(
+                            "user_defined", defaultValue=True, type=bool
+                        ),
+                        "groups": groups,
+                    }
+                    priority_layer_list.append(layer)
         return priority_layer_list
 
     def find_layer_by_name(self, name) -> typing.Dict:
@@ -546,14 +486,19 @@ class SettingsManager(QtCore.QObject):
             f"{self.BASE_GROUP_NAME}/" f"{self.PRIORITY_LAYERS_GROUP_NAME}"
         ) as settings:
             for layer_id in settings.childGroups():
-                layer_settings_key = self._get_priority_layers_settings_base(layer_id)
+                layer_settings_key = (
+                    self._get_priority_layers_settings_base(layer_id)
+                )
                 with qgis_settings(layer_settings_key) as layer_settings:
                     layer_name = layer_settings.value("name")
                     if layer_name == name:
                         found_id = uuid.UUID(layer_id)
                         break
 
-        return self.get_priority_layer(found_id) if found_id is not None else None
+        return (
+            self.get_priority_layer(found_id) if
+            found_id is not None else None
+        )
 
     def find_layers_by_group(self, group) -> typing.List:
         """Finds priority layers inside the plugin QgsSettings
@@ -570,18 +515,21 @@ class SettingsManager(QtCore.QObject):
             f"{self.BASE_GROUP_NAME}/" f"{self.PRIORITY_LAYERS_GROUP_NAME}"
         ) as settings:
             for layer_id in settings.childGroups():
-                priority_layer_settings = self._get_priority_layers_settings_base(
-                    layer_id
+                priority_layer_settings = (
+                    self._get_priority_layers_settings_base(layer_id)
                 )
-                with qgis_settings(priority_layer_settings) as priority_settings:
+                with qgis_settings(priority_layer_settings):
                     groups_key = f"{priority_layer_settings}/groups"
 
                     with qgis_settings(groups_key) as groups_settings:
                         for name in groups_settings.childGroups():
                             group_settings_key = f"{groups_key}/{name}"
-                            with qgis_settings(group_settings_key) as group_settings:
+                            with (
+                                qgis_settings(group_settings_key)
+                            ) as group_settings:
                                 if group == group_settings.value("name"):
-                                    layers.append(self.get_priority_layer(layer_id))
+                                    layers.append(
+                                        self.get_priority_layer(layer_id))
         return layers
 
     def save_priority_layer(self, priority_layer):
@@ -593,15 +541,19 @@ class SettingsManager(QtCore.QObject):
         :param priority_layer: Priority layer
         :type priority_layer: dict
         """
-        settings_key = self._get_priority_layers_settings_base(priority_layer["uuid"])
+        settings_key = (
+            self._get_priority_layers_settings_base(priority_layer["uuid"])
+        )
 
         with qgis_settings(settings_key) as settings:
             groups = priority_layer.get("groups", [])
             settings.setValue("name", priority_layer["name"])
             settings.setValue("description", priority_layer["description"])
             settings.setValue("path", priority_layer["path"])
-            settings.setValue("selected", priority_layer.get("selected", False))
-            settings.setValue("user_defined", priority_layer.get("user_defined", True))
+            settings.setValue(
+                "selected", priority_layer.get("selected", False))
+            settings.setValue(
+                "user_defined", priority_layer.get("user_defined", True))
             groups_key = f"{settings_key}/groups"
             with qgis_settings(groups_key) as groups_settings:
                 for group_id in groups_settings.childGroups():
@@ -625,7 +577,9 @@ class SettingsManager(QtCore.QObject):
             f"{self.BASE_GROUP_NAME}/" f"{self.PRIORITY_LAYERS_GROUP_NAME}/"
         ) as settings:
             for priority_layer in settings.childGroups():
-                settings_key = self._get_priority_layers_settings_base(identifier)
+                settings_key = (
+                    self._get_priority_layers_settings_base(identifier)
+                )
                 with qgis_settings(settings_key) as layer_settings:
                     layer_settings.setValue(
                         "selected", str(priority_layer) == str(identifier)
@@ -669,7 +623,8 @@ class SettingsManager(QtCore.QObject):
         )
 
     def find_group_by_name(self, name) -> typing.Dict:
-        """Finds a priority group setting inside the plugin QgsSettings by name.
+        """Finds a priority group setting inside
+        the plugin QgsSettings by name.
 
         :param name: Name of the group
         :type name: str
@@ -684,7 +639,9 @@ class SettingsManager(QtCore.QObject):
             f"{self.BASE_GROUP_NAME}/" f"{self.PRIORITY_GROUP_NAME}"
         ) as settings:
             for group_id in settings.childGroups():
-                group_settings_key = self._get_priority_groups_settings_base(group_id)
+                group_settings_key = (
+                    self._get_priority_groups_settings_base(group_id)
+                )
                 with qgis_settings(group_settings_key) as group_settings_key:
                     group_name = group_settings_key.value("name")
                     if group_name == name:
@@ -724,11 +681,15 @@ class SettingsManager(QtCore.QObject):
         with qgis_settings(
             f"{self.BASE_GROUP_NAME}/" f"{self.PRIORITY_GROUP_NAME}"
         ) as settings:
-            for uuid in settings.childGroups():
-                priority_layer_settings = self._get_priority_groups_settings_base(uuid)
-                with qgis_settings(priority_layer_settings) as priority_settings:
+            for group_uuid in settings.childGroups():
+                priority_layer_settings = (
+                    self._get_priority_groups_settings_base(group_uuid)
+                )
+                with (
+                    qgis_settings(priority_layer_settings)
+                ) as priority_settings:
                     group = {
-                        "uuid": uuid,
+                        "uuid": group_uuid,
                         "name": priority_settings.value("name"),
                         "value": priority_settings.value("value"),
                         "description": priority_settings.value("description"),
@@ -743,12 +704,15 @@ class SettingsManager(QtCore.QObject):
         :type priority_group: str
         """
 
-        settings_key = self._get_priority_groups_settings_base(priority_group["uuid"])
+        settings_key = (
+            self._get_priority_groups_settings_base(priority_group["uuid"])
+        )
 
         with qgis_settings(settings_key) as settings:
             settings.setValue("name", priority_group["name"])
             settings.setValue("value", priority_group["value"])
-            settings.setValue("description", priority_group.get("description"))
+            settings.setValue(
+                "description", priority_group.get("description"))
 
     def delete_priority_group(self, identifier):
         """Removes priority group that match the passed identifier
@@ -798,7 +762,8 @@ class SettingsManager(QtCore.QObject):
         with qgis_settings(ncs_root) as settings:
             settings.setValue(ncs_uuid, ncs_str)
 
-    def get_ncs_pathway(self, ncs_uuid: str) -> typing.Union[NcsPathway, None]:
+    def get_ncs_pathway(self,
+                        ncs_uuid: str) -> typing.Union[NcsPathway, None]:
         """Gets an NCS pathway object matching the given unique identified.
 
         :param ncs_uuid: Unique identifier for the NCS pathway object.
@@ -904,7 +869,9 @@ class SettingsManager(QtCore.QObject):
                 # Similarly, if the given carbon path does not exist then try
                 # to use the default one in the ncs_carbon directory.
                 if not cp.exists():
-                    abs_carbon_path = f"{base_dir}/{NCS_CARBON_SEGMENT}/" f"{cp.name}"
+                    abs_carbon_path = (
+                        f"{base_dir}/{NCS_CARBON_SEGMENT}/" f"{cp.name}"
+                    )
                     abs_carbon_path = str(os.path.normpath(abs_carbon_path))
                     abs_carbon_paths.append(abs_carbon_path)
                 else:
@@ -953,7 +920,8 @@ class SettingsManager(QtCore.QObject):
             for ncs in implementation_model.pathways:
                 ncs_pathways.append(str(ncs.uuid))
 
-            implementation_model = layer_component_to_dict(implementation_model)
+            implementation_model = layer_component_to_dict(
+                implementation_model)
             implementation_model[PRIORITY_LAYERS_SEGMENT] = priority_layers
             implementation_model[PATHWAYS_ATTRIBUTE] = ncs_pathways
             implementation_model[STYLE_ATTRIBUTE] = layer_styles
@@ -966,15 +934,20 @@ class SettingsManager(QtCore.QObject):
                     layer = self.get_priority_layer(layer_id)
                     priority_layers.append(layer)
                 if len(priority_layers) > 0:
-                    implementation_model[PRIORITY_LAYERS_SEGMENT] = priority_layers
+                    implementation_model[PRIORITY_LAYERS_SEGMENT] = (
+                        priority_layers
+                    )
 
         implementation_model_str = json.dumps(implementation_model)
 
         implementation_model_uuid = implementation_model[UUID_ATTRIBUTE]
-        implementation_model_root = self._get_implementation_model_settings_base()
+        implementation_model_root = (
+            self._get_implementation_model_settings_base()
+        )
 
         with qgis_settings(implementation_model_root) as settings:
-            settings.setValue(implementation_model_uuid, implementation_model_str)
+            settings.setValue(
+                implementation_model_uuid, implementation_model_str)
 
     def get_implementation_model(
         self, implementation_model_uuid: str
@@ -992,15 +965,19 @@ class SettingsManager(QtCore.QObject):
         """
         implementation_model = None
 
-        implementation_model_root = self._get_implementation_model_settings_base()
+        implementation_model_root = (
+            self._get_implementation_model_settings_base()
+        )
 
         with qgis_settings(implementation_model_root) as settings:
-            implementation_model = settings.value(implementation_model_uuid, None)
+            implementation_model = settings.value(
+                implementation_model_uuid, None)
             ncs_uuids = []
             if implementation_model is not None:
                 implementation_model_dict = {}
                 try:
-                    implementation_model_dict = json.loads(implementation_model)
+                    implementation_model_dict = json.loads(
+                        implementation_model)
                 except json.JSONDecodeError:
                     log("Implementation model JSON is invalid.")
 
@@ -1031,12 +1008,16 @@ class SettingsManager(QtCore.QObject):
         for model in self.get_all_implementation_models():
             model_name = model.name
             trimmed_name = model_name.replace(" ", "_")
-            if model_name == name or model_name in name or trimmed_name in name:
+            if (
+                model_name == name or model_name in name or
+                trimmed_name in name
+            ):
                 return model
 
         return None
 
-    def get_all_implementation_models(self) -> typing.List[ImplementationModel]:
+    def get_all_implementation_models(
+            self) -> typing.List[ImplementationModel]:
         """Get all the implementation model objects stored in settings.
 
         :returns: Returns all the implementation model objects.
@@ -1044,7 +1025,9 @@ class SettingsManager(QtCore.QObject):
         """
         implementation_models = []
 
-        implementation_model_root = self._get_implementation_model_settings_base()
+        implementation_model_root = (
+            self._get_implementation_model_settings_base()
+        )
 
         with qgis_settings(implementation_model_root) as settings:
             keys = settings.childKeys()
@@ -1053,9 +1036,11 @@ class SettingsManager(QtCore.QObject):
                 if implementation_model is not None:
                     implementation_models.append(implementation_model)
 
-        return sorted(implementation_models, key=lambda imp_model: imp_model.name)
+        return sorted(implementation_models,
+                      key=lambda imp_model: imp_model.name)
 
-    def update_implementation_model(self, implementation_model: ImplementationModel):
+    def update_implementation_model(
+            self, implementation_model: ImplementationModel):
         """Updates the attributes of the Implementation object
         in settings. On the path, the BASE_DIR in settings
         is used to reflect the absolute path of each NCS
@@ -1087,7 +1072,7 @@ class SettingsManager(QtCore.QObject):
     def update_implementation_models(self):
         """Updates the attributes of the avaialable implementation models
 
-        :param implementation_model: Implementation model object to be updated.
+        :param implementation_model: Implementation model object to be updated
         :type implementation_model: ImplementationModel
         """
         models = self.get_all_implementation_models()
@@ -1102,8 +1087,14 @@ class SettingsManager(QtCore.QObject):
         implementation model entry to removed.
         :type implementation_model_uuid: str
         """
-        if self.get_implementation_model(implementation_model_uuid) is not None:
-            self.remove(f"{self.IMPLEMENTATION_MODEL_BASE}/{implementation_model_uuid}")
+        if (
+            self.get_implementation_model(
+                implementation_model_uuid) is not None
+        ):
+            self.remove(
+                f"{self.IMPLEMENTATION_MODEL_BASE}/"
+                f"{implementation_model_uuid}"
+            )
 
 
 settings_manager = SettingsManager()
@@ -1174,7 +1165,8 @@ class TaskConfig(object):
 
     def get_priority_layer(self, identifier) -> typing.Dict:
         priority_layer = None
-        filtered = [f for f in self.priority_layers if f['uuid'] == str(identifier)]
+        filtered = [
+            f for f in self.priority_layers if f['uuid'] == str(identifier)]
         if filtered:
             priority_layer = filtered[0]
         return priority_layer
@@ -1192,7 +1184,8 @@ class TaskConfig(object):
         config.priority_layer_groups = data.get('priority_layer_groups', [])
         config.snapping_enabled = data.get('snapping_enabled', False)
         config.snap_layer = data.get('snap_layer', '')
-        config.pathway_suitability_index = data.get('pathway_suitability_index', 0)
+        config.pathway_suitability_index = data.get(
+            'pathway_suitability_index', 0)
         config.carbon_coefficient = data.get('carbon_coefficient', 0.0)
         config.snap_rescale = data.get('snap_rescale', False)
         config.snap_method = data.get('snap_method', 0)
@@ -1214,7 +1207,10 @@ class TaskConfig(object):
             for pathway in pathways:
                 pw_uuid_str = pathway.get('uuid', None)
                 pathway_model = NcsPathway(
-                    uuid=uuid.UUID(pw_uuid_str) if pw_uuid_str else uuid.uuid4(),
+                    uuid=(
+                        uuid.UUID(pw_uuid_str) if pw_uuid_str else
+                        uuid.uuid4()
+                    ),
                     name=pathway.get('name', ''),
                     description=pathway.get('description', ''),
                     path=pathway.get('path', ''),

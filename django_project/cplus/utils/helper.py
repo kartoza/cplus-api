@@ -14,7 +14,6 @@ from qgis.core import (
     QgsProject,
     QgsProcessing,
     QgsRasterLayer,
-    QgsRectangle,
     QgsUnitTypes,
 )
 
@@ -70,14 +69,13 @@ def log(
     """
     level = logging.INFO if info else logging.WARNING
     logger.log(level, message)
-    # print(message)
-    # level = Qgis.Info if info else Qgis.Warning
-    # QgsMessageLog.logMessage(
-    #     message,
-    #     name,
-    #     level=level,
-    #     notifyUser=notify,
-    # )
+    level = Qgis.Info if info else Qgis.Warning
+    QgsMessageLog.logMessage(
+        message,
+        name,
+        level=level,
+        notifyUser=notify,
+    )
 
 
 def clean_filename(filename):
@@ -100,13 +98,14 @@ def clean_filename(filename):
 
 
 def calculate_raster_value_area(
-    layer: QgsRasterLayer, band_number: int = 1, feedback: QgsProcessingFeedback = None
+    layer: QgsRasterLayer, band_number: int = 1,
+    feedback: QgsProcessingFeedback = None
 ) -> dict:
     """Calculates the area of value pixels for the given band in a raster layer.
 
-    Please note that this function will run in the main application thread hence
-    for best results, it is recommended to execute it in a background process
-    if part of a bigger workflow.
+    Please note that this function will run in the main application thread
+    hence for best results, it is recommended to execute it
+    in a background process if part of a bigger workflow.
 
     :param layer: Input layer whose area for value pixels is to be calculated.
     :type layer: QgsRasterLayer
@@ -118,8 +117,9 @@ def calculate_raster_value_area(
     :type feedback: QgsProcessingFeedback
 
     :returns: A dictionary containing the pixel value as
-    the key and the corresponding area in hectares as the value for all the pixels
-    in the raster otherwise returns a empty dictionary if the raster is invalid
+    the key and the corresponding area in hectares as the value
+    for all the pixels in the raster otherwise
+    returns a empty dictionary if the raster is invalid
     or if it is empty.
     :rtype: float
     """
@@ -135,7 +135,8 @@ def calculate_raster_value_area(
         "OUTPUT_HTML_FILE": QgsProcessing.TEMPORARY_OUTPUT,
     }
 
-    algorithm_result = processing.run(algorithm_name, params, feedback=feedback)
+    algorithm_result = processing.run(
+        algorithm_name, params, feedback=feedback)
 
     # Get number of pixels with values
     total_pixel_count = algorithm_result["TOTAL_PIXEL_COUNT"]
@@ -186,7 +187,8 @@ def transform_extent(extent, source_crs, dest_crs):
     :type dest_crs: QgsCoordinateReferenceSystem
     """
 
-    transform = QgsCoordinateTransform(source_crs, dest_crs, QgsProject.instance())
+    transform = QgsCoordinateTransform(
+        source_crs, dest_crs, QgsProject.instance())
     transformed_extent = transform.transformBoundingBox(extent)
 
     return transformed_extent
@@ -233,7 +235,8 @@ def align_rasters(
         input_path = Path(input_raster_source)
 
         input_layer_output = os.path.join(
-            f"{snap_directory}", f"{input_path.stem}_{str(uuid.uuid4())[:4]}.tif"
+            f"{snap_directory}",
+            f"{input_path.stem}_{str(uuid.uuid4())[:4]}.tif"
         )
 
         FileUtils.create_new_file(input_layer_output)
@@ -246,7 +249,8 @@ def align_rasters(
         resample_method_value = QgsAlignRaster.ResampleAlg.RA_NearestNeighbour
 
         try:
-            resample_method_value = QgsAlignRaster.ResampleAlg(int(resample_method))
+            resample_method_value = QgsAlignRaster.ResampleAlg(
+                int(resample_method))
         except Exception as e:
             log(f"Problem creating a resample value when snapping, {e}")
 
@@ -317,7 +321,8 @@ class FileUtils:
         :returns: Icon object matching the file name.
         :rtype: QtGui.QIcon
         """
-        icon_path = os.path.normpath(f"{FileUtils.plugin_dir()}/icons/{file_name}")
+        icon_path = os.path.normpath(
+            f"{FileUtils.plugin_dir()}/icons/{file_name}")
 
         if not os.path.exists(icon_path):
             return QtGui.QIcon()
@@ -354,7 +359,8 @@ class FileUtils:
 
         ncs_pathway_dir = f"{base_dir}/{NCS_PATHWAY_SEGMENT}"
         message = (
-            "Missing parent directory when creating NCS pathways subdirectory."
+            "Missing parent directory when "
+            "creating NCS pathways subdirectory."
         )
         FileUtils.create_new_dir(ncs_pathway_dir, message)
 
@@ -381,7 +387,8 @@ class FileUtils:
 
         pwl_dir = f"{base_dir}/{PRIORITY_LAYERS_SEGMENT}"
         message = (
-            "Missing parent directory when creating priority weighting layers subdirectory."
+            "Missing parent directory when creating "
+            "priority weighting layers subdirectory."
         )
         FileUtils.create_new_dir(pwl_dir, message)
 
@@ -405,4 +412,3 @@ class FileUtils:
                 p.touch(exist_ok=True)
             except FileNotFoundError:
                 log(log_message)
-

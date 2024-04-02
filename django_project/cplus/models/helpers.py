@@ -2,7 +2,7 @@
 
 """Helper functions for supporting model management."""
 
-from dataclasses import field, fields
+from dataclasses import fields
 import typing
 import uuid
 
@@ -132,10 +132,12 @@ def create_layer_component(
         kwargs[PATH_ATTRIBUTE] = source_dict[PATH_ATTRIBUTE]
 
     if LAYER_TYPE_ATTRIBUTE in source_dict:
-        kwargs[LAYER_TYPE_ATTRIBUTE] = LayerType(int(source_dict[LAYER_TYPE_ATTRIBUTE]))
+        kwargs[LAYER_TYPE_ATTRIBUTE] = LayerType(
+            int(source_dict[LAYER_TYPE_ATTRIBUTE]))
 
     if USER_DEFINED_ATTRIBUTE in source_dict:
-        kwargs[USER_DEFINED_ATTRIBUTE] = bool(source_dict[USER_DEFINED_ATTRIBUTE])
+        kwargs[USER_DEFINED_ATTRIBUTE] = bool(
+            source_dict[USER_DEFINED_ATTRIBUTE])
 
     return model_cls(
         source_uuid,
@@ -167,7 +169,8 @@ def create_ncs_pathway(source_dict) -> typing.Union[NcsPathway, None]:
     return ncs
 
 
-def create_implementation_model(source_dict) -> typing.Union[ImplementationModel, None]:
+def create_implementation_model(
+        source_dict) -> typing.Union[ImplementationModel, None]:
     """Factory method for creating an implementation model using
     attribute values defined in a dictionary.
 
@@ -178,9 +181,11 @@ def create_implementation_model(source_dict) -> typing.Union[ImplementationModel
     from the dictionary.
     :rtype: ImplementationModel
     """
-    implementation_model = create_layer_component(source_dict, ImplementationModel)
+    implementation_model = create_layer_component(
+        source_dict, ImplementationModel)
     if PRIORITY_LAYERS_SEGMENT in source_dict.keys():
-        implementation_model.priority_layers = source_dict[PRIORITY_LAYERS_SEGMENT]
+        implementation_model.priority_layers = source_dict[
+            PRIORITY_LAYERS_SEGMENT]
 
     # Set style
     if STYLE_ATTRIBUTE in source_dict.keys():
@@ -188,7 +193,8 @@ def create_implementation_model(source_dict) -> typing.Union[ImplementationModel
 
     # Set styling pixel value
     if PIXEL_VALUE_ATTRIBUTE in source_dict.keys():
-        implementation_model.style_pixel_value = source_dict[PIXEL_VALUE_ATTRIBUTE]
+        implementation_model.style_pixel_value = source_dict[
+            PIXEL_VALUE_ATTRIBUTE]
 
     return implementation_model
 
@@ -251,7 +257,8 @@ def ncs_pathway_to_dict(ncs_pathway: NcsPathway, uuid_to_str=True) -> dict:
 
 def clone_layer_component(
     layer_component: LayerModelComponent,
-    model_cls: typing.Callable[[uuid.UUID, str, str], LayerModelComponentType],
+    model_cls: typing.Callable[
+        [uuid.UUID, str, str], LayerModelComponentType],
 ) -> typing.Union[LayerModelComponent, None]:
     """Clones a layer-based model component.
 
@@ -271,7 +278,8 @@ def clone_layer_component(
         return None
 
     cloned_component = model_cls(
-        layer_component.uuid, layer_component.name, layer_component.description
+        layer_component.uuid, layer_component.name,
+        layer_component.description
     )
 
     for f in fields(layer_component):
@@ -304,7 +312,8 @@ def clone_implementation_model(
     :returns: A deep copy of the original implementation model object.
     :rtype: ImplementationModel
     """
-    imp_model = clone_layer_component(implementation_model, ImplementationModel)
+    imp_model = clone_layer_component(
+        implementation_model, ImplementationModel)
     if imp_model is None:
         return None
 
@@ -419,7 +428,8 @@ def extent_to_project_crs_extent(
         return input_rect
 
     try:
-        coordinate_xform = QgsCoordinateTransform(default_crs, project.crs(), project)
+        coordinate_xform = QgsCoordinateTransform(
+            default_crs, project.crs(), project)
         return coordinate_xform.transformBoundingBox(input_rect)
     except Exception as e:
         log(f"{e}, using the default input extent.")
