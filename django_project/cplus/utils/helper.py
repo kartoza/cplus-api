@@ -101,7 +101,8 @@ def calculate_raster_value_area(
     layer: QgsRasterLayer, band_number: int = 1,
     feedback: QgsProcessingFeedback = None
 ) -> dict:
-    """Calculates the area of value pixels for the given band in a raster layer.
+    """Calculates the area of value pixels for
+    the given band in a raster layer.
 
     Please note that this function will run in the main application thread
     hence for best results, it is recommended to execute it
