@@ -889,8 +889,8 @@ class ScenarioAnalysisTask(object):
                 if max_value < min_value:
                     raise Exception(
                         tr(
-                            f"Pathway contains "
-                            f"invalid minimum and maxmum band values"
+                            "Pathway contains "
+                            "invalid minimum and maxmum band values"
                         )
                     )
 
@@ -1112,24 +1112,24 @@ class ScenarioAnalysisTask(object):
                     if not self.processing_cancelled:
                         self.set_info_message(
                             tr(
-                                f"Problem when running models normalization, "
+                                "Problem when running models normalization, "
                                 "there is no map layer "
                                 f"for the model {model.name}"
                             ),
                             level=Qgis.Critical,
                         )
                         log(
-                            f"Problem when running models normalization, "
+                            "Problem when running models normalization, "
                             "there is no map layer "
                             f"for the model {model.name}"
                         )
                     else:
                         # If the user cancelled the processing
                         self.set_info_message(
-                            tr(f"Processing has been cancelled by the user."),
+                            tr("Processing has been cancelled by the user."),
                             level=Qgis.Critical,
                         )
-                        log(f"Processing has been cancelled by the user.")
+                        log("Processing has been cancelled by the user.")
 
                     return False
 
@@ -1251,7 +1251,7 @@ class ScenarioAnalysisTask(object):
         if self.processing_cancelled:
             return [], False
 
-        self.set_status_message(tr(f"Weighting implementation models"))
+        self.set_status_message(tr("Weighting implementation models"))
 
         weighted_models = []
 
