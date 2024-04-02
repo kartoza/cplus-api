@@ -2,6 +2,8 @@ version: '3.9'
 
 volumes:
   conf-data:
+  static-data:
+  media-data:
   database:
   nginx-cache:
   backups-data:
@@ -78,6 +80,8 @@ services:
     <<: *default-common-django
     container_name: "cplus-api-django"
     command: 'uwsgi --ini /uwsgi.conf'
+    volumes:
+      - static-data:/home/web/static
     links:
       - db
       - redis
@@ -100,14 +104,17 @@ services:
     environment:
       <<: *common-variables
       CPLUS_WORKER: 1
-    links:
-      - celery_beat
+    volumes:
+      - media-data:/home/web/media
 
   dev:
     image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_dev
     <<: *default-common-django
     container_name: "cplus-api-dev-django"
     entrypoint: []
+    volumes:
+      - static-data:/home/web/static
+      - media-data:/home/web/media
     links:
       - db
       - redis
@@ -120,5 +127,6 @@ services:
     volumes:
       - conf-data:/etc/nginx/conf.d:ro
       - nginx-cache:/home/web/nginx_cache
+      - static-data:/home/web/static
     links:
       - django
