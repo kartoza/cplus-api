@@ -143,13 +143,13 @@ class BaseTaskRequest(models.Model):
                            'parameters', 'last_update']
         )
 
-    def task_on_queued(self, task_name, task_id, parameters):
+    def task_on_queued(self, task_id, task_name, parameters):
         """
         This event is called when task is placed on worker's queued.
 
         This event may be skipped when the worker's queue is empty.
         """
-        if self.task_id == '':
+        if not self.task_id:
             self.task_id = task_id
             self.task_name = task_name
             self.parameters = parameters
