@@ -37,6 +37,16 @@ class ScenarioTask(BaseTaskRequest):
         ).delete()
         self.add_log('Task has been started.')
 
+    def task_on_cancelled(self):
+        super().task_on_cancelled()
+        # clean resources
+        self.clear_resources()
+
+    def task_on_errors(self, exception=None, traceback=None):
+        super().task_on_errors(exception, traceback)
+        # clean resources
+        self.clear_resources()
+
     def get_resources_path(self, base_dir=DEFAULT_BASE_DIR):
         return os.path.join(
             f"{base_dir}",
