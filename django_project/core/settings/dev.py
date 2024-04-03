@@ -1,6 +1,5 @@
 
 from .project import *  # noqa
-from google.auth.credentials import AnonymousCredentials
 
 # Set debug to True for development
 DEBUG = True
@@ -56,18 +55,15 @@ LOGGING = {
     }
 }
 
-# google cloud storage dev configuration
+# aws s3 dev configuration
 STORAGES = {
     "default": {
-        "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+        "BACKEND": "storages.backends.s3.S3Storage",
         "OPTIONS": {
-          "custom_endpoint": "http://127.0.0.1:4443",
-          "bucket_name": "sample-bucket",
-          "project_id": "test",
-          "credentials": AnonymousCredentials(),
+          "bucket_name": "cplus",
+          "endpoint_url": "http://s3:9000",
           "file_overwrite": False,
-          "max_memory_size": 150 * 1024 * 1024,  # 150MB
-          "blob_chunk_size": 256 * 1024 * 200  # 52 MB
+          "max_memory_size": 300 * 1024 * 1024,  # 300MB
         },
     },
     "staticfiles": {

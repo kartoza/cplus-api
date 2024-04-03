@@ -11,24 +11,6 @@ services:
     volumes:
       - ./volumes/backups:/backups
 
-  gcs:
-    container_name: googlecloudstorage
-    image: fsouza/fake-gcs-server:1.47.8
-    command:
-    - '-scheme'
-    - 'http'
-    - '-port'
-    - '4443'
-    - '-public-host'
-    - '127.0.0.1:4443'
-    - '-external-url'
-    - 'http://127.0.0.1:4443'
-    volumes:
-      - ./volumes/gcs_data:/storage
-      - ./gcs_emulator:/data
-    ports:
-      - 4443:4443
-
   worker:
     image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_worker_dev
     build:
@@ -40,7 +22,7 @@ services:
       - ../django_project:/home/web/django_project
       - ./volumes/media:/home/web/media
     links:
-      - gcs
+      - s3
 
   celery_beat:
     image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_worker_dev
@@ -66,3 +48,16 @@ services:
     links:
       - db
       - worker
+
+  s3:
+    image: quay.io/minio/minio:RELEASE.2024-03-30T09-41-56Z.fips
+    command: minio server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+    volumes:
+      - ./volumes/minio_data:/data
+    restart: always
