@@ -6,8 +6,5 @@ class CplusApiConfig(AppConfig):
     name = 'cplus_api'
 
     def ready(self):
-        from cplus_api.utils.celery_event_handlers import (
-            task_sent_handler
-        )
+        from cplus_api.utils.celery_event_handlers import task_sent_handler  # noqa
         pass
-
