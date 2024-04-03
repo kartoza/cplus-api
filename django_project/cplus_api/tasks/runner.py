@@ -98,14 +98,15 @@ def create_scenario_task_runner(scenario_task: ScenarioTask):
             self.scenario_task.save(update_fields=['progress_text'])
 
         def set_info_message(self, message, level):
+            # info_message seems the same with log_message
             self.info_message = message
-            self.scenario_task.progress_text = message
-            self.scenario_task.save(update_fields=['progress_text'])
 
         def set_custom_progress(self, value):
             self.custom_progress = value
             self.scenario_task.progress = value
-            self.scenario_task.save(update_fields=['progress'])
+            # TODO: check how to control the frequency of updating progress
+            # if too frequent, then the process becomes slower
+            # self.scenario_task.save(update_fields=['progress'])
 
         def upload_scenario_outputs(self):
             scenario_output_files, total_files = (
