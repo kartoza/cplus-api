@@ -4,6 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from django.utils import timezone
 import logging
+from traceback import format_tb
 from core.models.task_log import TaskLog
 
 
@@ -167,7 +168,10 @@ class BaseTaskRequest(models.Model):
         self.progress = 0
         self.progress_text = None
         self.last_update = timezone.now()
-        self.save()
+        self.save(update_fields=[
+            'status', 'started_at', 'finished_at', 'progress',
+            'progress_text', 'last_update'
+        ])
 
     def task_on_completed(self):
         self.last_update = timezone.now()
@@ -186,10 +190,13 @@ class BaseTaskRequest(models.Model):
             update_fields=['last_update', 'status']
         )
 
-    def task_on_errors(self, exception=None):
+    def task_on_errors(self, exception=None, traceback=None):
         self.last_update = timezone.now()
         self.status = TaskStatus.STOPPED
-        self.errors = str(exception)
+        ex_msg = str(exception) + '\n'
+        if traceback:
+            ex_msg += "\n".join(format_tb(traceback))
+        self.errors = ex_msg
         self.add_log('Task is stopped with errors.', logging.ERROR)
         self.add_log(str(exception), logging.ERROR)
         self.save(

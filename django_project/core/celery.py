@@ -3,13 +3,13 @@ from __future__ import absolute_import, unicode_literals
 import os
 import logging
 import sys
-from celery import Celery, signals
+from celery import Celery
 from celery.utils.serialization import strtobool
 from celery.worker.control import inspect_command
+from celery.result import AsyncResult
 
 
 logger = logging.getLogger(__name__)
-EXCLUDED_TASK_LIST = []
 
 # set the default Django settings module for the 'celery' program.
 # this is also used in manage.py
@@ -35,81 +35,6 @@ app.conf.broker_transport_options = {'visibility_timeout': 3 * 3600}
 
 # use max task = 1 to avoid memory leak from qgis processing tools
 app.conf.worker_max_tasks_per_child = 1
-
-# ------------------------------------
-# Task event handlers
-# ------------------------------------
-
-
-@signals.after_task_publish.connect
-def task_sent_handler(sender=None, headers=None, body=None, **kwargs):
-    # task is sent to celery, but might not be queued to worker yet
-    info = headers if 'task' in headers else body
-    # task_id = info['id']
-    # task_args = info['argsrepr'] if 'argsrepr' in info else ''
-    if info['task'] in EXCLUDED_TASK_LIST:
-        return
-
-
-@signals.task_received.connect
-def task_received_handler(sender, request=None, **kwargs):
-    # task should be queued
-    # task_id = request.id if request else None
-    # task_args = request.args
-    task_name = request.name if request else ''
-    if task_name in EXCLUDED_TASK_LIST:
-        return
-
-
-@signals.task_prerun.connect
-def task_prerun_handler(sender=None, task_id=None, task=None,
-                        args=None, **kwargs):
-    # task is running
-    task_name = sender.name if sender else ''
-    if task_name in EXCLUDED_TASK_LIST:
-        return
-
-
-@signals.task_success.connect
-def task_success_handler(sender, **kwargs):
-    task_name = sender.name if sender else ''
-    if task_name in EXCLUDED_TASK_LIST:
-        return
-    # task_id = sender.request.id
-
-
-@signals.task_failure.connect
-def task_failure_handler(sender, task_id=None, args=None,
-                         exception=None, **kwargs):
-    task_name = sender.name if sender else ''
-    if task_name in EXCLUDED_TASK_LIST:
-        return
-
-
-@signals.task_revoked.connect
-def task_revoked_handler(sender, request = None, **kwargs):
-    task_name = sender.name if sender else ''
-    if task_name in EXCLUDED_TASK_LIST:
-        return
-    # task_id = request.id if request else None
-
-
-@signals.task_internal_error.connect
-def task_internal_error_handler(sender, task_id=None,
-                                exception=None, **kwargs):
-    task_name = sender.name if sender else ''
-    if task_name in EXCLUDED_TASK_LIST:
-        return
-
-
-@signals.task_retry.connect
-def task_retry_handler(sender, reason, **kwargs):
-    task_name = sender.name if sender else ''
-    if task_name in EXCLUDED_TASK_LIST:
-        return
-    task_id = sender.request.id
-    logger.info(f'on task_retry_handler {task_id}')
-
 
 # Load task modules from all registered Django app configs.
 app.autodiscover_tasks()
@@ -140,6 +65,26 @@ def conf(state, with_defaults=False, **kwargs):
     (Celery makes an attempt to remove sensitive info,but it is not foolproof)
     """
     return {'error': 'Config inspection has been disabled.'}
+
+
+def cancel_task(task_id: str):
+    """
+    Cancel task if it's ongoing.
+
+    :param task_id: task identifier
+    """
+    try:
+        res = AsyncResult(task_id)
+        if not res.ready():
+            # find if there is running task and stop it
+            app.control.revoke(
+                task_id,
+                terminate=True,
+                signal='SIGKILL'
+            )
+    except Exception as ex:
+        logger.error(f'Failed cancel_task: {task_id}')
+        logger.error(ex)
 
 
 is_worker = os.environ.get('CPLUS_WORKER', 0)
