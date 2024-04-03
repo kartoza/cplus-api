@@ -5,13 +5,19 @@ from django.conf import settings
 
 
 def input_layer_dir_path(instance, filename):
-    # TODO: set input layer directory
-    return ""
+    file_path = f'{str(instance.owner.pk)}/'
+    if instance.common_layer:
+        file_path = 'common_layers/'
+    file_path = file_path + f'{instance.component_type}/' + filename
+    return file_path
 
 
 def output_layer_dir_path(instance, filename):
-    # TODO: set output layer directory
-    return ""
+    file_path = f'{str(instance.owner.pk)}/{str(instance.scenario.uuid)}/'
+    if not instance.is_final_output:
+        file_path = file_path + f'{instance.group}/'
+    file_path = file_path + filename
+    return file_path
 
 
 class BaseLayer(models.Model):

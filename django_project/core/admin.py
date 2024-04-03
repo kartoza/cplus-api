@@ -22,6 +22,7 @@ class TaskLogAdmin(admin.ModelAdmin):
     list_display = ('content_object', 'object_id', 'date_time',
                     'level', 'log',)
     list_filter = ["content_type"]
+    search_fields = ['object_id', 'log']
 
 
 admin.site.register(SitePreferences, SitePreferencesAdmin)

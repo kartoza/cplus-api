@@ -2,7 +2,6 @@ import math
 import os
 import uuid
 import logging
-import traceback
 import datetime
 
 from pathlib import Path
@@ -105,6 +104,10 @@ class ScenarioAnalysisTask(QgsTask):
     def cancel_task(self, exception=None):
         self.cancel()
 
+    def log_message(self, message: str, name: str = "qgis_cplus",
+                    info: bool = True, notify: bool = True):
+        log(message, name=name, info=info, notify=notify)
+
     def run(self):
         """Runs the main scenario analysis task operations"""
 
@@ -147,11 +150,11 @@ class ScenarioAnalysisTask(QgsTask):
             f" [{dest_crs.authid()}]"
         )
 
-        log(
+        self.log_message(
             "Original area of interest extent: "
             f"{processing_extent.asWktPolygon()} \n"
         )
-        log(
+        self.log_message(
             "Snapped area of interest extent "
             f"{snapped_extent.asWktPolygon()} \n"
         )
@@ -235,9 +238,9 @@ class ScenarioAnalysisTask(QgsTask):
         :type result: bool
         """
         if result:
-            log("Finished from the main task \n")
+            self.log_message("Finished from the main task \n")
         else:
-            log(f"Error from task scenario task {self.error}")
+            self.log_message(f"Error from task scenario task {self.error}")
 
     def set_status_message(self, message):
         self.status_message = message
@@ -294,8 +297,7 @@ class ScenarioAnalysisTask(QgsTask):
             return QgsRectangle(left, bottom, right, top)
 
         except Exception as e:
-            log(traceback.format_exc())
-            log(
+            self.log_message(
                 tr(
                     f"Problem snapping area of "
                     f"interest extent, using the original extent,"
@@ -419,7 +421,7 @@ class ScenarioAnalysisTask(QgsTask):
                         ),
                         level=Qgis.Critical,
                     )
-                    log(
+                    self.log_message(
                         f"No defined model pathways or a "
                         f"model layer for the model {model.name}"
                     )
@@ -520,7 +522,7 @@ class ScenarioAnalysisTask(QgsTask):
                     "OUTPUT": output,
                 }
 
-                log(
+                self.log_message(
                     f"Used parameters for combining pathways"
                     f" and carbon layers generation: {alg_params} \n"
                 )
@@ -541,7 +543,8 @@ class ScenarioAnalysisTask(QgsTask):
 
                 pathway.path = results["OUTPUT"]
         except Exception as e:
-            log(f"Problem running pathway analysis,  {e}", info=False)
+            self.log_message(
+                f"Problem running pathway analysis, {e}", info=False)
             self.error = e
             self.cancel_task(e)
 
@@ -588,7 +591,7 @@ class ScenarioAnalysisTask(QgsTask):
                         ),
                         level=Qgis.Critical,
                     )
-                    log(
+                    self.log_message(
                         f"No defined model pathways or a "
                         f"model layer for the model {model.name}"
                     )
@@ -623,7 +626,8 @@ class ScenarioAnalysisTask(QgsTask):
 
                     # carbon layer snapping
 
-                    log(f"Snapping carbon layers from {pathway.name} pathway")
+                    self.log_message(
+                        f"Snapping carbon layers from {pathway.name} pathway")
 
                     if (
                         pathway.carbon_paths is not None and
@@ -664,7 +668,8 @@ class ScenarioAnalysisTask(QgsTask):
 
                         pathway.carbon_paths = snapped_carbon_paths
 
-                    log(f"Snapping {pathway.name} pathway layer \n")
+                    self.log_message(
+                        f"Snapping {pathway.name} pathway layer \n")
 
                     # Pathway snapping
 
@@ -681,7 +686,7 @@ class ScenarioAnalysisTask(QgsTask):
                         pathway.path = output_path
 
             for model in models:
-                log(
+                self.log_message(
                     f"Snapping {len(model.priority_layers)} "
                     "priority weighting layers from model "
                     f"{model.name} with layers\n"
@@ -743,7 +748,7 @@ class ScenarioAnalysisTask(QgsTask):
                     model.priority_layers = priority_layers
 
         except Exception as e:
-            log(f"Problem snapping layers, {e} \n", info=False)
+            self.log_message(f"Problem snapping layers, {e} \n", info=False)
             self.error = e
             self.cancel_task(e)
             return False
@@ -859,7 +864,7 @@ class ScenarioAnalysisTask(QgsTask):
                         ),
                         level=Qgis.Critical,
                     )
-                    log(
+                    self.log_message(
                         f"No defined model pathways or a "
                         f"model layer for the model {model.name}"
                     )
@@ -915,7 +920,7 @@ class ScenarioAnalysisTask(QgsTask):
 
                 layers.append(pathway.path)
 
-                log(
+                self.log_message(
                     f"Found minimum {min_value} and "
                     f"maximum {max_value} for pathway "
                     f" \n"
@@ -956,7 +961,7 @@ class ScenarioAnalysisTask(QgsTask):
                     "OUTPUT": output,
                 }
 
-                log(
+                self.log_message(
                     "Used parameters for normalization of "
                     f"the pathways: {alg_params} \n"
                 )
@@ -980,7 +985,8 @@ class ScenarioAnalysisTask(QgsTask):
                 pathway.path = results["OUTPUT"]
 
         except Exception as e:
-            log(f"Problem normalizing pathways layers, {e} \n", info=False)
+            self.log_message(
+                f"Problem normalizing pathways layers, {e} \n", info=False)
             self.error = e
             self.cancel_task(e)
             return False
@@ -1035,7 +1041,7 @@ class ScenarioAnalysisTask(QgsTask):
                         ),
                         level=Qgis.Critical,
                     )
-                    log(
+                    self.log_message(
                         f"No defined model pathways or a "
                         f"model layer for the model {model.name}"
                     )
@@ -1074,7 +1080,7 @@ class ScenarioAnalysisTask(QgsTask):
                     "OUTPUT": output,
                 }
 
-                log(
+                self.log_message(
                     f"Used parameters for "
                     f"implementation models generation: {alg_params} \n"
                 )
@@ -1095,7 +1101,8 @@ class ScenarioAnalysisTask(QgsTask):
                 model.path = results["OUTPUT"]
 
         except Exception as e:
-            log(f"Problem creating models layers, {e}", info=False)
+            self.log_message(
+                f"Problem creating models layers, {e}", info=False)
             self.error = e
             self.cancel_task(e)
             return False
@@ -1149,7 +1156,7 @@ class ScenarioAnalysisTask(QgsTask):
                             ),
                             level=Qgis.Critical,
                         )
-                        log(
+                        self.log_message(
                             "Problem when running models normalization, "
                             "there is no map layer "
                             f"for the model {model.name}"
@@ -1160,7 +1167,8 @@ class ScenarioAnalysisTask(QgsTask):
                             tr("Processing has been cancelled by the user."),
                             level=Qgis.Critical,
                         )
-                        log("Processing has been cancelled by the user.")
+                        self.log_message(
+                            "Processing has been cancelled by the user.")
 
                     return False
 
@@ -1183,7 +1191,7 @@ class ScenarioAnalysisTask(QgsTask):
                 min_value = band_statistics.minimumValue
                 max_value = band_statistics.maximumValue
 
-                log(
+                self.log_message(
                     f"Found minimum {min_value} and "
                     f"maximum {max_value} for model {model.name} \n"
                 )
@@ -1233,7 +1241,7 @@ class ScenarioAnalysisTask(QgsTask):
                     "OUTPUT": output,
                 }
 
-                log(
+                self.log_message(
                     "Used parameters for normalization of "
                     f"the models: {alg_params} \n"
                 )
@@ -1254,7 +1262,8 @@ class ScenarioAnalysisTask(QgsTask):
                 model.path = results["OUTPUT"]
 
         except Exception as e:
-            log(f"Problem normalizing models layers, {e} \n", info=False)
+            self.log_message(
+                f"Problem normalizing models layers, {e} \n", info=False)
             self.error = e
             self.cancel_task(e)
             return False
@@ -1302,7 +1311,7 @@ class ScenarioAnalysisTask(QgsTask):
                         ),
                         level=Qgis.Critical,
                     )
-                    log(
+                    self.log_message(
                         "Problem when running models normalization, "
                         f"there is no map layer for the model {model.name}"
                     )
@@ -1316,7 +1325,7 @@ class ScenarioAnalysisTask(QgsTask):
                 basenames.append(f'"{Path(model.path).stem}@1"')
 
                 if not any(priority_layers_groups):
-                    log(
+                    self.log_message(
                         "There are no defined priority layers in groups,"
                         " skipping models weighting step."
                     )
@@ -1327,7 +1336,7 @@ class ScenarioAnalysisTask(QgsTask):
                     model.priority_layers is None or
                     model.priority_layers is []
                 ):
-                    log(
+                    self.log_message(
                         f"There are no associated "
                         f"priority weighting layers for model {model.name}"
                     )
@@ -1356,13 +1365,13 @@ class ScenarioAnalysisTask(QgsTask):
                         f"from the model {model.name} weighting."
                     )
                     if pwl is None:
-                        log(missing_pwl_message)
+                        self.log_message(missing_pwl_message)
                         continue
 
                     pwl_path = Path(pwl)
 
                     if not pwl_path.exists():
-                        log(missing_pwl_message)
+                        self.log_message(missing_pwl_message)
                         continue
 
                     path_basename = pwl_path.stem
@@ -1411,7 +1420,7 @@ class ScenarioAnalysisTask(QgsTask):
                     "OUTPUT": output,
                 }
 
-                log(
+                self.log_message(
                     "Used parameters for calculating "
                     f"weighting models {alg_params} \n"
                 )
@@ -1434,7 +1443,8 @@ class ScenarioAnalysisTask(QgsTask):
                 weighted_models.append(model)
 
         except Exception as e:
-            log(f"Problem weighting implementation models, {e}\n", info=False)
+            self.log_message(
+                f"Problem weighting implementation models, {e}\n", info=False)
             self.error = e
             self.cancel_task(e)
             return None, False
@@ -1467,7 +1477,7 @@ class ScenarioAnalysisTask(QgsTask):
                         ),
                         level=Qgis.Critical,
                     )
-                    log(
+                    self.log_message(
                         f"Problem when running models updates, "
                         f"there is no map layer for the model {model.name}"
                     )
@@ -1500,7 +1510,7 @@ class ScenarioAnalysisTask(QgsTask):
                     "OUTPUT": output_file,
                 }
 
-                log(
+                self.log_message(
                     "Used parameters for "
                     "updates on the weighted "
                     f"implementation models: {alg_params} \n"
@@ -1522,7 +1532,8 @@ class ScenarioAnalysisTask(QgsTask):
                 model.path = results["OUTPUT"]
 
         except Exception as e:
-            log(f"Problem cleaning implementation models, {e}", info=False)
+            self.log_message(
+                f"Problem cleaning implementation models, {e}", info=False)
             self.error = e
             self.cancel_task(e)
             return False
@@ -1603,7 +1614,8 @@ class ScenarioAnalysisTask(QgsTask):
                 if model_name in models_names:
                     sources.append(layers[model_name].source())
 
-            log(f"Layers sources {[Path(source).stem for source in sources]}")
+            self.log_message(
+                f"Layers sources {[Path(source).stem for source in sources]}")
 
             alg_params = {
                 "IGNORE_NODATA": True,
@@ -1616,7 +1628,7 @@ class ScenarioAnalysisTask(QgsTask):
                 "OUTPUT": output_file,
             }
 
-            log(
+            self.log_message(
                 "Used parameters for "
                 f"highest position analysis {alg_params} \n"
             )
@@ -1636,7 +1648,7 @@ class ScenarioAnalysisTask(QgsTask):
             )
 
         except Exception as err:
-            log(
+            self.log_message(
                 tr(
                     "An error occurred when running task for "
                     'scenario analysis, error message "{}"'.format(str(err))

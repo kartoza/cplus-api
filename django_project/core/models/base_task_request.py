@@ -165,22 +165,27 @@ class BaseTaskRequest(models.Model):
         self.status = TaskStatus.RUNNING
         self.started_at = timezone.now()
         self.finished_at = None
-        self.progress = 0
+        self.progress = 0.0
         self.progress_text = None
+        self.errors = None
         self.last_update = timezone.now()
         self.save(update_fields=[
             'status', 'started_at', 'finished_at', 'progress',
-            'progress_text', 'last_update'
+            'progress_text', 'last_update', 'errors'
         ])
+        self.add_log('Task has been started.')
 
     def task_on_completed(self):
         self.last_update = timezone.now()
         self.status = TaskStatus.COMPLETED
-        self.add_log('Task has been completed.')
         self.finished_at = timezone.now()
+        self.progress = 100.0
+        self.progress_text = 'Task has been completed.'
         self.save(
-            update_fields=['last_update', 'status', 'finished_at']
+            update_fields=['last_update', 'status', 'finished_at',
+                           'progress', 'progress_text']
         )
+        self.add_log('Task has been completed.')
 
     def task_on_cancelled(self):
         self.last_update = timezone.now()
@@ -195,7 +200,11 @@ class BaseTaskRequest(models.Model):
         self.status = TaskStatus.STOPPED
         ex_msg = str(exception) + '\n'
         if traceback:
-            ex_msg += "\n".join(format_tb(traceback))
+            try:
+                ex_msg += "\n".join(format_tb(traceback))
+            except Exception:
+                if isinstance(traceback, str):
+                    ex_msg += str(traceback) + '\n'
         self.errors = ex_msg
         self.add_log('Task is stopped with errors.', logging.ERROR)
         self.add_log(str(exception), logging.ERROR)
