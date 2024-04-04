@@ -4,6 +4,7 @@ from typing import Generic, TypeVar
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from cplus_api.models.scenario import ScenarioTask
+from cplus_api.models.layer import BaseLayer, InputLayer, OutputLayer
 
 
 T = TypeVar('T')
@@ -246,3 +247,32 @@ class ScenarioTaskF(BaseFactory[ScenarioTask],
             }
         ]
     }
+
+
+class InputLayerF(BaseFactory[InputLayer],
+                  metaclass=BaseMetaFactory[InputLayer]):
+    class Meta:
+        model = InputLayer
+
+    name = factory.Sequence(
+        lambda n: u'input_layer_ %s' % n
+    )
+    created_on = timezone.now()
+    owner = factory.SubFactory(UserF)
+    layer_type = BaseLayer.LayerTypes.RASTER
+    component_type = InputLayer.ComponentTypes.NCS_PATHWAY
+    privacy_type = InputLayer.PrivacyTypes.PRIVATE
+
+
+class OutputLayerF(BaseFactory[OutputLayer],
+                   metaclass=BaseMetaFactory[OutputLayer]):
+    class Meta:
+        model = OutputLayer
+
+    name = factory.Sequence(
+        lambda n: u'output_layer_ %s' % n
+    )
+    created_on = timezone.now()
+    owner = factory.SubFactory(UserF)
+    layer_type = BaseLayer.LayerTypes.RASTER
+    scenario = factory.SubFactory(ScenarioTaskF)

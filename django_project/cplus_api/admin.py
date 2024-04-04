@@ -32,9 +32,9 @@ class ScenarioTaskAdmin(admin.ModelAdmin):
 
 class InputLayerAdmin(admin.ModelAdmin):
     list_display = ('name', 'uuid', 'owner', 'created_on', 'layer_type',
-                    'size', 'component_type', 'common_layer')
+                    'size', 'component_type', 'privacy_type')
     search_fields = ['name', 'uuid']
-    list_filter = ["layer_type", "owner", "component_type", "common_layer"]
+    list_filter = ["layer_type", "owner", "component_type", "privacy_type"]
 
 
 class OutputLayerAdmin(admin.ModelAdmin):

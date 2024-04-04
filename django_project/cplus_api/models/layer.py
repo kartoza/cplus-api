@@ -6,8 +6,10 @@ from django.conf import settings
 
 def input_layer_dir_path(instance, filename):
     file_path = f'{str(instance.owner.pk)}/'
-    if instance.common_layer:
+    if instance.privacy_type == InputLayer.PrivacyTypes.COMMON:
         file_path = 'common_layers/'
+    if instance.privacy_type == InputLayer.PrivacyTypes.INTERNAL:
+        file_path = 'internal_layers/'
     file_path = file_path + f'{instance.component_type}/' + filename
     return file_path
 
@@ -60,6 +62,11 @@ class InputLayer(BaseLayer):
         NCS_CARBON = 'ncs_carbon', _('ncs_carbon')
         PRIORITY_LAYER = 'priority_layer', _('priority_layer')
 
+    class PrivacyTypes(models.TextChoices):
+        PRIVATE = 'private', _('private')
+        INTERNAL = 'internal', _('internal')
+        COMMON = 'common', _('common')
+
     file = models.FileField(
         upload_to=input_layer_dir_path
     )
@@ -69,8 +76,10 @@ class InputLayer(BaseLayer):
         choices=ComponentTypes.choices
     )
 
-    common_layer = models.BooleanField(
-        default=False
+    privacy_type = models.CharField(
+        max_length=255,
+        choices=PrivacyTypes.choices,
+        default=PrivacyTypes.PRIVATE
     )
 
     last_used_on = models.DateTimeField(
