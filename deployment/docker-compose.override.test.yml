@@ -1,5 +1,4 @@
 version: '3.9'
-
 services:
   db:
     volumes:
@@ -26,6 +25,8 @@ services:
     links:
       - db
       - worker
+    depends_on:
+      - createbuckets
 
   s3:
     image: quay.io/minio/minio:RELEASE.2024-03-30T09-41-56Z.fips
@@ -34,8 +35,22 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-minios3admin}
+      MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-minios3admin}
     volumes:
-      - ./volumes/minio_data:/data
+      - ./volumes/s3_data:/data
     restart: always
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      - s3
+    environment:
+      MINIO_S3_USER: ${AWS_ACCESS_KEY_ID:-minios3admin}
+      MINIO_S3_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-minios3admin}
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set s3minio http://s3:9000 $${MINIO_S3_USER} $${MINIO_S3_PASSWORD};
+      /usr/bin/mc mb --ignore-existing s3minio/cplus;
+      exit 0;
+      "

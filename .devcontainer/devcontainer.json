@@ -7,7 +7,7 @@
       "../deployment/docker-compose.override.devcontainer.yml"
     ],
     "service": "dev",
-    "runServices": ["db", "redis", "s3", "celery_beat", "worker", "dev"],
+    "runServices": ["db", "redis", "s3", "celery_beat", "worker", "dev", "createbuckets"],
     "workspaceFolder": "/home/web/project",
     "runArgs": [
       "--env-file",
