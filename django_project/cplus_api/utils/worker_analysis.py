@@ -204,11 +204,12 @@ class TaskConfig(object):
             pathways = model.get('pathways', [])
             for pathway in pathways:
                 pw_uuid_str = pathway.get('uuid', None)
+                pw_uuid = (
+                    uuid.UUID(pw_uuid_str) if pw_uuid_str else
+                    uuid.uuid4()
+                )
                 pathway_model = NcsPathway(
-                    uuid=(
-                        uuid.UUID(pw_uuid_str) if pw_uuid_str else
-                        uuid.uuid4()
-                    ),
+                    uuid=pw_uuid,
                     name=pathway.get('name', ''),
                     description=pathway.get('description', ''),
                     path=pathway.get('path', ''),
@@ -221,19 +222,19 @@ class TaskConfig(object):
                 if pw_layer_uuid:
                     if pw_layer_uuid in config.pathway_uuid_layers:
                         config.pathway_uuid_layers[pw_layer_uuid].append(
-                            pw_uuid_str)
+                            str(pw_uuid))
                     else:
                         config.pathway_uuid_layers[pw_layer_uuid] = [
-                            pw_uuid_str
+                            str(pw_uuid)
                         ]
                 carbon_uuids = pathway.get('carbon_uuids', [])
                 for carbon_uuid in carbon_uuids:
                     if carbon_uuid in config.carbon_uuid_layers:
                         config.carbon_uuid_layers[carbon_uuid].append(
-                            pw_uuid_str)
+                            str(pw_uuid))
                     else:
                         config.carbon_uuid_layers[carbon_uuid] = [
-                            pw_uuid_str
+                            str(pw_uuid)
                         ]
 
             config.analysis_implementation_models.append(im_model)
@@ -375,9 +376,6 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
             pathway_layer_paths, carbon_layer_paths):
         pw_uuid_mapped = self.transform_uuid_layer_paths(
             self.task_config.pathway_uuid_layers, pathway_layer_paths)
-        carbon_uuid_mapped = self.transform_uuid_layer_paths(
-            self.task_config.carbon_uuid_layers, carbon_layer_paths
-        )
         priority_uuid_mapped = self.transform_uuid_layer_paths(
             self.task_config.priority_uuid_layers, priority_layer_paths
         )
@@ -398,9 +396,9 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                     pathway.path = pw_uuid_mapped[pathway_uuid]
                 carbon_paths = []
                 for carbon_layer_uuid in pathway.carbon_paths:
-                    if carbon_layer_uuid in carbon_uuid_mapped:
+                    if carbon_layer_uuid in carbon_layer_paths:
                         carbon_paths.append(
-                            carbon_uuid_mapped[carbon_layer_uuid])
+                            carbon_layer_paths[carbon_layer_uuid])
                 pathway.carbon_paths = carbon_paths
         self.scenario.models = self.task_config.analysis_implementation_models
         self.analysis_implementation_models = (
