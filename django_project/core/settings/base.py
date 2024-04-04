@@ -111,7 +111,6 @@ TEMPLATES = [
 STATICFILES_FINDERS = (
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-    'django.contrib.staticfiles.finders.DefaultStorageFinder',
 )
 
 INSTALLED_APPS = (
@@ -128,9 +127,6 @@ INSTALLED_APPS = (
 )
 
 SITE_ID = 1
-# STATICFILES_STORAGE = (
-#     'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
-# )
 
 CACHES = {
     'default': {

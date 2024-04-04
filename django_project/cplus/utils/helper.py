@@ -67,8 +67,6 @@ def log(
     :param notify: Whether to notify user about the log
     :type notify: bool
     """
-    level = logging.INFO if info else logging.WARNING
-    logger.log(level, message)
     level = Qgis.Info if info else Qgis.Warning
     QgsMessageLog.logMessage(
         message,

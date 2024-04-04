@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """Utilities for project."""
 import os
+import uuid
+import json
 
 # Absolute filesystem path to the Django project directory:
 DJANGO_ROOT = os.path.dirname(
@@ -36,6 +38,13 @@ def code_release_version():
             return version
     return '0.0.1'
 
+
+class UUIDEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, uuid.UUID):
+            # if the obj is uuid, we simply return the value of uuid
+            return obj.hex
+        return json.JSONEncoder.default(self, obj)
 
 
 # Import the secret key

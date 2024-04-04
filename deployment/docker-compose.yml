@@ -29,8 +29,9 @@ x-common-variables: &common-variables
   ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
   # worker variables
   CPLUS_QUEUE_CONCURRENCY: ${CPLUS_QUEUE_CONCURRENCY:-1}
-  # gcs variable
-  STORAGE_EMULATOR_HOST: ${STORAGE_EMULATOR_HOST:-}
+  # s3 variable
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minios3admin}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minios3admin}
 
 
 x-common-django:
