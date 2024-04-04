@@ -1,7 +1,10 @@
-from django.db import models
+import os
 import uuid
+from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
+from django.core.files.storage import default_storage
+from django.utils import timezone
 
 
 def input_layer_dir_path(instance, filename):
@@ -86,6 +89,27 @@ class InputLayer(BaseLayer):
         null=True,
         blank=True
     )
+
+    def download_to_working_directory(self, base_dir):
+        if not self.file.storage.exists(self.file.name):
+            return None
+        dir_path = os.path.join(
+            base_dir,
+            self.component_type
+        )
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+        file_path = os.path.join(
+            dir_path,
+            os.path.basename(self.file.name)
+        )
+        with default_storage.open(self.file.name, 'rb') as source:
+            with open(file_path, 'wb+') as destination:
+                destination.write(source.read())
+                destination.flush()
+        self.last_used_on = timezone.now()
+        self.save(update_fields=['last_used_on'])
+        return file_path
 
 
 class OutputLayer(BaseLayer):

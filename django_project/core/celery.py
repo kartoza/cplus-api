@@ -3,7 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import os
 import logging
 import sys
-from celery import Celery
+from celery import Celery, signals
 from celery.utils.serialization import strtobool
 from celery.worker.control import inspect_command
 from celery.result import AsyncResult
@@ -51,6 +51,11 @@ app.conf.beat_scheduler = 'django_celery_beat.schedulers.DatabaseScheduler'
 #         'schedule': crontab(minute='*/5'),  # Run every 5 minute
 #     },
 # }
+
+
+@signals.worker_before_create_process.connect
+def worker_create_process_handler(**kwargs):
+    logger.info('******worker_before_create_process******')
 
 
 @inspect_command(
