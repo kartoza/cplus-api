@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import os
 import logging
 import sys
+from redis import Redis
 from celery import Celery, signals
 from celery.utils.serialization import strtobool
 from celery.worker.control import inspect_command
@@ -20,6 +21,8 @@ BASE_REDIS_URL = (
     f'redis://default:{os.environ.get("REDIS_PASSWORD", "")}'
     f'@{os.environ.get("REDIS_HOST", "")}',
 )
+
+redis = Redis.from_url(BASE_REDIS_URL[0])
 
 app = Celery('ciplus-api')
 
