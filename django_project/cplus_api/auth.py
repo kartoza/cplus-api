@@ -1,10 +1,8 @@
-import json
 import jwt
 import requests
 from core.celery import redis
-from datetime import datetime, timedelta
+from datetime import datetime
 from django.contrib.auth import get_user_model
-from django.utils import timezone
 from rest_framework import authentication
 from rest_framework import exceptions
 
@@ -19,7 +17,9 @@ class TrendsEarthAuthentication(authentication.BaseAuthentication):
         if 'Authorization' in request.headers:
             token = request.headers['Authorization'].replace('Bearer ', '')
         else:
-            raise exceptions.AuthenticationFailed('Authentication credentials were not provided.')
+            raise exceptions.AuthenticationFailed(
+                'Authentication credentials were not provided.'
+                '')
 
         # Check if token exist in redis, return the user if exist
         user_id = redis.get(token)
@@ -27,19 +27,25 @@ class TrendsEarthAuthentication(authentication.BaseAuthentication):
             user = get_user_model().objects.get(id=user_id)
             return user, None
         else:
-            # if it does not exist, check if the token could be used to get user profile from Trends.Earth
-            response = requests.get(TRENDS_EARTH_PROFILE_URL, headers={'Authorization': 'Bearer ' + token})
+            # if it does not exist, check if the token could be used to
+            # get user profile from Trends.Earth
+            response = requests.get(
+                TRENDS_EARTH_PROFILE_URL,
+                headers={'Authorization': 'Bearer ' + token}
+            )
             # If profile exist, save the user and add to redis
             if response.ok:
                 user_profile = response.json()['data']
 
                 # decode token to get expiry datetime
                 decoded_token = jwt.decode(
-                    token, '', algorithms='HS256', options={"verify_signature": False}
+                    token, '', algorithms='HS256',
+                    options={"verify_signature": False}
                 )
 
                 # create user based on the user profile
-                # We use Trends.Earth id, which is a UUID Field, as username in CPLUS API user table
+                # We use Trends.Earth id, which is a UUID Field,
+                # as username in CPLUS API user table
                 user, created = get_user_model().objects.get_or_create(
                     username=user_profile['id'],
                     email=user_profile['email'],
@@ -49,6 +55,13 @@ class TrendsEarthAuthentication(authentication.BaseAuthentication):
                 redis.set(
                     token, user.id
                 )
-                redis.expire(token, (datetime.fromtimestamp(decoded_token['exp']) - datetime.now()).seconds)
+                redis.expire(
+                    token,
+                    (
+                        datetime.fromtimestamp(
+                            decoded_token['exp']
+                        ) - datetime.now()
+                    ).seconds
+                )
                 return user, None
             raise exceptions.AuthenticationFailed('No such user')
