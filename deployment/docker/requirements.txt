@@ -50,3 +50,6 @@ drf-yasg==1.21.7
 
 # fix pyqgis
 PyQt5-sip
+
+# For getting JWT expiration
+PyJWT==2.8.0
