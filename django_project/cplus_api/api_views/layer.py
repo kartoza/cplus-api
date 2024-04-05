@@ -17,7 +17,7 @@ from cplus_api.serializers.common import (
     APIErrorSerializer,
     NoContentSerializer
 )
-from django_project.cplus_api.utils.api_helper import (
+from cplus_api.utils.api_helper import (
     get_page_size,
     LAYER_API_TAG,
     PARAM_LAYER_UUID_IN_PATH
