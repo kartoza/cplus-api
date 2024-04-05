@@ -73,8 +73,8 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-minios3admin}
-      MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-minios3admin}
+      MINIO_ROOT_USER: ${S3_AWS_ACCESS_KEY_ID:-minios3admin}
+      MINIO_ROOT_PASSWORD: ${S3_AWS_SECRET_ACCESS_KEY:-minios3admin}
     volumes:
       - ./volumes/s3_data:/data
     restart: always

@@ -31,11 +31,13 @@ x-common-variables: &common-variables
   # worker variables
   CPLUS_QUEUE_CONCURRENCY: ${CPLUS_QUEUE_CONCURRENCY:-1}
   # s3 variable
-  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minios3admin}
-  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minios3admin}
+  S3_AWS_ACCESS_KEY_ID: ${S3_AWS_ACCESS_KEY_ID:-minios3admin}
+  S3_AWS_SECRET_ACCESS_KEY: ${S3_AWS_SECRET_ACCESS_KEY:-minios3admin}
+  AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT}
   # minio variable
   MINIO_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY_ID:-miniocplus}
   MINIO_SECRET_ACCESS_KEY: ${MINIO_SECRET_ACCESS_KEY:-miniocplus}
+  MINIO_ENDPOINT: ${MINIO_ENDPOINT}
 
 
 x-common-django:
