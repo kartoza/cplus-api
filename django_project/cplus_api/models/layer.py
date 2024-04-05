@@ -7,6 +7,7 @@ from django.utils import timezone
 
 
 def input_layer_dir_path(instance, filename):
+    """Return upload directory path for Input Layer."""
     file_path = f'{str(instance.owner.pk)}/'
     if instance.privacy_type == InputLayer.PrivacyTypes.COMMON:
         file_path = 'common_layers/'
@@ -17,6 +18,7 @@ def input_layer_dir_path(instance, filename):
 
 
 def output_layer_dir_path(instance, filename):
+    """Return upload directory path for Output Layer."""
     file_path = f'{str(instance.owner.pk)}/{str(instance.scenario.uuid)}/'
     if not instance.is_final_output:
         file_path = file_path + f'{instance.group}/'
@@ -85,6 +87,11 @@ class InputLayer(BaseLayer):
     )
 
     last_used_on = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
+    client_id = models.TextField(
         null=True,
         blank=True
     )
