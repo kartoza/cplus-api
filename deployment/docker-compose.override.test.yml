@@ -14,6 +14,7 @@ services:
       - ./volumes/media:/home/web/media
     links:
       - s3
+      - minio
 
   dev:
     image: kartoza/cplus-api:test
@@ -27,6 +28,10 @@ services:
       - worker
     depends_on:
       - createbuckets
+  
+  minio:
+    volumes:
+      - ./volumes/minio_data:/data
 
   s3:
     image: quay.io/minio/minio:RELEASE.2024-03-30T09-41-56Z.fips
@@ -45,12 +50,17 @@ services:
     image: minio/mc
     depends_on:
       - s3
+      - minio
     environment:
       MINIO_S3_USER: ${AWS_ACCESS_KEY_ID:-minios3admin}
       MINIO_S3_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-minios3admin}
+      MINIO_USER: ${MINIO_ACCESS_KEY_ID:-miniocplus}
+      MINIO_PASSWORD: ${MINIO_SECRET_ACCESS_KEY:-miniocplus}
     entrypoint: >
       /bin/sh -c "
       /usr/bin/mc alias set s3minio http://s3:9000 $${MINIO_S3_USER} $${MINIO_S3_PASSWORD};
       /usr/bin/mc mb --ignore-existing s3minio/cplus;
+      /usr/bin/mc alias set myminio http://minio:9000 $${MINIO_USER} $${MINIO_PASSWORD};
+      /usr/bin/mc mb --ignore-existing myminio/cplus;
       exit 0;
       "

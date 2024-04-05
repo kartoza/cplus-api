@@ -53,7 +53,6 @@ services:
       - ./volumes/static:/home/web/static
       - ./volumes/media:/home/web/media
     links:
-      - db
       - worker
 
   nginx:
@@ -62,8 +61,10 @@ services:
       - ./volumes/static:/home/web/static
     ports:
       - "${HTTP_PORT:-8888}:80"
-    links:
-      - django
+
+  minio:
+    volumes:
+      - ./volumes/minio_data:/data
 
   s3:
     image: quay.io/minio/minio:RELEASE.2024-03-30T09-41-56Z.fips
