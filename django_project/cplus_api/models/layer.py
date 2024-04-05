@@ -4,9 +4,11 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from django.utils import timezone
+from django.core.files.storage import storages
 
 
 def input_layer_dir_path(instance, filename):
+    """Return upload directory path for Input Layer."""
     file_path = f'{str(instance.owner.pk)}/'
     if instance.privacy_type == InputLayer.PrivacyTypes.COMMON:
         file_path = 'common_layers/'
@@ -17,11 +19,17 @@ def input_layer_dir_path(instance, filename):
 
 
 def output_layer_dir_path(instance, filename):
+    """Return upload directory path for Output Layer."""
     file_path = f'{str(instance.owner.pk)}/{str(instance.scenario.uuid)}/'
     if not instance.is_final_output:
         file_path = file_path + f'{instance.group}/'
     file_path = file_path + filename
     return file_path
+
+
+def select_input_layer_storage():
+    """Return minio storage for input layer."""
+    return storages['minio']
 
 
 class BaseLayer(models.Model):
@@ -70,7 +78,8 @@ class InputLayer(BaseLayer):
         COMMON = 'common', _('common')
 
     file = models.FileField(
-        upload_to=input_layer_dir_path
+        upload_to=input_layer_dir_path,
+        storage=select_input_layer_storage
     )
 
     component_type = models.CharField(
@@ -85,6 +94,11 @@ class InputLayer(BaseLayer):
     )
 
     last_used_on = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
+    client_id = models.TextField(
         null=True,
         blank=True
     )

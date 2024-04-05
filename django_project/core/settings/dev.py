@@ -54,19 +54,3 @@ LOGGING = {
         'level': 'WARNING'
     }
 }
-
-# aws s3 dev configuration
-STORAGES = {
-    "default": {
-        "BACKEND": "storages.backends.s3.S3Storage",
-        "OPTIONS": {
-          "bucket_name": "cplus",
-          "endpoint_url": "http://s3:9000",
-          "file_overwrite": False,
-          "max_memory_size": 300 * 1024 * 1024,  # 300MB
-        },
-    },
-    "staticfiles": {
-        "BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage",
-    },
-}

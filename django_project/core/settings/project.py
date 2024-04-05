@@ -49,12 +49,27 @@ STORAGES = {
     "default": {
         "BACKEND": "storages.backends.s3.S3Storage",
         "OPTIONS": {
+          "access_key": os.environ.get("S3_AWS_ACCESS_KEY_ID"),
+          "secret_key": os.environ.get("S3_AWS_SECRET_ACCESS_KEY"),
           "bucket_name": "cplus",
           "file_overwrite": False,
           "max_memory_size": 300 * 1024 * 1024,  # 300MB
+          "endpoint_url": os.environ.get("AWS_S3_ENDPOINT"),
+          "session_profile": None
         },
     },
     "staticfiles": {
         "BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage",
+    },
+    "minio": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+          "access_key": os.environ.get("MINIO_ACCESS_KEY_ID"),
+          "secret_key": os.environ.get("MINIO_SECRET_ACCESS_KEY"),
+          "bucket_name": "cplus",
+          "file_overwrite": False,
+          "max_memory_size": 300 * 1024 * 1024,  # 300MB
+          "endpoint_url": os.environ.get("MINIO_ENDPOINT"),
+        },
     },
 }
