@@ -1,7 +1,11 @@
 """Common functions for tests."""
+import os
+import shutil
 from collections import OrderedDict
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from rest_framework.test import APIRequestFactory
+from cplus_api.tests.factories import UserF
+from django.core.files.storage import storages
 
 
 class DummyTask:
@@ -25,10 +29,61 @@ def mocked_cache_set(self, *args, **kwargs):
     pass
 
 
-class BaseAPIViewTest(TestCase):
+def clear_test_dir(path):
+    try:
+        if os.path.exists(path):
+            shutil.rmtree(path)
+    except Exception:
+        pass
+
+
+class BaseInitData(object):
+
+    def init_test_data(self):
+        self.factory = APIRequestFactory()
+        self.superuser = UserF.create(
+            is_staff=True,
+            is_superuser=True,
+            is_active=True
+        )
+        self.user_1 = UserF.create(
+            is_active=True
+        )
+
+    def cleanup(self):
+        # delete storage used in default and minio
+        default_storage = storages['default']
+        clear_test_dir(default_storage.location)
+        minio_storage = storages['minio']
+        clear_test_dir(minio_storage.location)
+
+
+class BaseAPIViewTest(BaseInitData, TestCase):
 
     def setUp(self):
-        self.factory = APIRequestFactory()
+        self.init_test_data()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().cleanup(cls)
+        super().tearDownClass()
+
+
+class BaseAPIViewTransactionTest(BaseInitData, TransactionTestCase):
+    """
+    This base class is for test classes that needs django-cleanup.
+
+    See: https://github.com/un1t/django-cleanup?tab=readme-ov-file#
+    how-to-write-tests
+    """
+
+    def setUp(self):
+        self.init_test_data()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().cleanup(cls)
+        super().tearDownClass()
 
 
 class FakeResolverMatchV1:

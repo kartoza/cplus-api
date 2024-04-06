@@ -71,6 +71,7 @@ class TestModelScenarioTask(TestCase):
             scenario_task.requester_name,
             '-'
         )
+        self.assertEqual(str(scenario_task), str(scenario_task.uuid))
 
     def test_add_log(self):
         scenario_task = ScenarioTaskF.create()

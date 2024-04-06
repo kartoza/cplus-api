@@ -24,7 +24,8 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_VERSIONING_CLASS': (
         'rest_framework.versioning.NamespaceVersioning'
-    )
+    ),
+    'EXCEPTION_HANDLER': 'core.tools.custom_exception_handler'
 }
 
 AUTHENTICATION_BACKENDS = (

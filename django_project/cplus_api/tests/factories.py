@@ -8,6 +8,7 @@ from cplus_api.models.layer import BaseLayer, InputLayer, OutputLayer
 
 
 T = TypeVar('T')
+User = get_user_model()
 
 
 class BaseMetaFactory(Generic[T], factory.base.FactoryMetaClass):
@@ -21,9 +22,10 @@ class BaseFactory(Generic[T], factory.django.DjangoModelFactory):
         return super().create(**kwargs)
 
 
-class UserF(factory.django.DjangoModelFactory):
+class UserF(BaseFactory[User],
+            metaclass=BaseMetaFactory[User]):
     class Meta:
-        model = get_user_model()
+        model = User
 
     username = factory.Sequence(
         lambda n: u'username %s' % n
