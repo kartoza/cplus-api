@@ -35,6 +35,9 @@ class BaseAPIViewTest(TestCase):
             is_superuser=True,
             is_active=True
         )
+        self.user_1 = UserF.create(
+            is_active=True
+        )
 
 
 class FakeResolverMatchV1:

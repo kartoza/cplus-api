@@ -72,9 +72,36 @@ class TestUserInfo(BaseAPIViewTest):
         self.assertTrue(find_layer)
         self.assertTrue(find_layer['url'])
 
+    def test_layer_access(self):
+        input_layer_1 = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.COMMON
+        )
+        input_layer_2 = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.INTERNAL
+        )
+        input_layer_3 = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE
+        )
+        layer_detail_view = LayerDetail()
+        self.assertTrue(layer_detail_view.validate_layer_access(
+            input_layer_1, self.superuser
+        ))
+        self.assertTrue(layer_detail_view.validate_layer_access(
+            input_layer_1, self.user_1
+        ))
+        self.assertTrue(layer_detail_view.validate_layer_access(
+            input_layer_2, self.user_1
+        ))
+        self.assertFalse(layer_detail_view.validate_layer_access(
+            input_layer_3, self.user_1
+        ))
+        self.assertTrue(layer_detail_view.validate_layer_access(
+            input_layer_3, input_layer_3.owner
+        ))
+
     def test_layer_detail(self):
         input_layer = InputLayerF.create(
-            privacy_type=InputLayer.PrivacyTypes.COMMON
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE
         )
         file_path = absolute_path(
             'cplus_api', 'tests', 'data',
@@ -94,10 +121,19 @@ class TestUserInfo(BaseAPIViewTest):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data['url'])
         self.assertEqual(response.data['uuid'], str(input_layer.uuid))
+        # forbidden
+        request = self.factory.get(
+            reverse('v1:layer-detail', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
+        view = LayerDetail.as_view()
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 403)
 
     def test_layer_delete(self):
         input_layer = InputLayerF.create(
-            privacy_type=InputLayer.PrivacyTypes.COMMON
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE
         )
         file_path = absolute_path(
             'cplus_api', 'tests', 'data',
@@ -108,6 +144,16 @@ class TestUserInfo(BaseAPIViewTest):
         kwargs = {
             'layer_uuid': str(layer_uuid)
         }
+        # forbidden
+        request = self.factory.delete(
+            reverse('v1:layer-detail', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
+        view = LayerDetail.as_view()
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 403)
+        # successful
         request = self.factory.delete(
             reverse('v1:layer-detail', kwargs=kwargs)
         )

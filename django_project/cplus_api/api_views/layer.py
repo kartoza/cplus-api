@@ -3,6 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser
+from rest_framework.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -230,6 +231,15 @@ class LayerDetail(APIView):
     """APIs to fetch and remove layer file."""
     permission_classes = [IsAuthenticated]
 
+    def validate_layer_access(self, input_layer: InputLayer, user):
+        if user.is_superuser:
+            return True
+        if input_layer.privacy_type == InputLayer.PrivacyTypes.COMMON:
+            return True
+        elif input_layer.privacy_type == InputLayer.PrivacyTypes.INTERNAL:
+            return is_internal_user(user)
+        return input_layer.owner == user
+
     @swagger_auto_schema(
         operation_id='layer-detail',
         operation_description='API to fetch layer detail.',
@@ -238,14 +248,17 @@ class LayerDetail(APIView):
         responses={
             200: InputLayerSerializer,
             400: APIErrorSerializer,
+            403: APIErrorSerializer,
             404: APIErrorSerializer
         }
     )
     def get(self, request, *args, **kwargs):
-        # TODO: validation if user can retrieve input layer
         layer_uuid = kwargs.get('layer_uuid')
         input_layer = get_object_or_404(
             InputLayer, uuid=layer_uuid)
+        if not self.validate_layer_access(input_layer, request.user):
+            raise PermissionDenied(
+                f"You are not allowed to access layer {layer_uuid}!")
         return Response(
             status=200, data=InputLayerSerializer(input_layer).data)
 
@@ -257,13 +270,16 @@ class LayerDetail(APIView):
         responses={
             204: NoContentSerializer,
             400: APIErrorSerializer,
+            403: APIErrorSerializer,
             404: APIErrorSerializer
         }
     )
     def delete(self, request, *args, **kwargs):
-        # TODO: validation if user can delete input layer
         layer_uuid = kwargs.get('layer_uuid')
         input_layer = get_object_or_404(
             InputLayer, uuid=layer_uuid)
+        if not self.validate_layer_access(input_layer, request.user):
+            raise PermissionDenied(
+                f"You are not allowed to delete layer {layer_uuid}!")
         input_layer.delete()
         return Response(status=204)
