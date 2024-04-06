@@ -20,8 +20,8 @@ class TestUserInfo(BaseAPIViewTest):
 
     def find_layer_from_response(self, layers, layer_uuid):
         find_layer = [
-            l for l in layers if
-            l['uuid'] == str(layer_uuid)
+            layer for layer in layers if
+            layer['uuid'] == str(layer_uuid)
         ]
         return find_layer[0] if len(find_layer) > 0 else None
 
