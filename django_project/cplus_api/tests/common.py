@@ -2,6 +2,7 @@
 from collections import OrderedDict
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
+from cplus_api.tests.factories import UserF
 
 
 class DummyTask:
@@ -29,6 +30,11 @@ class BaseAPIViewTest(TestCase):
 
     def setUp(self):
         self.factory = APIRequestFactory()
+        self.superuser = UserF.create(
+            is_staff=True,
+            is_superuser=True,
+            is_active=True
+        )
 
 
 class FakeResolverMatchV1:

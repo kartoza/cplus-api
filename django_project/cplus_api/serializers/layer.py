@@ -78,6 +78,8 @@ class InputLayerSerializer(serializers.ModelSerializer):
         return obj.owner.email
 
     def get_url(self, obj: InputLayer):
+        if not obj.file.name:
+            return None
         if not obj.file.storage.exists(obj.file.name):
             return None
         return obj.file.url
