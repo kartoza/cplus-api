@@ -224,7 +224,7 @@ class LayerUpload(APIView):
                     privacy_type, request.user, True, input_layer)
             ):
                 raise PermissionDenied(
-                    f"You are not allowed to update this layer!")
+                    "You are not allowed to update this layer!")
             input_layer.name = filename
             input_layer.created_on = timezone.now()
             input_layer.owner = request.user
