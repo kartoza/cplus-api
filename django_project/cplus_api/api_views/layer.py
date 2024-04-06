@@ -151,6 +151,19 @@ class LayerUpload(APIView):
         required=True
     )
 
+    def validate_upload_access(self, privacy_type, user,
+                               is_update = False, existing_layer = None):
+        if user.is_superuser:
+            return True
+        if privacy_type == InputLayer.PrivacyTypes.PRIVATE:
+            if is_update:
+                return existing_layer.owner == user
+            else:
+                return True
+        elif privacy_type == InputLayer.PrivacyTypes.INTERNAL:
+            return is_internal_user(user)
+        return False
+
     @swagger_auto_schema(
         operation_id='layer-upload',
         tags=[LAYER_API_TAG],
@@ -187,20 +200,31 @@ class LayerUpload(APIView):
         filename = file_obj.name
         filesize = file_obj.size
         # TODO: validations
-        # - types, able to upload internal/common
+        # - layer_type
+        # - component_type
+        # - upload access
         # - file type, max size (?)
         layer_type = request.data.get(
             'layer_type', BaseLayer.LayerTypes.RASTER)
         component_type = request.data.get('component_type', None)
         privacy_type = request.data.get('privacy_type', 'private')
         client_id = request.data.get('client_id', '')
+        if not self.validate_upload_access(privacy_type, request.user):
+            raise PermissionDenied(
+                f"You are not allowed to upload {privacy_type} layer!")
         # for update
         layer_uuid = request.data.get('uuid', '')
         input_layer: InputLayer = None
         if layer_uuid:
-            # TODO: update validation: owner/superadmin
+            # update validation: owner/superadmin
             input_layer = get_object_or_404(
                 InputLayer, uuid=layer_uuid)
+            if (
+                not self.validate_upload_access(
+                    privacy_type, request.user, True, input_layer)
+            ):
+                raise PermissionDenied(
+                    f"You are not allowed to update this layer!")
             input_layer.name = filename
             input_layer.created_on = timezone.now()
             input_layer.owner = request.user

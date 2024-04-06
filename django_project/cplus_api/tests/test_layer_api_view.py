@@ -8,11 +8,14 @@ from cplus_api.api_views.layer import (
     LayerUpload
 )
 from cplus_api.models.layer import InputLayer
-from cplus_api.tests.common import FakeResolverMatchV1, BaseAPIViewTest
+from cplus_api.tests.common import (
+    FakeResolverMatchV1,
+    BaseAPIViewTransactionTest
+)
 from cplus_api.tests.factories import InputLayerF
 
 
-class TestUserInfo(BaseAPIViewTest):
+class TestUserInfo(BaseAPIViewTransactionTest):
 
     def store_input_layer_file(self, input_layer: InputLayer, file_path):
         with open(file_path, 'rb') as output_file:
@@ -24,6 +27,15 @@ class TestUserInfo(BaseAPIViewTest):
             layer['uuid'] == str(layer_uuid)
         ]
         return find_layer[0] if len(find_layer) > 0 else None
+
+    def read_uploaded_file(self, file_path):
+        with open(file_path, 'rb') as test_file:
+            file = SimpleUploadedFile(
+                content=test_file.read(),
+                name=test_file.name,
+                content_type='multipart/form-data'
+            )
+        return file
 
     def test_layer_list(self):
         request = self.factory.get(
@@ -98,6 +110,28 @@ class TestUserInfo(BaseAPIViewTest):
         self.assertTrue(layer_detail_view.validate_layer_access(
             input_layer_3, input_layer_3.owner
         ))
+        # upload access
+        layer_upload_view = LayerUpload()
+        self.assertTrue(layer_upload_view.validate_upload_access(
+            InputLayer.PrivacyTypes.COMMON, self.superuser
+        ))
+        self.assertTrue(layer_upload_view.validate_upload_access(
+            InputLayer.PrivacyTypes.INTERNAL, self.user_1
+        ))
+        self.assertFalse(layer_upload_view.validate_upload_access(
+            InputLayer.PrivacyTypes.COMMON, self.user_1
+        ))
+        self.assertTrue(layer_upload_view.validate_upload_access(
+            InputLayer.PrivacyTypes.PRIVATE, self.user_1
+        ))
+        input_layer_4 = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE,
+            owner=self.user_1
+        )
+        self.assertTrue(layer_upload_view.validate_upload_access(
+            InputLayer.PrivacyTypes.PRIVATE, self.user_1,
+            True, input_layer_4
+        ))
 
     def test_layer_detail(self):
         input_layer = InputLayerF.create(
@@ -141,6 +175,7 @@ class TestUserInfo(BaseAPIViewTest):
         )
         self.store_input_layer_file(input_layer, file_path)
         layer_uuid = input_layer.uuid
+        layer_filename = input_layer.file.name
         kwargs = {
             'layer_uuid': str(layer_uuid)
         }
@@ -167,24 +202,38 @@ class TestUserInfo(BaseAPIViewTest):
                 uuid=layer_uuid
             ).exists()
         )
+        self.assertFalse(
+            input_layer.file.storage.exists(layer_filename)
+        )
 
     def test_layer_upload(self):
         file_path = absolute_path(
             'cplus_api', 'tests', 'data',
             'models', 'test_model_1.tif'
         )
-        with open(file_path, 'rb') as test_file:
-            file = SimpleUploadedFile(
-                content=test_file.read(),
-                name=test_file.name,
-                content_type='multipart/form-data'
-            )
         data = {
             'layer_type': 0,
             'component_type': 'ncs_carbon',
             'privacy_type': 'common',
             'client_id': 'client-test-123',
-            'file': file
+            'file': self.read_uploaded_file(file_path)
+        }
+        # invalid access
+        request = self.factory.post(
+            reverse('v1:layer-upload'), data
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
+        view = LayerUpload.as_view()
+        response = view(request)
+        self.assertEqual(response.status_code, 403)
+        # upload successful
+        data = {
+            'layer_type': 0,
+            'component_type': 'ncs_carbon',
+            'privacy_type': 'common',
+            'client_id': 'client-test-123',
+            'file': self.read_uploaded_file(file_path)
         }
         request = self.factory.post(
             reverse('v1:layer-upload'), data
@@ -208,19 +257,36 @@ class TestUserInfo(BaseAPIViewTest):
         self.assertTrue(
             input_layer.file.storage.exists(input_layer.file.name))
         # test update
-        data['privacy_type'] = 'private'
         file_path = absolute_path(
             'cplus_api', 'tests', 'data',
             'pathways', 'test_pathway_1.tif'
         )
-        with open(file_path, 'rb') as test_file:
-            file = SimpleUploadedFile(
-                content=test_file.read(),
-                name=test_file.name,
-                content_type='multipart/form-data'
-            )
-        data['file'] = file
-        data['uuid'] = layer_uuid
+        data = {
+            'layer_type': 0,
+            'component_type': 'ncs_carbon',
+            'privacy_type': 'private',
+            'client_id': 'client-test-123',
+            'file': self.read_uploaded_file(file_path),
+            'uuid': layer_uuid
+        }
+        # test 403 update
+        request = self.factory.post(
+            reverse('v1:layer-upload'), data
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
+        view = LayerUpload.as_view()
+        response = view(request)
+        self.assertEqual(response.status_code, 403)
+        # test successful update
+        data = {
+            'layer_type': 0,
+            'component_type': 'ncs_carbon',
+            'privacy_type': 'private',
+            'client_id': 'client-test-123',
+            'file': self.read_uploaded_file(file_path),
+            'uuid': layer_uuid
+        }
         request = self.factory.post(
             reverse('v1:layer-upload'), data
         )
