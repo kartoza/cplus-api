@@ -7,6 +7,7 @@ repository!
 """
 import os  # noqa
 
+from django.db import connection
 from .contrib import *  # noqa
 from .utils import code_release_version
 
