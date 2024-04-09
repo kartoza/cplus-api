@@ -10,9 +10,7 @@ from rest_framework import authentication
 from rest_framework import exceptions
 
 
-
 TRENDS_EARTH_PROFILE_URL = 'https://api2.trends.earth/api/v1/user/me'
-
 
 db_name = connection.settings_dict['NAME']
 if db_name.startswith('test_'):

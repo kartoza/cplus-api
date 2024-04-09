@@ -152,7 +152,7 @@ class LayerUpload(BaseAuthView):
     )
 
     def validate_upload_access(self, privacy_type, user,
-                               is_update = False, existing_layer = None):
+                               is_update=False, existing_layer=None):
         if user.is_superuser:
             return True
         if privacy_type == InputLayer.PrivacyTypes.PRIVATE:
