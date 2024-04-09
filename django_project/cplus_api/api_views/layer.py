@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from cplus_api.models.layer import BaseLayer, InputLayer
+from cplus_api.models.layer import BaseLayer, InputLayer, input_layer_dir_path
 from cplus_api.serializers.layer import (
     InputLayerSerializer,
     PaginatedInputLayerSerializer
@@ -21,7 +21,8 @@ from cplus_api.serializers.common import (
 from cplus_api.utils.api_helper import (
     get_page_size,
     LAYER_API_TAG,
-    PARAM_LAYER_UUID_IN_PATH
+    PARAM_LAYER_UUID_IN_PATH,
+    get_presigned_url
 )
 
 
@@ -248,6 +249,94 @@ class LayerUpload(APIView):
         input_layer.save()
         return Response(status=201, data={
             'uuid': str(input_layer.uuid)
+        })
+
+
+class LayerUploadStart(APIView):
+    """API to upload layer file."""
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_id='layer-upload-start',
+        tags=[LAYER_API_TAG],
+        responses={
+            200: openapi.Schema(
+                description=(
+                    'Success'
+                ),
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'upload_url': openapi.Schema(
+                        title='Upload URL',
+                        type=openapi.TYPE_STRING
+                    ),
+                    'download_url': openapi.Schema(
+                        title='Download URL',
+                        type=openapi.TYPE_STRING
+                    )
+                },
+                example={
+                  "upload_url": (
+                          "http://minio:9000/cplus/4/ncs_pathway/layer.geojson?X-Amz-Algorithm=AWS4-HMAC-SHA256"
+                          "&X-Amz-Credential=miniocplus%2F20240409%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date="
+                          "20240409T041741Z&X-Amz-Expires=10800&X-Amz-SignedHeaders=host&X-Amz-Signature="
+                          "a6f8d0b7b48c2d86631ec7c2f45e34506bdf65a4449db26f4aebfc717fb59e7e"
+                  ),
+                  "download_url": (
+                          "http://minio:9000/cplus/4/ncs_pathway/layer.geojson?X-Amz-Algorithm=AWS4-HMAC-SHA256"
+                          "&X-Amz-Credential=miniocplus%2F20240409%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date="
+                          "20240409T041741Z&X-Amz-Expires=10800&X-Amz-SignedHeaders=host&X-Amz-Signature="
+                          "d96cf278c31e731a7b2f4295e589c0306470871f79d554ae794759a88ccf5428"
+                  )
+                }
+            ),
+            400: APIErrorSerializer,
+            404: APIErrorSerializer
+        }
+    )
+    def get(self, request, layer_uuid, filename):
+        input_layer = get_object_or_404(InputLayer, uuid=layer_uuid)
+        file_path = input_layer_dir_path(input_layer, filename)
+        upload_url, download_url = get_presigned_url(file_path)
+        return Response(status=200, data={
+            'upload_url': upload_url,
+            'download_url': download_url,
+        })
+
+
+class LayerUploadFinish(APIView):
+    """API to upload layer file."""
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_id='layer-upload-finish',
+        tags=[LAYER_API_TAG],
+        responses={
+            200: openapi.Schema(
+                description=(
+                    'Success'
+                ),
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'is_ready': openapi.Schema(
+                        title='Is Ready',
+                        type=openapi.TYPE_BOOLEAN
+                    )
+                },
+                example={
+                    'is_ready': True
+                }
+            ),
+            400: APIErrorSerializer,
+            404: APIErrorSerializer
+        }
+    )
+    def get(self, request, layer_uuid):
+        input_layer = get_object_or_404(InputLayer, uuid=layer_uuid)
+        input_layer.is_ready = True
+        input_layer.save()
+        return Response(status=200, data={
+            'is_ready': input_layer.is_ready
         })
 
 

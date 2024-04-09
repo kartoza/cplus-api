@@ -40,6 +40,13 @@ dev:
 	@echo "------------------------------------------------------------------"
 	@docker-compose ${ARGS} up -d dev worker
 
+down:
+	@echo
+	@echo "------------------------------------------------------------------"
+	@echo "Running in dev mode"
+	@echo "------------------------------------------------------------------"
+	@docker-compose ${ARGS} down
+
 migrate:
 	@echo
 	@echo "------------------------------------------------------------------"
@@ -53,3 +60,10 @@ dev-runserver:
 	@echo "Start django runserver in dev container"
 	@echo "------------------------------------------------------------------"
 	@docker-compose $(ARGS) exec -T dev bash -c "nohup python manage.py runserver 0.0.0.0:8080 &"
+
+dev-shell:
+	@echo
+	@echo "------------------------------------------------------------------"
+	@echo "Start django runserver in dev container"
+	@echo "------------------------------------------------------------------"
+	@docker-compose $(ARGS) exec dev bash

@@ -1,5 +1,9 @@
+import os
+from datetime import timedelta
 from drf_yasg import openapi
 from core.models.preferences import SitePreferences
+from minio import Minio
+from minio.error import S3Error
 
 
 LAYER_API_TAG = '01-layer'
@@ -32,3 +36,27 @@ def get_page_size(request):
     if page_size > max_size:
         page_size = max_size
     return page_size
+
+
+def get_minio_client():
+    # Initialize MinIO client
+    minio_client = Minio(
+        os.environ.get("MINIO_ENDPOINT", "").replace("https://", "").replace("http://", ""),
+        access_key=os.environ.get("MINIO_ACCESS_KEY_ID"),
+        secret_key=os.environ.get("MINIO_SECRET_ACCESS_KEY"),
+        secure=False  # Set to True if using HTTPS
+    )
+    return minio_client
+
+
+def get_presigned_url(filename):
+    try:
+        minio_client = get_minio_client()
+        # Generate pre-signed URL for uploading an object
+        upload_url = minio_client.presigned_put_object('cplus', filename, expires=timedelta(hours=3))
+
+        # Generate pre-signed URL for downloading an object
+        download_url = minio_client.presigned_get_object('cplus', filename, expires=timedelta(hours=3))
+        return upload_url, download_url
+    except S3Error:
+        return None, None

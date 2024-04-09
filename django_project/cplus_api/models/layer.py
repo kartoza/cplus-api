@@ -77,6 +77,11 @@ class InputLayer(BaseLayer):
         INTERNAL = 'internal', _('internal')
         COMMON = 'common', _('common')
 
+    class PrivacyTypes(models.TextChoices):
+        PRIVATE = 'private', _('private')
+        INTERNAL = 'internal', _('internal')
+        COMMON = 'common', _('common')
+
     file = models.FileField(
         upload_to=input_layer_dir_path,
         storage=select_input_layer_storage
@@ -103,6 +108,8 @@ class InputLayer(BaseLayer):
         blank=True
     )
 
+    is_ready = models.BooleanField(default=False)
+
     def download_to_working_directory(self, base_dir):
         if not self.file.storage.exists(self.file.name):
             return None
@@ -122,6 +129,11 @@ class InputLayer(BaseLayer):
         self.last_used_on = timezone.now()
         self.save(update_fields=['last_used_on'])
         return file_path
+
+    def save(self, *args, **kwargs):
+        if self.file:
+            self.is_ready = True
+        return super().save(*args, **kwargs)
 
 
 class OutputLayer(BaseLayer):

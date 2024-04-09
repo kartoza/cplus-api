@@ -1,6 +1,6 @@
 from django.urls import path
 from cplus_api.api_views.user import UserInfo
-from cplus_api.api_views.layer import LayerList, LayerDetail, LayerUpload
+from cplus_api.api_views.layer import LayerList, LayerDetail, LayerUpload, LayerUploadStart, LayerUploadFinish
 
 
 # USER API
@@ -23,6 +23,16 @@ layer_urls = [
         'layer/upload/',
         LayerUpload.as_view(),
         name='layer-upload'
+    ),
+    path(
+        'layer/upload/finish/<uuid:layer_uuid>/<str:filename>/',
+        LayerUploadStart.as_view(),
+        name='layer-upload-start'
+    ),
+    path(
+        'layer/upload/finish/<uuid:layer_uuid>/',
+        LayerUploadFinish.as_view(),
+        name='layer-upload-finish'
     ),
     path(
         'layer/<uuid:layer_uuid>/',
