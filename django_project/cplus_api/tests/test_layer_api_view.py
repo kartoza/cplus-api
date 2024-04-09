@@ -2,6 +2,7 @@ import os
 from django.urls import reverse
 from core.settings.utils import absolute_path
 from django.core.files.uploadedfile import SimpleUploadedFile
+from rest_framework.test import force_authenticate
 from cplus_api.api_views.layer import (
     LayerList,
     LayerDetail,
@@ -43,6 +44,7 @@ class TestUserInfo(BaseAPIViewTransactionTest):
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
+        force_authenticate(request, self.superuser)
         view = LayerList.as_view()
         response = view(request)
         self.assertEqual(response.status_code, 200)
@@ -150,6 +152,7 @@ class TestUserInfo(BaseAPIViewTransactionTest):
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
+        force_authenticate(request, self.superuser)
         view = LayerDetail.as_view()
         response = view(request, **kwargs)
         self.assertEqual(response.status_code, 200)
@@ -194,6 +197,7 @@ class TestUserInfo(BaseAPIViewTransactionTest):
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
+        force_authenticate(request, self.superuser)
         view = LayerDetail.as_view()
         response = view(request, **kwargs)
         self.assertEqual(response.status_code, 204)
@@ -240,6 +244,7 @@ class TestUserInfo(BaseAPIViewTransactionTest):
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
+        force_authenticate(request, self.superuser)
         view = LayerUpload.as_view()
         response = view(request)
         self.assertEqual(response.status_code, 201)
@@ -292,6 +297,7 @@ class TestUserInfo(BaseAPIViewTransactionTest):
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
+        force_authenticate(request, self.superuser)
         view = LayerUpload.as_view()
         response = view(request)
         self.assertEqual(response.status_code, 201)

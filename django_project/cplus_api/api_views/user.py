@@ -1,9 +1,10 @@
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from cplus_api.api_views.base_auth_view import BaseAuthView
 
 
-class UserInfo(APIView):
+class UserInfo(BaseAuthView):
     """API to return user info."""
     permission_classes = [IsAuthenticated]
 

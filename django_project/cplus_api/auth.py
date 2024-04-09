@@ -64,7 +64,6 @@ class TrendsEarthAuthentication(authentication.BaseAuthentication):
                     email=user_profile['email'],
                     first_name=user_profile['name']
                 )
-                print(created)
 
                 redis.set(
                     token, user.id

@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from cplus_api.api_views.base_auth_view import BaseAuthView
 from cplus_api.models.layer import BaseLayer, InputLayer
 from cplus_api.serializers.layer import (
     InputLayerSerializer,
@@ -30,7 +31,7 @@ def is_internal_user(user):
     return True
 
 
-class LayerList(APIView):
+class LayerList(BaseAuthView):
     """API to return available layers."""
     permission_classes = [IsAuthenticated]
 
@@ -81,7 +82,7 @@ class LayerList(APIView):
         })
 
 
-class LayerUpload(APIView):
+class LayerUpload(BaseAuthView):
     """API to upload layer file."""
     permission_classes = [IsAuthenticated]
     parser_classes = (MultiPartParser,)
@@ -251,7 +252,7 @@ class LayerUpload(APIView):
         })
 
 
-class LayerDetail(APIView):
+class LayerDetail(BaseAuthView):
     """APIs to fetch and remove layer file."""
     permission_classes = [IsAuthenticated]
 
