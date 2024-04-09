@@ -8,6 +8,7 @@ volumes:
   nginx-cache:
   backups-data:
   data-volume:
+  minio-data:
 
 x-common-variables: &common-variables
   # editable in .env
@@ -29,8 +30,14 @@ x-common-variables: &common-variables
   ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
   # worker variables
   CPLUS_QUEUE_CONCURRENCY: ${CPLUS_QUEUE_CONCURRENCY:-1}
-  # gcs variable
-  STORAGE_EMULATOR_HOST: ${STORAGE_EMULATOR_HOST:-}
+  # s3 variable
+  S3_AWS_ACCESS_KEY_ID: ${S3_AWS_ACCESS_KEY_ID:-minios3admin}
+  S3_AWS_SECRET_ACCESS_KEY: ${S3_AWS_SECRET_ACCESS_KEY:-minios3admin}
+  AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT}
+  # minio variable
+  MINIO_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY_ID:-miniocplus}
+  MINIO_SECRET_ACCESS_KEY: ${MINIO_SECRET_ACCESS_KEY:-miniocplus}
+  MINIO_ENDPOINT: ${MINIO_ENDPOINT}
 
 
 x-common-django:
@@ -108,6 +115,10 @@ services:
       CPLUS_WORKER: 1
     volumes:
       - media-data:/home/web/media
+    links:
+      - db
+      - minio
+      - redis
 
   dev:
     image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_dev
@@ -132,3 +143,30 @@ services:
       - static-data:/home/web/static
     links:
       - django
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2024-03-30T09-41-56Z.fips
+    command: minio server /data --console-address ":9001"
+    ports:
+      - "9010:9000"
+      - "9011:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY_ID:-miniocplus}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_ACCESS_KEY:-miniocplus}
+    volumes:
+      - minio-data:/data
+    restart: always
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      - minio
+    environment:
+      MINIO_USER: ${MINIO_ACCESS_KEY_ID:-miniocplus}
+      MINIO_PASSWORD: ${MINIO_SECRET_ACCESS_KEY:-miniocplus}
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 $${MINIO_USER} $${MINIO_PASSWORD};
+      /usr/bin/mc mb --ignore-existing myminio/cplus;
+      exit 0;
+      "

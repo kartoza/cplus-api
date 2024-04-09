@@ -53,9 +53,7 @@ services:
       - ./volumes/static:/home/web/static
       - ./volumes/media:/home/web/media
     links:
-      - db
       - worker
-      - gcs
 
   nginx:
     volumes:
@@ -63,23 +61,20 @@ services:
       - ./volumes/static:/home/web/static
     ports:
       - "${HTTP_PORT:-8888}:80"
-    links:
-      - django
 
-  gcs:
-    container_name: googlecloudstorage
-    image: fsouza/fake-gcs-server:1.47.8
-    command:
-    - '-scheme'
-    - 'http'
-    - '-port'
-    - '4443'
-    - '-public-host'
-    - '127.0.0.1:4443'
-    - '-external-url'
-    - 'http://127.0.0.1:4443'
+  minio:
     volumes:
-      - ./volumes/gcs_data:/storage
-      - ./gcs_emulator:/data
+      - ./volumes/minio_data:/data
+
+  s3:
+    image: quay.io/minio/minio:RELEASE.2024-03-30T09-41-56Z.fips
+    command: minio server /data --console-address ":9001"
     ports:
-      - 4443:4443
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_AWS_ACCESS_KEY_ID:-minios3admin}
+      MINIO_ROOT_PASSWORD: ${S3_AWS_SECRET_ACCESS_KEY:-minios3admin}
+    volumes:
+      - ./volumes/s3_data:/data
+    restart: always

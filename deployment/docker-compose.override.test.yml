@@ -7,31 +7,14 @@ services:
     ports:
       - "${DATABASE_PORT:-7432}:5432"
 
-  gcs:
-    container_name: googlecloudstorage
-    image: fsouza/fake-gcs-server:1.47.8
-    command:
-    - '-scheme'
-    - 'http'
-    - '-port'
-    - '4443'
-    - '-public-host'
-    - '127.0.0.1:4443'
-    - '-external-url'
-    - 'http://127.0.0.1:4443'
-    volumes:
-      - ./volumes/gcs_data:/storage
-      - ./gcs_emulator:/data
-    ports:
-      - 4443:4443
-
   worker:
     image: kartoza/cplus-api:test
     volumes:
       - ../django_project:/home/web/django_project
       - ./volumes/media:/home/web/media
     links:
-      - gcs
+      - db
+      - redis
 
   dev:
     image: kartoza/cplus-api:test
@@ -43,3 +26,4 @@ services:
     links:
       - db
       - worker
+  

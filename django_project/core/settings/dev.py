@@ -1,6 +1,5 @@
 
 from .project import *  # noqa
-from google.auth.credentials import AnonymousCredentials
 
 # Set debug to True for development
 DEBUG = True
@@ -54,23 +53,4 @@ LOGGING = {
         'handlers': ['console'],
         'level': 'WARNING'
     }
-}
-
-# google cloud storage dev configuration
-STORAGES = {
-    "default": {
-        "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
-        "OPTIONS": {
-          "custom_endpoint": "http://127.0.0.1:4443",
-          "bucket_name": "sample-bucket",
-          "project_id": "test",
-          "credentials": AnonymousCredentials(),
-          "file_overwrite": False,
-          "max_memory_size": 150 * 1024 * 1024,  # 150MB
-          "blob_chunk_size": 256 * 1024 * 200  # 52 MB
-        },
-    },
-    "staticfiles": {
-        "BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage",
-    },
 }

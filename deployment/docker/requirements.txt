@@ -42,8 +42,8 @@ psycopg2-binary==2.9.9
 pytest-env==0.8.1
 
 #django storages
-django-storages==1.13.2
-django-storages[google]
+django-storages==1.14.2
+django-storages[s3]
 
 # drf yasg
 drf-yasg==1.21.7

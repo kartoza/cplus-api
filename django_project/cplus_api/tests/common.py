@@ -1,10 +1,11 @@
 """Common functions for tests."""
+import os
+import shutil
 from collections import OrderedDict
-from cplus_api.auth import redis
-from cplus_api.tests.factories import UserF
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from rest_framework.test import APIRequestFactory
-from unittest.mock import patch
+from cplus_api.tests.factories import UserF
+from django.core.files.storage import storages
 
 
 class DummyTask:
@@ -28,26 +29,61 @@ def mocked_cache_set(self, *args, **kwargs):
     pass
 
 
-class BaseAPIViewTest(TestCase):
+def clear_test_dir(path):
+    try:
+        if os.path.exists(path):
+            shutil.rmtree(path)
+    except Exception:
+        pass
+
+
+class BaseInitData(object):
+
+    def init_test_data(self):
+        self.factory = APIRequestFactory()
+        self.superuser = UserF.create(
+            is_staff=True,
+            is_superuser=True,
+            is_active=True
+        )
+        self.user_1 = UserF.create(
+            is_active=True
+        )
+
+    def cleanup(self):
+        # delete storage used in default and minio
+        default_storage = storages['default']
+        clear_test_dir(default_storage.location)
+        minio_storage = storages['minio']
+        clear_test_dir(minio_storage.location)
+
+
+class BaseAPIViewTest(BaseInitData, TestCase):
 
     def setUp(self):
-        self.factory = APIRequestFactory()
-        self.user = UserF.create(
-            username='c942182c-f3d3-4e3b-80a5-aa7fd9494d00'
-        )
-        self.jwt_token = (
-            'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.'
-            'eyJpc3MiOiJPbmxpbmUgSldUIEJ1aWxkZXIiLCJpYXQiOjE3MTI1NDIxOTYsImV4cCI6MTc0NDA3'
-            'ODE5NiwiYXVkIjoid3d3LmV4YW1wbGUuY29tIiwic3ViIjoianJvY2tldEBleGFtcGxlLmNvbSIsI'
-            'kdpdmVuTmFtZSI6IkpvaG5ueSIsIlN1cm5hbWUiOiJSb2NrZXQiLCJFbWFpbCI6Impyb2NrZXRAZXh'
-            'hbXBsZS5jb20iLCJSb2xlIjpbIk1hbmFnZXIiLCJQcm9qZWN0IEFkbWluaXN0cmF0b3IiXX0.'
-            '_Z5NTnVbB4OT4iJREx9A-9JC1_Si-aBWG1nq6SQapAU'
-        )
-        self.fake_redis = redis
-        super().setUp()
+        self.init_test_data()
 
-    def trends_earth_authenticate(self):
-        self.fake_redis.set(self.jwt_token, self.user.id)
+    @classmethod
+    def tearDownClass(cls):
+        super().cleanup(cls)
+        super().tearDownClass()
+
+
+class BaseAPIViewTransactionTest(BaseInitData, TransactionTestCase):
+    """
+    This base class is for test classes that needs django-cleanup.
+
+    See: https://github.com/un1t/django-cleanup?tab=readme-ov-file#
+    how-to-write-tests
+    """
+
+    def setUp(self):
+        self.init_test_data()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().cleanup(cls)
+        super().tearDownClass()
 
 
 class FakeResolverMatchV1:
