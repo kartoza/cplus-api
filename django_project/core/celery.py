@@ -3,7 +3,6 @@ from __future__ import absolute_import, unicode_literals
 import os
 import logging
 import sys
-from django.conf import settings
 from celery import Celery, signals
 from celery.utils.serialization import strtobool
 from celery.worker.control import inspect_command
