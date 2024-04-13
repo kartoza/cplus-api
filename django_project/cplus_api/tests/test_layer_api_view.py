@@ -15,7 +15,7 @@ from cplus_api.tests.common import (
 from cplus_api.tests.factories import InputLayerF
 
 
-class TestUserInfo(BaseAPIViewTransactionTest):
+class TestLayerAPIView(BaseAPIViewTransactionTest):
 
     def store_input_layer_file(self, input_layer: InputLayer, file_path):
         with open(file_path, 'rb') as output_file:
