@@ -230,16 +230,18 @@ class TestModelScenarioTask(TestCase):
         self.assertEqual(scenario_task.status, TaskStatus.STOPPED)
 
     def test_task_revoked_handler(self):
-        scenario_task = ScenarioTaskF.create()
+        scenario_task = ScenarioTaskF.create(
+            task_id='test-id'
+        )
         request = RequestObj('test-id', 'test', (scenario_task.id,))
         sender = SenderObj(request.name, request)
-        task_revoked_handler(sender)
+        task_revoked_handler(sender, request=request)
         scenario_task.refresh_from_db()
         self.assertNotEqual(scenario_task.status, TaskStatus.CANCELLED)
         request = RequestObj(
             'test-id', 'run_scenario_analysis_task', (scenario_task.id,))
         sender = SenderObj(request.name, request)
-        task_revoked_handler(sender)
+        task_revoked_handler(sender, request=request)
         scenario_task.refresh_from_db()
         self.assertEqual(scenario_task.status, TaskStatus.CANCELLED)
 

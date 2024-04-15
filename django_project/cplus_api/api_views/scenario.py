@@ -7,7 +7,8 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
-from core.models.base_task_request import READ_ONLY_STATUS
+from core.celery import cancel_task
+from core.models.base_task_request import READ_ONLY_STATUS, TaskStatus
 from cplus_api.models.scenario import ScenarioTask
 from cplus_api.serializers.scenario import (
     ScenarioInputSerializer
@@ -140,3 +141,65 @@ class ExecuteScenarioAnalysis(APIView):
             'uuid': str(scenario_task.uuid),
             'task_id': str(task.id)
         })
+
+
+class CancelScenarioAnalysisTask(APIView):
+    """API to cancel ongoing scenario analysis job."""
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_id='cancel-scenario-analysis-task',
+        tags=[SCENARIO_API_TAG],
+        manual_parameters=[PARAM_SCENARIO_UUID_IN_PATH],
+        responses={
+            200: openapi.Schema(
+                description=(
+                    'Execution Detail'
+                ),
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'uuid': openapi.Schema(
+                        title='Scenario UUID',
+                        type=openapi.TYPE_STRING
+                    )
+                },
+                example={
+                    'uuid': '8c4582ab-15b1-4ed0-b8e4-00640ec10a65'
+                }
+            ),
+            400: APIErrorSerializer,
+            403: APIErrorSerializer,
+            404: APIErrorSerializer
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        scenario_uuid = kwargs.get('scenario_uuid')
+        scenario_task = get_object_or_404(
+            ScenarioTask, uuid=scenario_uuid)
+        if scenario_task.submitted_by != request.user:
+            raise PermissionDenied(
+                f"You are not allowed to cancel scenario {scenario_uuid}!")
+        if scenario_task.status not in READ_ONLY_STATUS:
+            raise ValidationError(
+                "Unable to cancel job with current status "
+                f"{scenario_task.status}. Job is not running!")
+        if not scenario_task.task_id:
+            raise ValidationError(
+                "Unable to cancel job with empty task_id and current status "
+                f"{scenario_task.status}. Job is not running!")
+        cancel_task(scenario_task.task_id)
+        # set status directly as cancelled when task is in the queue
+        # because the event handler is not executed by worker
+        if scenario_task.status == TaskStatus.QUEUED:
+            scenario_task.task_on_cancelled()
+        return Response(status=200, data={
+            'uuid': str(scenario_task.uuid)
+        })
+
+
+class ScenarioAnalysisTaskStatus(APIView):
+    pass
+
+
+class ScenarioAnalysisTaskLogs(APIView):
+    pass

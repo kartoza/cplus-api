@@ -148,10 +148,9 @@ class BaseTaskRequest(models.Model):
 
         This event may be skipped when the worker's queue is empty.
         """
-        if not self.task_id:
-            self.task_id = task_id
-            self.task_name = task_name
-            self.parameters = parameters
+        self.task_id = task_id
+        self.task_name = task_name
+        self.parameters = parameters
         self.last_update = timezone.now()
         self.status = TaskStatus.QUEUED
         self.save(
@@ -189,9 +188,10 @@ class BaseTaskRequest(models.Model):
     def task_on_cancelled(self):
         self.last_update = timezone.now()
         self.status = TaskStatus.CANCELLED
+        self.task_id = None
         self.add_log('Task has been cancelled.')
         self.save(
-            update_fields=['last_update', 'status']
+            update_fields=['last_update', 'status', 'task_id']
         )
 
     def task_on_errors(self, exception=None, traceback=None):
