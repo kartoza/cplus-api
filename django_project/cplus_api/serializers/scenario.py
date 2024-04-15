@@ -1,7 +1,11 @@
 import uuid
+from logging import getLevelName
 from rest_framework import serializers
 from drf_yasg import openapi
+from core.models.base_task_request import TaskStatus
+from core.models.task_log import TaskLog
 from cplus_api.models.layer import BaseLayer, InputLayer
+from cplus_api.models.scenario import ScenarioTask
 
 
 def validate_layer_uuid(value):
@@ -305,3 +309,147 @@ class ScenarioInputSerializer(serializers.Serializer):
             },
             'required': []
         }
+
+
+class ScenarioTaskStatusSerializer(serializers.ModelSerializer):
+    scenario_name = serializers.SerializerMethodField()
+    created_by = serializers.SerializerMethodField()
+
+    def get_created_by(self, obj: ScenarioTask):
+        return obj.submitted_by.email
+
+    def get_scenario_name(self, obj: ScenarioTask):
+        if not obj.detail:
+            return ''
+        return (
+            obj.detail['scenario_name'] if
+            'scenario_name' in obj.detail else ''
+        )
+
+    class Meta:
+        swagger_schema_fields = {
+            'type': openapi.TYPE_OBJECT,
+            'title': 'Scenario Task Status',
+            'properties': {
+                'uuid': openapi.Schema(
+                    title='Scenario UUID',
+                    type=openapi.TYPE_STRING
+                ),
+                'task_id': openapi.Schema(
+                    title='Task ID',
+                    type=openapi.TYPE_STRING
+                ),
+                'plugin_version': openapi.Schema(
+                    title='Plugin version',
+                    type=openapi.TYPE_STRING
+                ),
+                'scenario_name': openapi.Schema(
+                    title='Scenario Name',
+                    type=openapi.TYPE_STRING
+                ),
+                'status': openapi.Schema(
+                    title='Scenario Status',
+                    type=openapi.TYPE_STRING,
+                    enum=[
+                        TaskStatus.PENDING,
+                        TaskStatus.QUEUED,
+                        TaskStatus.RUNNING,
+                        TaskStatus.STOPPED,
+                        TaskStatus.COMPLETED,
+                        TaskStatus.CANCELLED,
+                        TaskStatus.INVALIDATED
+                    ]
+                ),
+                'submitted_on': openapi.Schema(
+                    title='Created Date Time',
+                    type=openapi.TYPE_STRING
+                ),
+                'created_by': openapi.Schema(
+                    title='Owner Email',
+                    type=openapi.TYPE_STRING
+                ),
+                'started_at': openapi.Schema(
+                    title='Started Date Time',
+                    type=openapi.TYPE_STRING
+                ),
+                'finished_at': openapi.Schema(
+                    title='Finished Date Time',
+                    type=openapi.TYPE_STRING
+                ),
+                'errors': openapi.Schema(
+                    title='Errors',
+                    type=openapi.TYPE_STRING
+                ),
+                'progress': openapi.Schema(
+                    title='Percentage of the progress',
+                    type=openapi.TYPE_NUMBER
+                ),
+                'progress_text': openapi.Schema(
+                    title='Progress Description',
+                    type=openapi.TYPE_STRING
+                ),
+            },
+            'required': [],
+            'example': {
+                'uuid': '8c4582ab-15b1-4ed0-b8e4-00640ec10a65',
+                'task_id': '3e0c7dff-51f2-48c5-a316-15d9ca2407cb',
+                'plugin_version': '1.0.0',
+                'scenario_name': 'Scenario A',
+                'status': 'Queued',
+                'submitted_on': '2022-08-15T08:09:15.049806Z',
+                'created_by': 'admin@admin.com',
+                'started_at': '2022-08-15T08:09:15.049806Z',
+                'finished_at': '2022-08-15T09:09:15.049806Z',
+                'errors': None,
+                'progress': 70,
+                'progress_text': 'Processing ABC'
+            }
+        }
+        model = ScenarioTask
+        fields = [
+            'uuid', 'task_id', 'plugin_version',
+            'scenario_name', 'status', 'submitted_on',
+            'created_by', 'started_at', 'finished_at',
+            'errors', 'progress', 'progress_text'
+        ]
+
+
+class ScenarioTaskLogSerializer(serializers.ModelSerializer):
+    severity = serializers.SerializerMethodField()
+
+    def get_severity(self, obj: TaskLog):
+        return getLevelName(obj.level)
+
+    class Meta:
+        swagger_schema_fields = {
+            'type': openapi.TYPE_OBJECT,
+            'title': 'Scenario Log',
+            'properties': {
+                'date_time': openapi.Schema(
+                    title='Log Date Time',
+                    type=openapi.TYPE_STRING
+                ),
+                'severity': openapi.Schema(
+                    title='Log Severity',
+                    type=openapi.TYPE_STRING
+                ),
+                'log': openapi.Schema(
+                    title='Log text',
+                    type=openapi.TYPE_STRING
+                ),
+            },
+            'required': [],
+            'example': {
+                'date_time': '2022-08-15T09:09:15.049806Z',
+                'severity': 'INFO',
+                'log': 'Processing ABC is finished'
+            }
+        }
+        model = TaskLog
+        fields = [
+            'date_time', 'severity', 'log'
+        ]
+
+
+class ScenarioTaskLogListSerializer(serializers.ListSerializer):
+    child = ScenarioTaskLogSerializer()

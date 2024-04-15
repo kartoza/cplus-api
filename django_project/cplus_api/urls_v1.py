@@ -3,7 +3,10 @@ from cplus_api.api_views.user import UserInfo
 from cplus_api.api_views.layer import LayerList, LayerDetail, LayerUpload
 from cplus_api.api_views.scenario import (
     ScenarioAnalysisSubmit,
-    ExecuteScenarioAnalysis
+    ExecuteScenarioAnalysis,
+    CancelScenarioAnalysisTask,
+    ScenarioAnalysisTaskStatus,
+    ScenarioAnalysisTaskLogs
 )
 
 
@@ -46,6 +49,21 @@ scenario_urls = [
         'scenario/<uuid:scenario_uuid>/execute/',
         ExecuteScenarioAnalysis.as_view(),
         name='scenario-execute'
+    ),
+    path(
+        'scenario/<uuid:scenario_uuid>/cancel/',
+        CancelScenarioAnalysisTask.as_view(),
+        name='scenario-cancel'
+    ),
+    path(
+        'scenario/<uuid:scenario_uuid>/status/',
+        ScenarioAnalysisTaskStatus.as_view(),
+        name='scenario-status'
+    ),
+    path(
+        'scenario/<uuid:scenario_uuid>/logs/',
+        ScenarioAnalysisTaskLogs.as_view(),
+        name='scenario-logs'
     ),
 ]
 

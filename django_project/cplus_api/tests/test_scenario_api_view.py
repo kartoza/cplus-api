@@ -5,7 +5,10 @@ from core.models.base_task_request import TaskStatus
 from core.settings.utils import absolute_path
 from cplus_api.api_views.scenario import (
     ScenarioAnalysisSubmit,
-    ExecuteScenarioAnalysis
+    ExecuteScenarioAnalysis,
+    CancelScenarioAnalysisTask,
+    ScenarioAnalysisTaskStatus,
+    ScenarioAnalysisTaskLogs
 )
 from cplus_api.models.layer import InputLayer
 from cplus_api.models.scenario import ScenarioTask
@@ -91,6 +94,7 @@ class TestScenarioAPIView(BaseAPIViewTransactionTest):
                 'run_scenario_analysis_task.apply_async')
     def test_execute_scenario(self, mocked_task):
         mocked_task.side_effect = mocked_process
+        view = ExecuteScenarioAnalysis.as_view()
         scenario_task = ScenarioTaskF.create(
             submitted_by=self.superuser
         )
@@ -102,7 +106,6 @@ class TestScenarioAPIView(BaseAPIViewTransactionTest):
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
-        view = ExecuteScenarioAnalysis.as_view()
         response = view(request, **kwargs)
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['uuid'], str(scenario_task.uuid))
@@ -115,7 +118,6 @@ class TestScenarioAPIView(BaseAPIViewTransactionTest):
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.user_1
-        view = ExecuteScenarioAnalysis.as_view()
         response = view(request, **kwargs)
         self.assertEqual(response.status_code, 403)
         mocked_task.assert_not_called()
@@ -128,7 +130,166 @@ class TestScenarioAPIView(BaseAPIViewTransactionTest):
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
-        view = ExecuteScenarioAnalysis.as_view()
         response = view(request, **kwargs)
         self.assertEqual(response.status_code, 400)
         mocked_task.assert_not_called()
+
+    @mock.patch('cplus_api.api_views.scenario.cancel_task')
+    def test_cancel_scenario(self, mocked_cancel):
+        mocked_cancel.side_effect = mocked_process
+        view = CancelScenarioAnalysisTask.as_view()
+        scenario_task = ScenarioTaskF.create(
+            submitted_by=self.superuser,
+            status=TaskStatus.PENDING
+        )
+        kwargs = {
+            'scenario_uuid': str(scenario_task.uuid)
+        }
+        # invalid user, 403
+        request = self.factory.get(
+            reverse('v1:scenario-cancel', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 403)
+        mocked_cancel.assert_not_called()
+        # invalid status
+        mocked_cancel.reset_mock()
+        request = self.factory.get(
+            reverse('v1:scenario-cancel', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 400)
+        mocked_cancel.assert_not_called()
+        # empty task_id
+        scenario_task.status = TaskStatus.RUNNING
+        scenario_task.task_id = None
+        scenario_task.save()
+        mocked_cancel.reset_mock()
+        request = self.factory.get(
+            reverse('v1:scenario-cancel', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 400)
+        mocked_cancel.assert_not_called()
+        # valid, with running status
+        scenario_task.status = TaskStatus.RUNNING
+        scenario_task.task_id = 'test-id'
+        scenario_task.save()
+        mocked_cancel.reset_mock()
+        request = self.factory.get(
+            reverse('v1:scenario-cancel', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        mocked_cancel.assert_called_once()
+        scenario_task.refresh_from_db()
+        self.assertEqual(scenario_task.status, TaskStatus.RUNNING)
+        # valid, with queued status
+        scenario_task.status = TaskStatus.QUEUED
+        scenario_task.task_id = 'test-id'
+        scenario_task.save()
+        mocked_cancel.reset_mock()
+        request = self.factory.get(
+            reverse('v1:scenario-cancel', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        mocked_cancel.assert_called_once()
+        scenario_task.refresh_from_db()
+        self.assertEqual(scenario_task.status, TaskStatus.CANCELLED)
+        self.assertFalse(scenario_task.task_id)
+
+    def test_get_scenario_logs(self):
+        view = ScenarioAnalysisTaskLogs.as_view()
+        scenario_task = ScenarioTaskF.create(
+            submitted_by=self.superuser,
+            status=TaskStatus.PENDING
+        )
+        kwargs = {
+            'scenario_uuid': str(scenario_task.uuid)
+        }
+        # invalid
+        request = self.factory.get(
+            reverse('v1:scenario-logs', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 403)
+        # empty
+        request = self.factory.get(
+            reverse('v1:scenario-logs', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 0)
+        # return one log
+        scenario_task.add_log('This is log')
+        request = self.factory.get(
+            reverse('v1:scenario-logs', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        test_log = response.data[0]
+        self.assertEqual(test_log['log'], 'This is log')
+        self.assertEqual(test_log['severity'], 'INFO')
+
+    def test_get_scenario_status(self):
+        view = ScenarioAnalysisTaskStatus.as_view()
+        scenario_task = ScenarioTaskF.create(
+            submitted_by=self.superuser,
+            status=TaskStatus.PENDING,
+            task_id='test-id'
+        )
+        kwargs = {
+            'scenario_uuid': str(scenario_task.uuid)
+        }
+        # invalid
+        request = self.factory.get(
+            reverse('v1:scenario-status', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 403)
+        # success
+        request = self.factory.get(
+            reverse('v1:scenario-status', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['status'], TaskStatus.PENDING)
+        self.assertEqual(response.data['uuid'], str(scenario_task.uuid))
+        self.assertEqual(response.data['task_id'], str(scenario_task.task_id))
+        self.assertEqual(response.data['scenario_name'], 'Scenario 1')
+        # empty detail
+        scenario_task.detail = {}
+        scenario_task.save()
+        request = self.factory.get(
+            reverse('v1:scenario-status', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['status'], TaskStatus.PENDING)
+        self.assertEqual(response.data['uuid'], str(scenario_task.uuid))
+        self.assertEqual(response.data['task_id'], str(scenario_task.task_id))
+        self.assertFalse(response.data['scenario_name'])
