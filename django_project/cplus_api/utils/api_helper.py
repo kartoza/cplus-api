@@ -15,6 +15,10 @@ PARAM_LAYER_UUID_IN_PATH = openapi.Parameter(
     'layer_uuid', openapi.IN_PATH,
     description='Layer UUID', type=openapi.TYPE_STRING
 )
+PARAM_SCENARIO_UUID_IN_PATH = openapi.Parameter(
+    'scenario_uuid', openapi.IN_PATH,
+    description='Scenario UUID', type=openapi.TYPE_STRING
+)
 
 
 def get_page_size(request):

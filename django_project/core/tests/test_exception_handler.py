@@ -1,7 +1,8 @@
 from django.test import TestCase
 from rest_framework.exceptions import (
     APIException,
-    MethodNotAllowed
+    MethodNotAllowed,
+    ValidationError as RestValidationError
 )
 from django.core.exceptions import (
     ValidationError
@@ -49,3 +50,12 @@ class TestExceptionHandler(TestCase):
         response = custom_exception_handler(exc, None)
         self.assertEqual(response.status_code, 405)
         self.assertEqual(response.data['detail'], 'error_test')
+
+    def test_rest_validation_error(self):
+        exc = RestValidationError(detail={
+            'fieldA': 'This field has invalid value!'
+        }, code='invalid')
+        response = custom_exception_handler(exc, None)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('detail', response.data)
+        self.assertIn('fieldA', response.data['detail'])

@@ -22,8 +22,7 @@ COMPLETED_STATUS = [
     TaskStatus.COMPLETED, TaskStatus.STOPPED, TaskStatus.CANCELLED
 ]
 READ_ONLY_STATUS = [
-    TaskStatus.COMPLETED, TaskStatus.STOPPED, TaskStatus.RUNNING,
-    TaskStatus.CANCELLED
+    TaskStatus.QUEUED, TaskStatus.RUNNING
 ]
 
 
@@ -138,9 +137,17 @@ class BaseTaskRequest(models.Model):
         self.task_name = task_name
         self.parameters = parameters
         self.last_update = timezone.now()
+        self.started_at = None
+        self.finished_at = None
+        self.progress = 0.0
+        self.progress_text = None
+        self.errors = None
         self.save(
-            update_fields=['task_id', 'task_name',
-                           'parameters', 'last_update']
+            update_fields=[
+                'task_id', 'task_name', 'parameters', 'last_update',
+                'started_at', 'finished_at', 'progress', 'progress_text',
+                'errors'
+            ]
         )
 
     def task_on_queued(self, task_id, task_name, parameters):
@@ -149,10 +156,9 @@ class BaseTaskRequest(models.Model):
 
         This event may be skipped when the worker's queue is empty.
         """
-        if not self.task_id:
-            self.task_id = task_id
-            self.task_name = task_name
-            self.parameters = parameters
+        self.task_id = task_id
+        self.task_name = task_name
+        self.parameters = parameters
         self.last_update = timezone.now()
         self.status = TaskStatus.QUEUED
         self.save(
@@ -190,9 +196,10 @@ class BaseTaskRequest(models.Model):
     def task_on_cancelled(self):
         self.last_update = timezone.now()
         self.status = TaskStatus.CANCELLED
+        self.task_id = None
         self.add_log('Task has been cancelled.')
         self.save(
-            update_fields=['last_update', 'status']
+            update_fields=['last_update', 'status', 'task_id']
         )
 
     def task_on_errors(self, exception=None, traceback=None):
