@@ -6,7 +6,9 @@ from core.settings.utils import absolute_path
 from cplus_api.api_views.scenario import (
     ScenarioAnalysisSubmit,
     ExecuteScenarioAnalysis,
-    CancelScenarioAnalysisTask
+    CancelScenarioAnalysisTask,
+    ScenarioAnalysisTaskStatus,
+    ScenarioAnalysisTaskLogs
 )
 from cplus_api.models.layer import InputLayer
 from cplus_api.models.scenario import ScenarioTask
@@ -206,3 +208,88 @@ class TestScenarioAPIView(BaseAPIViewTransactionTest):
         scenario_task.refresh_from_db()
         self.assertEqual(scenario_task.status, TaskStatus.CANCELLED)
         self.assertFalse(scenario_task.task_id)
+
+    def test_get_scenario_logs(self):
+        view = ScenarioAnalysisTaskLogs.as_view()
+        scenario_task = ScenarioTaskF.create(
+            submitted_by=self.superuser,
+            status=TaskStatus.PENDING
+        )
+        kwargs = {
+            'scenario_uuid': str(scenario_task.uuid)
+        }
+        # invalid
+        request = self.factory.get(
+            reverse('v1:scenario-logs', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 403)
+        # empty
+        request = self.factory.get(
+            reverse('v1:scenario-logs', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 0)
+        # return one log
+        scenario_task.add_log('This is log')
+        request = self.factory.get(
+            reverse('v1:scenario-logs', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        test_log = response.data[0]
+        self.assertEqual(test_log['log'], 'This is log')
+        self.assertEqual(test_log['severity'], 'INFO')
+
+    def test_get_scenario_status(self):
+        view = ScenarioAnalysisTaskStatus.as_view()
+        scenario_task = ScenarioTaskF.create(
+            submitted_by=self.superuser,
+            status=TaskStatus.PENDING,
+            task_id='test-id'
+        )
+        kwargs = {
+            'scenario_uuid': str(scenario_task.uuid)
+        }
+        # invalid
+        request = self.factory.get(
+            reverse('v1:scenario-status', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 403)
+        # success
+        request = self.factory.get(
+            reverse('v1:scenario-status', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['status'], TaskStatus.PENDING)
+        self.assertEqual(response.data['uuid'], str(scenario_task.uuid))
+        self.assertEqual(response.data['task_id'], str(scenario_task.task_id))
+        self.assertEqual(response.data['scenario_name'], 'Scenario 1')
+        # empty detail
+        scenario_task.detail = {}
+        scenario_task.save()
+        request = self.factory.get(
+            reverse('v1:scenario-status', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['status'], TaskStatus.PENDING)
+        self.assertEqual(response.data['uuid'], str(scenario_task.uuid))
+        self.assertEqual(response.data['task_id'], str(scenario_task.task_id))
+        self.assertFalse(response.data['scenario_name'])

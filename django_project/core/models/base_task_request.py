@@ -137,9 +137,17 @@ class BaseTaskRequest(models.Model):
         self.task_name = task_name
         self.parameters = parameters
         self.last_update = timezone.now()
+        self.started_at = None
+        self.finished_at = None
+        self.progress = 0.0
+        self.progress_text = None
+        self.errors = None
         self.save(
-            update_fields=['task_id', 'task_name',
-                           'parameters', 'last_update']
+            update_fields=[
+                'task_id', 'task_name', 'parameters', 'last_update',
+                'started_at', 'finished_at', 'progress', 'progress_text',
+                'errors'
+            ]
         )
 
     def task_on_queued(self, task_id, task_name, parameters):

@@ -2,6 +2,7 @@
 import os
 import shutil
 from collections import OrderedDict
+from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase, TransactionTestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIRequestFactory
@@ -51,6 +52,8 @@ class BaseInitData(object):
         self.user_1 = UserF.create(
             is_active=True
         )
+        self.scenario_task_ct = ContentType.objects.get(
+            app_label="cplus_api", model="scenariotask")
 
     def cleanup(self):
         # delete storage used in default and minio

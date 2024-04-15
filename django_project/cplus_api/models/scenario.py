@@ -27,8 +27,8 @@ class ScenarioTask(BaseTaskRequest):
         default=dict
     )
 
-    def task_on_started(self):
-        super().task_on_started()
+    def task_on_sent(self, task_id, task_name, parameters):
+        super().task_on_sent(task_id, task_name, parameters)
         # clean logs
         ct = ContentType.objects.get(
             app_label="cplus_api", model="scenariotask")
@@ -36,6 +36,10 @@ class ScenarioTask(BaseTaskRequest):
             content_type=ct,
             object_id=self.pk
         ).delete()
+        self.add_log('Task is sent to worker.')
+
+    def task_on_started(self):
+        super().task_on_started()
         self.add_log('Task has been started.')
 
     def task_on_cancelled(self):

@@ -7,11 +7,16 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
+from django.contrib.contenttypes.models import ContentType
 from core.celery import cancel_task
 from core.models.base_task_request import READ_ONLY_STATUS, TaskStatus
+from core.models.task_log import TaskLog
 from cplus_api.models.scenario import ScenarioTask
 from cplus_api.serializers.scenario import (
-    ScenarioInputSerializer
+    ScenarioInputSerializer,
+    ScenarioTaskStatusSerializer,
+    ScenarioTaskLogListSerializer,
+    ScenarioTaskLogSerializer
 )
 from cplus_api.serializers.common import (
     APIErrorSerializer
@@ -76,7 +81,6 @@ class ScenarioAnalysisSubmit(APIView):
         api_version = self.fetch_api_version(request)
         serializer = ScenarioInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        # TODO: validate scenario detail
         scenario_task = ScenarioTask.objects.create(
             submitted_on=timezone.now(),
             submitted_by=request.user,
@@ -89,7 +93,18 @@ class ScenarioAnalysisSubmit(APIView):
         })
 
 
-class ExecuteScenarioAnalysis(APIView):
+class BaseScenarioReadAccess(object):
+    """Base class to validate whether user can access the scenario."""
+
+    def validate_user_access(self, user, scenario_task: ScenarioTask,
+                             method='access'):
+        if scenario_task.submitted_by != user:
+            raise PermissionDenied(
+                f'You are not allowed to {method} '
+                f'scenario {str(scenario_task.uuid)}!')
+
+
+class ExecuteScenarioAnalysis(BaseScenarioReadAccess, APIView):
     """API to execute scenario analysis."""
     permission_classes = [IsAuthenticated]
 
@@ -127,9 +142,7 @@ class ExecuteScenarioAnalysis(APIView):
         scenario_uuid = kwargs.get('scenario_uuid')
         scenario_task = get_object_or_404(
             ScenarioTask, uuid=scenario_uuid)
-        if scenario_task.submitted_by != request.user:
-            raise PermissionDenied(
-                f"You are not allowed to execute scenario {scenario_uuid}!")
+        self.validate_user_access(request.user, scenario_task, 'execute')
         if scenario_task.status in READ_ONLY_STATUS:
             raise ValidationError(
                 "Unable to start job with current status "
@@ -143,7 +156,7 @@ class ExecuteScenarioAnalysis(APIView):
         })
 
 
-class CancelScenarioAnalysisTask(APIView):
+class CancelScenarioAnalysisTask(BaseScenarioReadAccess, APIView):
     """API to cancel ongoing scenario analysis job."""
     permission_classes = [IsAuthenticated]
 
@@ -176,9 +189,7 @@ class CancelScenarioAnalysisTask(APIView):
         scenario_uuid = kwargs.get('scenario_uuid')
         scenario_task = get_object_or_404(
             ScenarioTask, uuid=scenario_uuid)
-        if scenario_task.submitted_by != request.user:
-            raise PermissionDenied(
-                f"You are not allowed to cancel scenario {scenario_uuid}!")
+        self.validate_user_access(request.user, scenario_task, 'cancel')
         if scenario_task.status not in READ_ONLY_STATUS:
             raise ValidationError(
                 "Unable to cancel job with current status "
@@ -197,9 +208,57 @@ class CancelScenarioAnalysisTask(APIView):
         })
 
 
-class ScenarioAnalysisTaskStatus(APIView):
-    pass
+class ScenarioAnalysisTaskStatus(BaseScenarioReadAccess, APIView):
+    """API to fetch logs from scenario task."""
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_id='scenario-analysis-task-status',
+        tags=[SCENARIO_API_TAG],
+        manual_parameters=[PARAM_SCENARIO_UUID_IN_PATH],
+        responses={
+            200: ScenarioTaskStatusSerializer,
+            400: APIErrorSerializer,
+            403: APIErrorSerializer,
+            404: APIErrorSerializer
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        scenario_uuid = kwargs.get('scenario_uuid')
+        scenario_task = get_object_or_404(
+            ScenarioTask, uuid=scenario_uuid)
+        self.validate_user_access(request.user, scenario_task)
+        return Response(status=200, data=(
+            ScenarioTaskStatusSerializer(scenario_task).data
+        ))
 
 
-class ScenarioAnalysisTaskLogs(APIView):
-    pass
+class ScenarioAnalysisTaskLogs(BaseScenarioReadAccess, APIView):
+    """API to fetch logs from scenario task."""
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_id='scenario-analysis-task-logs',
+        tags=[SCENARIO_API_TAG],
+        manual_parameters=[PARAM_SCENARIO_UUID_IN_PATH],
+        responses={
+            200: ScenarioTaskLogListSerializer,
+            400: APIErrorSerializer,
+            403: APIErrorSerializer,
+            404: APIErrorSerializer
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        scenario_uuid = kwargs.get('scenario_uuid')
+        scenario_task = get_object_or_404(
+            ScenarioTask, uuid=scenario_uuid)
+        self.validate_user_access(request.user, scenario_task)
+        scenario_task_ct = ContentType.objects.get(
+            app_label="cplus_api", model="scenariotask")
+        task_log_qs = TaskLog.objects.filter(
+            content_type=scenario_task_ct,
+            object_id=scenario_task.pk
+        ).order_by('date_time')
+        return Response(status=200, data=(
+            ScenarioTaskLogSerializer(task_log_qs, many=True).data
+        ))
