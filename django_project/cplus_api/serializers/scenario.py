@@ -6,14 +6,25 @@ from cplus_api.models.layer import BaseLayer, InputLayer
 
 def validate_layer_uuid(value):
     if value == '':
-        return True
+        return
     valid = False
     try:
         uuid.UUID(hex=value)
         valid = True
     except ValueError:
         valid = False
-    return valid
+    if not valid:
+        raise serializers.ValidationError(f'{value} is not a valid UUID!')
+    # check input layer exists and ready
+    input_layer = InputLayer.objects.filter(
+        uuid=value
+    ).first()
+    if not input_layer:
+        raise serializers.ValidationError(
+            f'Invalid input layer object {value}!')
+    if not input_layer.file.storage.exists(input_layer.file.name):
+        raise serializers.ValidationError(
+            f'Missing input layer {value} file!')
 
 
 class BaseLayerSerializer(serializers.Serializer):

@@ -26,6 +26,16 @@ class ScenarioAnalysisSubmit(APIView):
     """API to submit scenario detail."""
     permission_classes = [IsAuthenticated]
 
+    def fetch_api_version(self, request):
+        version = 'v1'
+        resolver_match = getattr(request, 'resolver_match', None)
+        possible_versions = []
+        if resolver_match and resolver_match.namespace:
+            possible_versions = resolver_match.namespace.split(':')
+        if possible_versions:
+            version = possible_versions[0]
+        return version
+
     @swagger_auto_schema(
         operation_id='submit-scenario-detail',
         tags=[SCENARIO_API_TAG],
@@ -62,7 +72,7 @@ class ScenarioAnalysisSubmit(APIView):
     )
     def post(self, request, format=None):
         plugin_version = request.GET.get('plugin_version', '0.0.1')
-        api_version = 'v1'
+        api_version = self.fetch_api_version(request)
         serializer = ScenarioInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         # TODO: validate scenario detail
