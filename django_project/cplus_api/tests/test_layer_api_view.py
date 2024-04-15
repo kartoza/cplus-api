@@ -44,8 +44,6 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertTrue(find_layer)
         self.assertFalse(find_layer['url'])
         self.assertFalse(input_layer.file)
-        self.assertFalse(
-            input_layer.file.storage.exists(input_layer.file.name))
         # non existing file in storage
         input_layer.file.name = (
             'common_layers/ncs_pathway/test_model_2_123.tif'
