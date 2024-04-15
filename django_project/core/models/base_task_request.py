@@ -22,8 +22,7 @@ COMPLETED_STATUS = [
     TaskStatus.COMPLETED, TaskStatus.STOPPED, TaskStatus.CANCELLED
 ]
 READ_ONLY_STATUS = [
-    TaskStatus.COMPLETED, TaskStatus.STOPPED, TaskStatus.RUNNING,
-    TaskStatus.CANCELLED
+    TaskStatus.QUEUED, TaskStatus.RUNNING
 ]
 
 

@@ -1,7 +1,5 @@
-import os
 from django.urls import reverse
 from core.settings.utils import absolute_path
-from django.core.files.uploadedfile import SimpleUploadedFile
 from cplus_api.api_views.layer import (
     LayerList,
     LayerDetail,
@@ -15,11 +13,7 @@ from cplus_api.tests.common import (
 from cplus_api.tests.factories import InputLayerF
 
 
-class TestUserInfo(BaseAPIViewTransactionTest):
-
-    def store_input_layer_file(self, input_layer: InputLayer, file_path):
-        with open(file_path, 'rb') as output_file:
-            input_layer.file.save(os.path.basename(file_path), output_file)
+class TestLayerAPIView(BaseAPIViewTransactionTest):
 
     def find_layer_from_response(self, layers, layer_uuid):
         find_layer = [
@@ -28,14 +22,6 @@ class TestUserInfo(BaseAPIViewTransactionTest):
         ]
         return find_layer[0] if len(find_layer) > 0 else None
 
-    def read_uploaded_file(self, file_path):
-        with open(file_path, 'rb') as test_file:
-            file = SimpleUploadedFile(
-                content=test_file.read(),
-                name=test_file.name,
-                content_type='multipart/form-data'
-            )
-        return file
 
     def test_layer_list(self):
         request = self.factory.get(
@@ -57,11 +43,13 @@ class TestUserInfo(BaseAPIViewTransactionTest):
             response.data['results'], input_layer.uuid)
         self.assertTrue(find_layer)
         self.assertFalse(find_layer['url'])
+        self.assertFalse(input_layer.file)
         # non existing file in storage
         input_layer.file.name = (
             'common_layers/ncs_pathway/test_model_2_123.tif'
         )
         input_layer.save()
+        self.assertTrue(input_layer.file)
         self.assertFalse(
             input_layer.file.storage.exists(input_layer.file.name))
         response = view(request)
