@@ -1,18 +1,23 @@
 import math
+import os
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from cplus_api.models.layer import BaseLayer, InputLayer, input_layer_dir_path
+from cplus_api.models.layer import (
+    BaseLayer, InputLayer, input_layer_dir_path,
+    select_input_layer_storage
+)
 from cplus_api.serializers.layer import (
     InputLayerSerializer,
-    PaginatedInputLayerSerializer
+    PaginatedInputLayerSerializer,
+    UploadLayerSerializer
 )
 from cplus_api.serializers.common import (
     APIErrorSerializer,
@@ -22,7 +27,8 @@ from cplus_api.utils.api_helper import (
     get_page_size,
     LAYER_API_TAG,
     PARAM_LAYER_UUID_IN_PATH,
-    get_presigned_url
+    get_presigned_url,
+    convert_size
 )
 
 
@@ -154,16 +160,64 @@ class LayerUpload(APIView):
 
     def validate_upload_access(self, privacy_type, user,
                                is_update = False, existing_layer = None):
+        is_valid = False
         if user.is_superuser:
-            return True
+            is_valid = True
         if privacy_type == InputLayer.PrivacyTypes.PRIVATE:
             if is_update:
-                return existing_layer.owner == user
+                is_valid = existing_layer.owner == user
             else:
-                return True
+                is_valid = True
         elif privacy_type == InputLayer.PrivacyTypes.INTERNAL:
-            return is_internal_user(user)
-        return False
+            is_valid = is_internal_user(user)
+        if not is_valid:
+            err_msg = (
+                f"You are not allowed to upload {privacy_type}"
+                " layer!"
+            )
+            if is_update:
+                err_msg = (
+                    "You are not allowed to update this layer!"
+                )
+            raise PermissionDenied(err_msg)
+
+    def save_input_layer(self, upload_param: UploadLayerSerializer, user):
+        input_layer: InputLayer = None
+        if upload_param.validated_data.get('uuid', None):
+            input_layer = get_object_or_404(
+                InputLayer, uuid=upload_param.validated_data['uuid'])
+            self.validate_upload_access(
+                upload_param.validated_data['privacy_type'], user,
+                True, input_layer)
+            input_layer.name = upload_param.validated_data['name']
+            input_layer.created_on = timezone.now()
+            input_layer.owner = user
+            input_layer.layer_type = upload_param.validated_data['layer_type']
+            input_layer.size = upload_param.validated_data['size']
+            input_layer.component_type = (
+                upload_param.validated_data['component_type']
+            )
+            input_layer.privacy_type = (
+                upload_param.validated_data['privacy_type']
+            )
+            input_layer.client_id = upload_param.validated_data['client_id']
+            input_layer.save(update_fields=[
+                'name', 'created_on', 'owner', 'layer_type',
+                'size', 'component_type', 'privacy_type',
+                'client_id'
+            ])
+        else:
+            input_layer = InputLayer.objects.create(
+                name=upload_param.validated_data['name'],
+                created_on=timezone.now(),
+                owner=user,
+                layer_type=upload_param.validated_data['layer_type'],
+                size=upload_param.validated_data['size'],
+                component_type=upload_param.validated_data['component_type'],
+                privacy_type=upload_param.validated_data['privacy_type'],
+                client_id=upload_param.validated_data['client_id']
+            )
+        return input_layer
 
     @swagger_auto_schema(
         operation_id='layer-upload',
@@ -179,17 +233,22 @@ class LayerUpload(APIView):
         responses={
             201: openapi.Schema(
                 description=(
-                    'Success'
+                    'Success Layer Upload'
                 ),
                 type=openapi.TYPE_OBJECT,
                 properties={
                     'uuid': openapi.Schema(
                         title='Layer UUID',
                         type=openapi.TYPE_STRING
-                    )
-                },
-                example={
-                    'uuid': '8c4582ab-15b1-4ed0-b8e4-00640ec10a65'
+                    ),
+                    'size': openapi.Schema(
+                        title='Layer size',
+                        type=openapi.TYPE_NUMBER
+                    ),
+                    'name': openapi.Schema(
+                        title='Layer name',
+                        type=openapi.TYPE_STRING
+                    ),
                 }
             ),
             400: APIErrorSerializer,
@@ -198,109 +257,94 @@ class LayerUpload(APIView):
     )
     def post(self, request, format=None):
         file_obj = request.FILES['file']
-        filename = file_obj.name
-        filesize = file_obj.size
+        if file_obj is None:
+            raise ValidationError('Missing file object!')
+        request.data.update({
+            'name': file_obj.name,
+            'size': file_obj.size
+        })
+        upload_param = UploadLayerSerializer(data=request.data)
+        upload_param.is_valid(raise_exception=True)
         # TODO: validations
         # - layer_type
         # - component_type
         # - upload access
         # - file type, max size (?)
-        layer_type = request.data.get(
-            'layer_type', BaseLayer.LayerTypes.RASTER)
-        component_type = request.data.get('component_type', None)
-        privacy_type = request.data.get('privacy_type', 'private')
-        client_id = request.data.get('client_id', '')
-        if not self.validate_upload_access(privacy_type, request.user):
-            raise PermissionDenied(
-                f"You are not allowed to upload {privacy_type} layer!")
-        # for update
-        layer_uuid = request.data.get('uuid', '')
-        input_layer: InputLayer = None
-        if layer_uuid:
-            # update validation: owner/superadmin
-            input_layer = get_object_or_404(
-                InputLayer, uuid=layer_uuid)
-            if (
-                not self.validate_upload_access(
-                    privacy_type, request.user, True, input_layer)
-            ):
-                raise PermissionDenied(
-                    "You are not allowed to update this layer!")
-            input_layer.name = filename
-            input_layer.created_on = timezone.now()
-            input_layer.owner = request.user
-            input_layer.layer_type = layer_type
-            input_layer.size = filesize
-            input_layer.component_type = component_type
-            input_layer.privacy_type = privacy_type
-            input_layer.client_id = client_id
-        else:
-            input_layer = InputLayer.objects.create(
-                name=filename,
-                created_on=timezone.now(),
-                owner=request.user,
-                layer_type=layer_type,
-                size=filesize,
-                component_type=component_type,
-                privacy_type=privacy_type,
-                client_id=client_id
-            )
-        input_layer.file = file_obj
-        input_layer.save()
+        self.validate_upload_access(
+            upload_param.validated_data['privacy_type'], request.user)
+        input_layer = self.save_input_layer(upload_param, request.user)
+        input_layer.file.save(input_layer.name, file_obj, save=True)
+        input_layer.refresh_from_db()
+        if input_layer.name != input_layer.file.name:
+            input_layer.name = input_layer.file.name
+            input_layer.save(update_fields=['name'])
         return Response(status=201, data={
-            'uuid': str(input_layer.uuid)
+            'uuid': str(input_layer.uuid),
+            'name': input_layer.name,
+            'size': input_layer.size
         })
 
 
-class LayerUploadStart(APIView):
-    """API to upload layer file."""
+class LayerUploadStart(LayerUpload):
+    """API to upload layer file direct to Minio."""
     permission_classes = [IsAuthenticated]
+
+    def generate_upload_url(self, input_layer: InputLayer):
+        storage_backend = select_input_layer_storage()
+        filename = input_layer.name
+        file_path = input_layer_dir_path(input_layer, filename)
+        available_name = storage_backend.get_available_name(file_path)
+        _, final_filename = os.path.split(available_name)
+        if input_layer.name != final_filename:
+            input_layer.name = final_filename
+            input_layer.save(update_fields=['name'])
+        return get_presigned_url(available_name)
 
     @swagger_auto_schema(
         operation_id='layer-upload-start',
         tags=[LAYER_API_TAG],
+        request_body=UploadLayerSerializer,
         responses={
             200: openapi.Schema(
                 description=(
-                    'Success'
+                    'Success Start Layer Upload'
                 ),
                 type=openapi.TYPE_OBJECT,
                 properties={
+                    'uuid': openapi.Schema(
+                        title='Layer UUID',
+                        type=openapi.TYPE_STRING
+                    ),
                     'upload_url': openapi.Schema(
                         title='Upload URL',
                         type=openapi.TYPE_STRING
                     ),
-                    'download_url': openapi.Schema(
-                        title='Download URL',
+                    'name': openapi.Schema(
+                        title='Layer name',
                         type=openapi.TYPE_STRING
-                    )
+                    ),
                 },
                 example={
-                  "upload_url": (
-                          "http://minio:9000/cplus/4/ncs_pathway/layer.geojson?X-Amz-Algorithm=AWS4-HMAC-SHA256"
-                          "&X-Amz-Credential=miniocplus%2F20240409%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date="
-                          "20240409T041741Z&X-Amz-Expires=10800&X-Amz-SignedHeaders=host&X-Amz-Signature="
-                          "a6f8d0b7b48c2d86631ec7c2f45e34506bdf65a4449db26f4aebfc717fb59e7e"
-                  ),
-                  "download_url": (
-                          "http://minio:9000/cplus/4/ncs_pathway/layer.geojson?X-Amz-Algorithm=AWS4-HMAC-SHA256"
-                          "&X-Amz-Credential=miniocplus%2F20240409%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date="
-                          "20240409T041741Z&X-Amz-Expires=10800&X-Amz-SignedHeaders=host&X-Amz-Signature="
-                          "d96cf278c31e731a7b2f4295e589c0306470871f79d554ae794759a88ccf5428"
-                  )
+                    "upload_url": (
+                        "https://example.com/cplus/4/ncs_pathway/layer.geojson"
+                    )
                 }
             ),
             400: APIErrorSerializer,
             404: APIErrorSerializer
         }
     )
-    def get(self, request, layer_uuid, filename):
-        input_layer = get_object_or_404(InputLayer, uuid=layer_uuid)
-        file_path = input_layer_dir_path(input_layer, filename)
-        upload_url, download_url = get_presigned_url(file_path)
-        return Response(status=200, data={
+    def post(self, request, layer_uuid):
+        upload_param = UploadLayerSerializer(data=request.data)
+        upload_param.is_valid(raise_exception=True)
+        self.validate_upload_access(
+            upload_param.validated_data['privacy_type'], request.user)
+        input_layer = self.save_input_layer(upload_param, request.user)
+        upload_url = self.generate_upload_url(input_layer)
+        return Response(status=201, data={
+            'uuid': str(input_layer.uuid),
             'upload_url': upload_url,
-            'download_url': download_url,
+            'name': input_layer.name
         })
 
 
@@ -314,17 +358,22 @@ class LayerUploadFinish(APIView):
         responses={
             200: openapi.Schema(
                 description=(
-                    'Success'
+                    'Success Upload'
                 ),
                 type=openapi.TYPE_OBJECT,
                 properties={
-                    'is_ready': openapi.Schema(
-                        title='Is Ready',
-                        type=openapi.TYPE_BOOLEAN
-                    )
-                },
-                example={
-                    'is_ready': True
+                    'uuid': openapi.Schema(
+                        title='Layer UUID',
+                        type=openapi.TYPE_STRING
+                    ),
+                    'size': openapi.Schema(
+                        title='Layer size',
+                        type=openapi.TYPE_NUMBER
+                    ),
+                    'name': openapi.Schema(
+                        title='Layer name',
+                        type=openapi.TYPE_STRING
+                    ),
                 }
             ),
             400: APIErrorSerializer,
@@ -333,10 +382,27 @@ class LayerUploadFinish(APIView):
     )
     def get(self, request, layer_uuid):
         input_layer = get_object_or_404(InputLayer, uuid=layer_uuid)
-        input_layer.is_ready = True
-        input_layer.save()
+        # get filepath
+        file_path = input_layer_dir_path(input_layer, input_layer.name)
+        storage_backend = select_input_layer_storage()
+        # validate filepath exists
+        if not storage_backend.exists(file_path):
+            raise ValidationError(
+                f'Layer file {input_layer.name} does not exists!')
+        # validate size match
+        storage_file_size = storage_backend.size(file_path)
+        if storage_file_size != input_layer.size:
+            raise ValidationError(
+                'Uploaded layer file size missmatch: '
+                f'{convert_size(storage_file_size)} '
+                f'should be {convert_size(input_layer.size)}!'
+            )
+        input_layer.file.name = file_path
+        input_layer.save(update_fields=['file'])
         return Response(status=200, data={
-            'is_ready': input_layer.is_ready
+            'uuid': str(input_layer.uuid),
+            'name': input_layer.name,
+            'size': input_layer.size
         })
 
 

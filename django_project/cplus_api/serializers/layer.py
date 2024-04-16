@@ -125,3 +125,13 @@ class PaginatedInputLayerSerializer(serializers.Serializer):
                 )
             }
         }
+
+
+class UploadLayerSerializer(serializers.Serializer):
+    layer_type = serializers.IntegerField()
+    component_type = serializers.CharField()
+    privacy_type = serializers.CharField()
+    client_id = serializers.CharField(required=False)
+    uuid = serializers.CharField(required=False)
+    name = serializers.CharField(required=True)
+    size = serializers.IntegerField(required=True, min_value=1)

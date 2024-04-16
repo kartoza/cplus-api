@@ -30,19 +30,19 @@ layer_urls = [
         name='layer-list'
     ),
     path(
-        'layer/upload/',
-        LayerUpload.as_view(),
-        name='layer-upload'
-    ),
-    path(
-        'layer/upload/finish/<uuid:layer_uuid>/<str:filename>/',
+        'layer/upload/start/',
         LayerUploadStart.as_view(),
         name='layer-upload-start'
     ),
     path(
-        'layer/upload/finish/<uuid:layer_uuid>/',
+        'layer/upload/<uuid:layer_uuid>/finish/',
         LayerUploadFinish.as_view(),
         name='layer-upload-finish'
+    ),
+    path(
+        'layer/upload/',
+        LayerUpload.as_view(),
+        name='layer-upload'
     ),
     path(
         'layer/<uuid:layer_uuid>/',

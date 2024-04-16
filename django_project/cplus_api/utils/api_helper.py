@@ -1,4 +1,5 @@
 import os
+import math
 from datetime import timedelta
 from drf_yasg import openapi
 from core.models.preferences import SitePreferences
@@ -45,7 +46,8 @@ def get_page_size(request):
 def get_minio_client():
     # Initialize MinIO client
     minio_client = Minio(
-        os.environ.get("MINIO_ENDPOINT", "").replace("https://", "").replace("http://", ""),
+        os.environ.get("MINIO_ENDPOINT", "").replace(
+            "https://", "").replace("http://", ""),
         access_key=os.environ.get("MINIO_ACCESS_KEY_ID"),
         secret_key=os.environ.get("MINIO_SECRET_ACCESS_KEY"),
         secure=False  # Set to True if using HTTPS
@@ -57,10 +59,18 @@ def get_presigned_url(filename):
     try:
         minio_client = get_minio_client()
         # Generate pre-signed URL for uploading an object
-        upload_url = minio_client.presigned_put_object('cplus', filename, expires=timedelta(hours=3))
-
-        # Generate pre-signed URL for downloading an object
-        download_url = minio_client.presigned_get_object('cplus', filename, expires=timedelta(hours=3))
-        return upload_url, download_url
+        upload_url = minio_client.presigned_put_object(
+            'cplus', filename, expires=timedelta(hours=3))
+        return upload_url
     except S3Error:
         return None, None
+
+
+def convert_size(size_bytes):
+    if size_bytes == 0:
+        return "0B"
+    size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+    i = int(math.floor(math.log(size_bytes, 1024)))
+    p = math.pow(1024, i)
+    s = round(size_bytes / p, 2)
+    return "%s %s" % (s, size_name[i])
