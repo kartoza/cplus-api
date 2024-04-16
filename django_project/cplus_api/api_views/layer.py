@@ -88,9 +88,77 @@ class LayerList(APIView):
         })
 
 
-class LayerUpload(APIView):
-    """API to upload layer file."""
+class BaseLayerUpload(APIView):
     permission_classes = [IsAuthenticated]
+
+    def validate_upload_access(self, privacy_type, user,
+                               is_update = False, existing_layer = None):
+        is_valid = False
+        if user.is_superuser:
+            is_valid = True
+        if privacy_type == InputLayer.PrivacyTypes.PRIVATE:
+            if is_update:
+                is_valid = existing_layer.owner == user
+            else:
+                is_valid = True
+        elif privacy_type == InputLayer.PrivacyTypes.INTERNAL:
+            is_valid = is_internal_user(user)
+        if not is_valid:
+            err_msg = (
+                f"You are not allowed to upload {privacy_type}"
+                " layer!"
+            )
+            if is_update:
+                err_msg = (
+                    "You are not allowed to update this layer!"
+                )
+            raise PermissionDenied(err_msg)
+        return True
+
+    def save_input_layer(self, upload_param: UploadLayerSerializer, user):
+        input_layer: InputLayer = None
+        is_new = True
+        if upload_param.validated_data.get('uuid', None):
+            is_new = False
+            input_layer = get_object_or_404(
+                InputLayer, uuid=upload_param.validated_data['uuid'])
+            self.validate_upload_access(
+                upload_param.validated_data['privacy_type'], user,
+                True, input_layer)
+            input_layer.name = upload_param.validated_data['name']
+            input_layer.created_on = timezone.now()
+            input_layer.owner = user
+            input_layer.layer_type = upload_param.validated_data['layer_type']
+            input_layer.size = upload_param.validated_data['size']
+            input_layer.component_type = (
+                upload_param.validated_data['component_type']
+            )
+            input_layer.privacy_type = (
+                upload_param.validated_data['privacy_type']
+            )
+            input_layer.client_id = upload_param.validated_data.get(
+                'client_id', None)
+            input_layer.save(update_fields=[
+                'name', 'created_on', 'owner', 'layer_type',
+                'size', 'component_type', 'privacy_type',
+                'client_id'
+            ])
+        else:
+            input_layer = InputLayer.objects.create(
+                name=upload_param.validated_data['name'],
+                created_on=timezone.now(),
+                owner=user,
+                layer_type=upload_param.validated_data['layer_type'],
+                size=upload_param.validated_data['size'],
+                component_type=upload_param.validated_data['component_type'],
+                privacy_type=upload_param.validated_data['privacy_type'],
+                client_id=upload_param.validated_data.get('client_id', None)
+            )
+        return input_layer, is_new
+
+
+class LayerUpload(BaseLayerUpload):
+    """API to upload layer file."""
     parser_classes = (MultiPartParser,)
     layer_type_param = openapi.Parameter(
         'layer_type', openapi.IN_FORM,
@@ -144,7 +212,7 @@ class LayerUpload(APIView):
     layer_uuid_param = openapi.Parameter(
         'uuid', openapi.IN_FORM,
         description=(
-            'Layer UUID for updating existing layer file'
+            'Layer UUID for updating existing layer'
         ),
         type=openapi.TYPE_STRING,
         required=False
@@ -157,68 +225,6 @@ class LayerUpload(APIView):
         type=openapi.TYPE_FILE,
         required=True
     )
-
-    def validate_upload_access(self, privacy_type, user,
-                               is_update = False, existing_layer = None):
-        is_valid = False
-        if user.is_superuser:
-            is_valid = True
-        if privacy_type == InputLayer.PrivacyTypes.PRIVATE:
-            if is_update:
-                is_valid = existing_layer.owner == user
-            else:
-                is_valid = True
-        elif privacy_type == InputLayer.PrivacyTypes.INTERNAL:
-            is_valid = is_internal_user(user)
-        if not is_valid:
-            err_msg = (
-                f"You are not allowed to upload {privacy_type}"
-                " layer!"
-            )
-            if is_update:
-                err_msg = (
-                    "You are not allowed to update this layer!"
-                )
-            raise PermissionDenied(err_msg)
-        return True
-
-    def save_input_layer(self, upload_param: UploadLayerSerializer, user):
-        input_layer: InputLayer = None
-        if upload_param.validated_data.get('uuid', None):
-            input_layer = get_object_or_404(
-                InputLayer, uuid=upload_param.validated_data['uuid'])
-            self.validate_upload_access(
-                upload_param.validated_data['privacy_type'], user,
-                True, input_layer)
-            input_layer.name = upload_param.validated_data['name']
-            input_layer.created_on = timezone.now()
-            input_layer.owner = user
-            input_layer.layer_type = upload_param.validated_data['layer_type']
-            input_layer.size = upload_param.validated_data['size']
-            input_layer.component_type = (
-                upload_param.validated_data['component_type']
-            )
-            input_layer.privacy_type = (
-                upload_param.validated_data['privacy_type']
-            )
-            input_layer.client_id = upload_param.validated_data['client_id']
-            input_layer.save(update_fields=[
-                'name', 'created_on', 'owner', 'layer_type',
-                'size', 'component_type', 'privacy_type',
-                'client_id'
-            ])
-        else:
-            input_layer = InputLayer.objects.create(
-                name=upload_param.validated_data['name'],
-                created_on=timezone.now(),
-                owner=user,
-                layer_type=upload_param.validated_data['layer_type'],
-                size=upload_param.validated_data['size'],
-                component_type=upload_param.validated_data['component_type'],
-                privacy_type=upload_param.validated_data['privacy_type'],
-                client_id=upload_param.validated_data['client_id']
-            )
-        return input_layer
 
     @swagger_auto_schema(
         operation_id='layer-upload',
@@ -273,7 +279,7 @@ class LayerUpload(APIView):
         # - file type, max size (?)
         self.validate_upload_access(
             upload_param.validated_data['privacy_type'], request.user)
-        input_layer = self.save_input_layer(upload_param, request.user)
+        input_layer, _ = self.save_input_layer(upload_param, request.user)
         input_layer.file.save(input_layer.name, file_obj, save=True)
         input_layer.refresh_from_db()
         if input_layer.name != input_layer.file.name:
@@ -286,9 +292,8 @@ class LayerUpload(APIView):
         })
 
 
-class LayerUploadStart(LayerUpload):
+class LayerUploadStart(BaseLayerUpload):
     """API to upload layer file direct to Minio."""
-    permission_classes = [IsAuthenticated]
 
     def generate_upload_url(self, input_layer: InputLayer):
         storage_backend = select_input_layer_storage()
@@ -304,6 +309,7 @@ class LayerUploadStart(LayerUpload):
     @swagger_auto_schema(
         operation_id='layer-upload-start',
         tags=[LAYER_API_TAG],
+        manual_parameters=[],
         request_body=UploadLayerSerializer,
         responses={
             200: openapi.Schema(
@@ -335,12 +341,19 @@ class LayerUploadStart(LayerUpload):
             404: APIErrorSerializer
         }
     )
-    def post(self, request, layer_uuid):
+    def post(self, request):
         upload_param = UploadLayerSerializer(data=request.data)
         upload_param.is_valid(raise_exception=True)
         self.validate_upload_access(
             upload_param.validated_data['privacy_type'], request.user)
-        input_layer = self.save_input_layer(upload_param, request.user)
+        input_layer, is_new = self.save_input_layer(upload_param, request.user)
+        if (
+            not is_new and
+            input_layer.file.storage.exists(input_layer.file.name)
+        ):
+            # delete existing file
+            input_layer.file = None
+            input_layer.save()
         upload_url = self.generate_upload_url(input_layer)
         return Response(status=201, data={
             'uuid': str(input_layer.uuid),
@@ -389,7 +402,7 @@ class LayerUploadFinish(APIView):
         # validate filepath exists
         if not storage_backend.exists(file_path):
             raise ValidationError(
-                f'Layer file {input_layer.name} does not exists!')
+                f'Layer file {input_layer.name} does not exist!')
         # validate size match
         storage_file_size = storage_backend.size(file_path)
         if storage_file_size != input_layer.size:

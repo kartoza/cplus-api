@@ -63,7 +63,7 @@ def get_presigned_url(filename):
             'cplus', filename, expires=timedelta(hours=3))
         return upload_url
     except S3Error:
-        return None, None
+        return None
 
 
 def convert_size(size_bytes):
