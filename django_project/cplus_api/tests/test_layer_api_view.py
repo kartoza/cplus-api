@@ -1,4 +1,5 @@
 from django.urls import reverse
+from rest_framework.exceptions import PermissionDenied
 from core.settings.utils import absolute_path
 from cplus_api.api_views.layer import (
     LayerList,
@@ -106,9 +107,10 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertTrue(layer_upload_view.validate_upload_access(
             InputLayer.PrivacyTypes.INTERNAL, self.user_1
         ))
-        self.assertFalse(layer_upload_view.validate_upload_access(
-            InputLayer.PrivacyTypes.COMMON, self.user_1
-        ))
+        with self.assertRaises(PermissionDenied):
+            layer_upload_view.validate_upload_access(
+                InputLayer.PrivacyTypes.COMMON, self.user_1
+            )
         self.assertTrue(layer_upload_view.validate_upload_access(
             InputLayer.PrivacyTypes.PRIVATE, self.user_1
         ))

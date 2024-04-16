@@ -180,6 +180,7 @@ class LayerUpload(APIView):
                     "You are not allowed to update this layer!"
                 )
             raise PermissionDenied(err_msg)
+        return True
 
     def save_input_layer(self, upload_param: UploadLayerSerializer, user):
         input_layer: InputLayer = None
