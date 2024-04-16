@@ -52,4 +52,4 @@ drf-yasg==1.21.7
 PyQt5-sip
 
 # Minio
-mino==7.2.5
+minio==7.2.5
