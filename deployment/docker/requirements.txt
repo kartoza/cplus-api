@@ -53,3 +53,5 @@ PyQt5-sip
 
 # Minio
 minio==7.2.5
+
+django-revproxy @ https://github.com/jazzband/django-revproxy/archive/refs/tags/0.11.0.zip

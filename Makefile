@@ -31,7 +31,7 @@ up:
 	@echo "------------------------------------------------------------------"
 	@echo "Running in production mode"
 	@echo "------------------------------------------------------------------"
-	@docker-compose ${ARGS} up -d nginx django
+	@docker-compose ${ARGS} up -d nginx django worker celery_beat
 
 dev:
 	@echo

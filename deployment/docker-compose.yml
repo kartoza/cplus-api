@@ -31,13 +31,16 @@ x-common-variables: &common-variables
   # worker variables
   CPLUS_QUEUE_CONCURRENCY: ${CPLUS_QUEUE_CONCURRENCY:-1}
   # s3 variable
-  S3_AWS_ACCESS_KEY_ID: ${S3_AWS_ACCESS_KEY_ID:-minios3admin}
-  S3_AWS_SECRET_ACCESS_KEY: ${S3_AWS_SECRET_ACCESS_KEY:-minios3admin}
+  S3_AWS_ACCESS_KEY_ID: ${S3_AWS_ACCESS_KEY_ID:-miniocplus}
+  S3_AWS_SECRET_ACCESS_KEY: ${S3_AWS_SECRET_ACCESS_KEY:-miniocplus}
   AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT}
+  AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-cpluss3}
   # minio variable
   MINIO_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY_ID:-miniocplus}
   MINIO_SECRET_ACCESS_KEY: ${MINIO_SECRET_ACCESS_KEY:-miniocplus}
   MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+  MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-cplus}
+  MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL}
 
 
 x-common-django:
@@ -93,8 +96,8 @@ services:
       - static-data:/home/web/static
     links:
       - db
+      - minio
       - redis
-      - worker
 
   celery_beat:
     <<: *default-common-django
@@ -131,7 +134,6 @@ services:
     links:
       - db
       - redis
-      - worker
 
   nginx:
     image: nginx
@@ -143,6 +145,7 @@ services:
       - static-data:/home/web/static
     links:
       - django
+      - minio
 
   minio:
     image: quay.io/minio/minio:RELEASE.2024-03-30T09-41-56Z.fips
@@ -153,6 +156,7 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY_ID:-miniocplus}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_ACCESS_KEY:-miniocplus}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL}
     volumes:
       - minio-data:/data
     restart: always
@@ -164,9 +168,10 @@ services:
     environment:
       MINIO_USER: ${MINIO_ACCESS_KEY_ID:-miniocplus}
       MINIO_PASSWORD: ${MINIO_SECRET_ACCESS_KEY:-miniocplus}
+      MINIO_BUCKET: ${MINIO_BUCKET_NAME:-cplus}
     entrypoint: >
       /bin/sh -c "
       /usr/bin/mc alias set myminio http://minio:9000 $${MINIO_USER} $${MINIO_PASSWORD};
-      /usr/bin/mc mb --ignore-existing myminio/cplus;
+      /usr/bin/mc mb --ignore-existing myminio/$${MINIO_BUCKET};
       exit 0;
       "
