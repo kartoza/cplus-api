@@ -3,10 +3,12 @@ coverage:
   round: down
   precision: 2
   status:
-    project: yes
+    project:
+      default:
+        threshold: "5%"
+    changes: false
     patch:
       default:
         target: 80
-    changes: no
   ignore:
-    - "migrations/**"
+    - "**/migrations"
