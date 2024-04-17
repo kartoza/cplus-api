@@ -65,16 +65,3 @@ services:
   minio:
     volumes:
       - ./volumes/minio_data:/data
-
-  s3:
-    image: quay.io/minio/minio:RELEASE.2024-03-30T09-41-56Z.fips
-    command: minio server /data --console-address ":9001"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      MINIO_ROOT_USER: ${S3_AWS_ACCESS_KEY_ID:-minios3admin}
-      MINIO_ROOT_PASSWORD: ${S3_AWS_SECRET_ACCESS_KEY:-minios3admin}
-    volumes:
-      - ./volumes/s3_data:/data
-    restart: always

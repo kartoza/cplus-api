@@ -2,9 +2,11 @@ import os
 import math
 from datetime import timedelta
 from drf_yasg import openapi
-from core.models.preferences import SitePreferences
 from minio import Minio
 from minio.error import S3Error
+from django.conf import settings
+from django.contrib.sites.models import Site
+from core.models.preferences import SitePreferences
 
 
 LAYER_API_TAG = '01-layer'
@@ -43,6 +45,21 @@ def get_page_size(request):
     return page_size
 
 
+def build_minio_absolute_url(url):
+    minio_site = Site.objects.filter(
+        name__icontains='minio api'
+    ).first()
+    current_site = minio_site if minio_site else Site.objects.get_current()
+    scheme = 'https://'
+    if settings.DEBUG:
+        scheme = 'http://'
+    domain = current_site.domain
+    if not domain.endswith('/'):
+        domain = domain + '/'
+    result = url.replace('http://minio:9000/', f'{scheme}{domain}')
+    return result
+
+
 def get_minio_client():
     # Initialize MinIO client
     minio_client = Minio(
@@ -60,8 +77,9 @@ def get_presigned_url(filename):
         minio_client = get_minio_client()
         # Generate pre-signed URL for uploading an object
         upload_url = minio_client.presigned_put_object(
-            'cplus', filename, expires=timedelta(hours=3))
-        return upload_url
+            os.environ.get("MINIO_BUCKET_NAME"), filename,
+            expires=timedelta(hours=3))
+        return build_minio_absolute_url(upload_url)
     except S3Error:
         return None
 

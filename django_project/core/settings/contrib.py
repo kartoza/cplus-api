@@ -11,6 +11,7 @@ INSTALLED_APPS = INSTALLED_APPS + (
     'django_celery_beat',
     'django_celery_results',
     'drf_yasg',
+    'revproxy'
 )
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
