@@ -14,6 +14,7 @@ from cplus_api.models.layer import (
     BaseLayer, InputLayer, input_layer_dir_path,
     select_input_layer_storage
 )
+from cplus_api.models.profile import UserProfile
 from cplus_api.serializers.layer import (
     InputLayerSerializer,
     PaginatedInputLayerSerializer,
@@ -33,8 +34,15 @@ from cplus_api.utils.api_helper import (
 
 
 def is_internal_user(user):
-    # TODO: check if user has internal user role
-    return True
+    # check if user has internal user role
+    user_profile = UserProfile.objects.filter(
+        user=user
+    ).first()
+    if not user_profile:
+        return False
+    if not user_profile.role:
+        return False
+    return user_profile.role.name == 'Internal'
 
 
 class LayerList(APIView):
