@@ -453,3 +453,38 @@ class ScenarioTaskLogSerializer(serializers.ModelSerializer):
 
 class ScenarioTaskLogListSerializer(serializers.ListSerializer):
     child = ScenarioTaskLogSerializer()
+
+
+class PaginatedScenarioTaskStatusSerializer(serializers.Serializer):
+    page = serializers.IntegerField()
+    total_page = serializers.IntegerField()
+    page_size = serializers.IntegerField()
+    results = ScenarioTaskStatusSerializer(many=True)
+
+    class Meta:
+        swagger_schema_fields = {
+            'type': openapi.TYPE_OBJECT,
+            'title': 'Scenario History List',
+            'properties': {
+                'page': openapi.Schema(
+                    title='Page Number',
+                    type=openapi.TYPE_INTEGER
+                ),
+                'total_page': openapi.Schema(
+                    title='Total Page',
+                    type=openapi.TYPE_INTEGER
+                ),
+                'page_size': openapi.Schema(
+                    title='Total item in 1 page',
+                    type=openapi.TYPE_INTEGER
+                ),
+                'results': openapi.Schema(
+                    title='Results',
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Items(
+                        **ScenarioTaskStatusSerializer.
+                        Meta.swagger_schema_fields
+                    ),
+                )
+            }
+        }

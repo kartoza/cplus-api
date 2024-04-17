@@ -9,7 +9,9 @@ from cplus_api.api_views.scenario import (
     ExecuteScenarioAnalysis,
     CancelScenarioAnalysisTask,
     ScenarioAnalysisTaskStatus,
-    ScenarioAnalysisTaskLogs
+    ScenarioAnalysisTaskLogs,
+    ScenarioAnalysisHistory,
+    ScenarioAnalysisTaskDetail
 )
 from cplus_api.api_views.output import (
     ScenarioAnalysisOutput,
@@ -81,6 +83,16 @@ scenario_urls = [
         'scenario/<uuid:scenario_uuid>/logs/',
         ScenarioAnalysisTaskLogs.as_view(),
         name='scenario-logs'
+    ),
+    path(
+        'scenario/history/',
+        ScenarioAnalysisHistory.as_view(),
+        name='scenario-history'
+    ),
+    path(
+        'scenario/<uuid:scenario_uuid>/detail/',
+        ScenarioAnalysisTaskDetail.as_view(),
+        name='scenario-detail'
     ),
 ]
 
