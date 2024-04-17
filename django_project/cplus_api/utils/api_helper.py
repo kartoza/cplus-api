@@ -1,12 +1,14 @@
 import os
 import math
 from datetime import timedelta
+from rest_framework.exceptions import PermissionDenied
 from drf_yasg import openapi
 from minio import Minio
 from minio.error import S3Error
 from django.conf import settings
 from django.contrib.sites.models import Site
 from core.models.preferences import SitePreferences
+from cplus_api.models.scenario import ScenarioTask
 
 
 LAYER_API_TAG = '01-layer'
@@ -22,6 +24,34 @@ PARAM_SCENARIO_UUID_IN_PATH = openapi.Parameter(
     'scenario_uuid', openapi.IN_PATH,
     description='Scenario UUID', type=openapi.TYPE_STRING
 )
+PARAMS_PAGINATION = [
+    openapi.Parameter(
+        'page', openapi.IN_QUERY,
+        description='Page number in pagination',
+        type=openapi.TYPE_INTEGER,
+        default=1
+    ), openapi.Parameter(
+        'page_size', openapi.IN_QUERY,
+        description='Total records in a page',
+        type=openapi.TYPE_INTEGER,
+        minimum=1,
+        maximum=50,
+        default=50
+    )
+]
+
+
+class BaseScenarioReadAccess(object):
+    """Base class to validate whether user can access the scenario."""
+
+    def validate_user_access(self, user, scenario_task: ScenarioTask,
+                             method='access'):
+        if user.is_superuser:
+            return
+        if scenario_task.submitted_by != user:
+            raise PermissionDenied(
+                f'You are not allowed to {method} '
+                f'scenario {str(scenario_task.uuid)}!')
 
 
 def get_page_size(request):

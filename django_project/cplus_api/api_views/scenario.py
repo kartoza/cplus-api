@@ -1,7 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -23,7 +22,8 @@ from cplus_api.serializers.common import (
 )
 from cplus_api.utils.api_helper import (
     SCENARIO_API_TAG,
-    PARAM_SCENARIO_UUID_IN_PATH
+    PARAM_SCENARIO_UUID_IN_PATH,
+    BaseScenarioReadAccess
 )
 from cplus_api.tasks.runner import run_scenario_analysis_task
 
@@ -91,17 +91,6 @@ class ScenarioAnalysisSubmit(APIView):
         return Response(status=201, data={
             'uuid': str(scenario_task.uuid)
         })
-
-
-class BaseScenarioReadAccess(object):
-    """Base class to validate whether user can access the scenario."""
-
-    def validate_user_access(self, user, scenario_task: ScenarioTask,
-                             method='access'):
-        if scenario_task.submitted_by != user:
-            raise PermissionDenied(
-                f'You are not allowed to {method} '
-                f'scenario {str(scenario_task.uuid)}!')
 
 
 class ExecuteScenarioAnalysis(BaseScenarioReadAccess, APIView):

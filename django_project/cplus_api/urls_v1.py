@@ -11,6 +11,10 @@ from cplus_api.api_views.scenario import (
     ScenarioAnalysisTaskStatus,
     ScenarioAnalysisTaskLogs
 )
+from cplus_api.api_views.output import (
+    ScenarioAnalysisOutput,
+    DownloadScenarioAnalysisOutput
+)
 
 
 # USER API
@@ -80,7 +84,22 @@ scenario_urls = [
     ),
 ]
 
+# SCENARIO OUTPUTS API
+scenario_output_urls = [
+    path(
+        'scenario_output/<uuid:scenario_uuid>/list/',
+        ScenarioAnalysisOutput.as_view(),
+        name='scenario-output-list'
+    ),
+    path(
+        'scenario_output/<uuid:scenario_uuid>/filter/',
+        DownloadScenarioAnalysisOutput.as_view(),
+        name='scenario-output-list-by-uuids'
+    ),
+]
+
 urlpatterns = []
 urlpatterns += user_urls
 urlpatterns += layer_urls
 urlpatterns += scenario_urls
+urlpatterns += scenario_output_urls
