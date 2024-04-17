@@ -29,6 +29,7 @@ def reverse_add_minio_site(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
+        ('sites', '0001_initial'),
         ('core', '0002_tasklog'),
     ]
 
