@@ -18,7 +18,7 @@ from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic.base import RedirectView
-from rest_framework import permissions
+from rest_framework import permissions, authentication
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from drf_yasg.generators import OpenAPISchemaGenerator
@@ -42,6 +42,7 @@ schema_view_v1 = get_schema_view(
         default_version='v0.0.1'
     ),
     public=True,
+    authentication_classes=[authentication.SessionAuthentication],
     permission_classes=[permissions.AllowAny],
     generator_class=CustomSchemaGenerator,
     patterns=[
