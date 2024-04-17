@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from drf_yasg import openapi
 from cplus_api.models.layer import BaseLayer, InputLayer
+from cplus_api.utils.api_helper import build_minio_absolute_url
 
 
 LAYER_SCHEMA_FIELDS = {
@@ -82,7 +83,7 @@ class InputLayerSerializer(serializers.ModelSerializer):
             return None
         if not obj.file.storage.exists(obj.file.name):
             return None
-        return obj.file.url
+        return build_minio_absolute_url(obj.file.url)
 
     class Meta:
         swagger_schema_fields = LAYER_SCHEMA_FIELDS
