@@ -2,7 +2,6 @@ import os
 from django.urls import reverse
 from rest_framework.exceptions import PermissionDenied
 from core.settings.utils import absolute_path
-from rest_framework.test import force_authenticate
 from cplus_api.api_views.layer import (
     LayerList,
     LayerDetail,
@@ -38,7 +37,6 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
-        force_authenticate(request, self.superuser)
         view = LayerList.as_view()
         response = view(request)
         self.assertEqual(response.status_code, 200)
@@ -150,7 +148,6 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
-        force_authenticate(request, self.superuser)
         response = view(request, **kwargs)
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data['url'])
@@ -193,7 +190,6 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
-        force_authenticate(request, self.superuser)
         response = view(request, **kwargs)
         self.assertEqual(response.status_code, 204)
         self.assertFalse(
@@ -239,7 +235,6 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
-        force_authenticate(request, self.superuser)
         response = view(request)
         self.assertEqual(response.status_code, 201)
         self.assertIn('uuid', response.data)
@@ -290,7 +285,6 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
-        force_authenticate(request, self.superuser)
         response = view(request)
         self.assertEqual(response.status_code, 201)
         self.assertIn('uuid', response.data)

@@ -30,7 +30,7 @@ class TestTrendsEarthAuth(BaseAPIViewTest):
     def test_no_token_provided(self):
         """
         Test when no token is provided in Authorization header.
-        User should get 403 error.
+        User should get 401 error.
         """
         request = self.factory.get(
             reverse('v1:user-info')
@@ -38,7 +38,7 @@ class TestTrendsEarthAuth(BaseAPIViewTest):
         request.resolver_match = FakeResolverMatchV1
         view = UserInfo.as_view()
         response = view(request)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)
 
     def test_token_exist_in_redis(self):
         """
@@ -81,7 +81,7 @@ class TestTrendsEarthAuth(BaseAPIViewTest):
                 status_code=401
             )
             response = view(request)
-            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.status_code, 401)
 
     def test_token_exist_in_trends_earth(self):
         """
