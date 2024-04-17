@@ -110,7 +110,6 @@ services:
 
   worker:
     <<: *default-common-django
-    container_name: "cplus-api-worker"
     entrypoint: []
     command: '/bin/bash -c /home/web/django_project/worker_entrypoint.sh'
     environment:
