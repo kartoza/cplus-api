@@ -7,6 +7,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase, TransactionTestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIRequestFactory
+from cplus_api.models.profile import UserRoleType
 from cplus_api.tests.factories import UserF
 from django.core.files.storage import storages
 from cplus_api.models.layer import InputLayer
@@ -97,6 +98,18 @@ class BaseInitData(unittest.TestCase):
             self.assertTrue(filtered)
         else:
             self.assertIn(message, details)
+
+    def create_internal_user(self):
+        user = UserF.create()
+        role, _ = UserRoleType.objects.get_or_create(
+            name='Internal',
+            defaults={
+                'description': 'Internal  user'
+            }
+        )
+        user.user_profile.role = role
+        user.user_profile.save()
+        return user
 
 
 class BaseAPIViewTest(BaseInitData, TestCase):

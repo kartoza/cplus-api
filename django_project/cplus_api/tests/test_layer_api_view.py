@@ -7,18 +7,20 @@ from cplus_api.api_views.layer import (
     LayerDetail,
     LayerUpload,
     LayerUploadStart,
-    LayerUploadFinish
+    LayerUploadFinish,
+    is_internal_user
 )
 from cplus_api.models.layer import (
     InputLayer,
     input_layer_dir_path,
     select_input_layer_storage
 )
+from cplus_api.models.profile import UserProfile
 from cplus_api.tests.common import (
     FakeResolverMatchV1,
     BaseAPIViewTransactionTest
 )
-from cplus_api.tests.factories import InputLayerF
+from cplus_api.tests.factories import InputLayerF, UserF
 
 
 class TestLayerAPIView(BaseAPIViewTransactionTest):
@@ -30,6 +32,23 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         ]
         return find_layer[0] if len(find_layer) > 0 else None
 
+    def test_is_internal_user(self):
+        user_1 = UserF.create()
+        # has external role
+        self.assertFalse(is_internal_user(user_1))
+        # no role
+        user_profile = user_1.user_profile
+        user_profile.role = None
+        user_profile.save()
+        self.assertFalse(is_internal_user(user_1))
+        # no user_profile
+        user_profile.delete()
+        self.assertFalse(UserProfile.objects.filter(user=user_1).exists())
+        user_1.refresh_from_db()
+        self.assertFalse(is_internal_user(user_1))
+        # has internal role
+        user_2 = self.create_internal_user()
+        self.assertTrue(is_internal_user(user_2))
 
     def test_layer_list(self):
         request = self.factory.get(
@@ -97,8 +116,9 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertTrue(layer_detail_view.validate_layer_access(
             input_layer_1, self.user_1
         ))
+        user_2 = self.create_internal_user()
         self.assertTrue(layer_detail_view.validate_layer_access(
-            input_layer_2, self.user_1
+            input_layer_2, user_2
         ))
         self.assertFalse(layer_detail_view.validate_layer_access(
             input_layer_3, self.user_1
@@ -112,7 +132,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
             InputLayer.PrivacyTypes.COMMON, self.superuser
         ))
         self.assertTrue(layer_upload_view.validate_upload_access(
-            InputLayer.PrivacyTypes.INTERNAL, self.user_1
+            InputLayer.PrivacyTypes.INTERNAL, user_2
         ))
         with self.assertRaises(PermissionDenied):
             layer_upload_view.validate_upload_access(

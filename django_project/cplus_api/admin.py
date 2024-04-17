@@ -2,6 +2,7 @@ from django.contrib import admin, messages
 from core.celery import cancel_task
 from cplus_api.models.scenario import ScenarioTask
 from cplus_api.models.layer import InputLayer, OutputLayer
+from cplus_api.models.profile import UserProfile, UserRoleType
 
 
 def cancel_scenario_task(modeladmin, request, queryset):
@@ -44,6 +45,22 @@ class OutputLayerAdmin(admin.ModelAdmin):
     list_filter = ["layer_type", "owner", "is_final_output"]
 
 
+class UserRoleTypeAdmin(admin.ModelAdmin):
+    list_display = ('name', 'description')
+
+
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('name', 'email', 'user', 'role')
+
+    def name(self, obj: UserProfile):
+        return f'{obj.user.first_name} {obj.user.last_name}'
+
+    def email(self, obj: UserProfile):
+        return obj.user.email
+
+
 admin.site.register(ScenarioTask, ScenarioTaskAdmin)
 admin.site.register(InputLayer, InputLayerAdmin)
 admin.site.register(OutputLayer, OutputLayerAdmin)
+admin.site.register(UserRoleType, UserRoleTypeAdmin)
+admin.site.register(UserProfile, UserProfileAdmin)

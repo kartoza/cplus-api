@@ -62,7 +62,7 @@ def task_failure_handler(sender, task_id=None, args=None,
 
 
 @signals.task_revoked.connect
-def task_revoked_handler(sender, request = None, **kwargs):
+def task_revoked_handler(sender, request=None, **kwargs):
     task_name = sender.name if sender else ''
     task_id = request.id if request else None
     task_args = request.args if request else []

@@ -43,10 +43,10 @@ class TaskConfig(object):
     def __init__(self, scenario_name, scenario_desc, extent,
                  analysis_implementation_models, priority_layers,
                  priority_layer_groups,
-                 snapping_enabled = False, snap_layer = '',
-                 pathway_suitability_index = 0,
-                 carbon_coefficient = 0.0, snap_rescale = False,
-                 snap_method = 0, scenario_uuid = None) -> None:
+                 snapping_enabled=False, snap_layer='',
+                 pathway_suitability_index=0,
+                 carbon_coefficient=0.0, snap_rescale=False,
+                 snap_method=0, scenario_uuid=None) -> None:
         self.scenario_name = scenario_name
         self.scenario_desc = scenario_desc
         if scenario_uuid:
@@ -94,7 +94,7 @@ class TaskConfig(object):
             priority_layer = filtered[0]
         return priority_layer
 
-    def get_value(self, attr_name: Settings, default = None):
+    def get_value(self, attr_name: Settings, default=None):
         return getattr(self, attr_name.value, default)
 
     def to_dict(self):

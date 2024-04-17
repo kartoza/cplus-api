@@ -35,8 +35,6 @@ class SenderObj(object):
 
 
 class TestModelScenarioTask(TestCase):
-
-
     def setUp(self) -> None:
         self.scenario_task_ct = ContentType.objects.get(
             app_label="cplus_api", model="scenariotask")
