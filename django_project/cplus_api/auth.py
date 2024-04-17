@@ -1,22 +1,13 @@
 import requests
 import jwt
-import fakeredis
-from core.celery import BASE_REDIS_URL
 from datetime import datetime
+from django.core.cache import cache
 from django.contrib.auth import get_user_model
-from django.db import connection
-from redis import Redis
 from rest_framework import authentication
 from rest_framework import exceptions
 
 
 TRENDS_EARTH_PROFILE_URL = 'https://api2.trends.earth/api/v1/user/me'
-
-db_name = connection.settings_dict['NAME']
-if db_name.startswith('test_'):
-    redis = Redis.from_url(BASE_REDIS_URL[0])
-else:
-    redis = fakeredis.FakeStrictRedis()
 
 
 class TrendsEarthAuthentication(authentication.BaseAuthentication):
@@ -32,7 +23,7 @@ class TrendsEarthAuthentication(authentication.BaseAuthentication):
                 '')
 
         # Check if token exist in redis, return the user if exist
-        user_id = redis.get(token)
+        user_id = cache.get(token)
         if user_id:
             user = get_user_model().objects.get(id=user_id)
             return user, None
@@ -62,18 +53,11 @@ class TrendsEarthAuthentication(authentication.BaseAuthentication):
                     email=user_profile['email'],
                     first_name=user_profile['name']
                 )
-
-                redis.set(
-                    token, user.id
-                )
                 expiry = (
                     datetime.fromtimestamp(
                         decoded_token['exp']
                     ) - datetime.now()
                 ).seconds
-                redis.expire(
-                    token,
-                    expiry
-                )
+                cache.set(token, user.id, expiry)
                 return user, None
             raise exceptions.AuthenticationFailed('No such user')
