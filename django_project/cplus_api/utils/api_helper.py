@@ -77,7 +77,8 @@ def get_presigned_url(filename):
         minio_client = get_minio_client()
         # Generate pre-signed URL for uploading an object
         upload_url = minio_client.presigned_put_object(
-            'cplus', filename, expires=timedelta(hours=3))
+            os.environ.get("MINIO_BUCKET_NAME"), filename,
+            expires=timedelta(hours=3))
         return build_minio_absolute_url(upload_url)
     except S3Error:
         return None

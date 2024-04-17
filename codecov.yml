@@ -11,4 +11,4 @@ coverage:
       default:
         target: 80
   ignore:
-    - "**/migrations"
+    - "**/migrations/*.py"
