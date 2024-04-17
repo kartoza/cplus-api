@@ -5,10 +5,10 @@ coverage:
   status:
     project:
       default:
-        threshold: "5%"
+        target: 80
     changes: false
     patch:
       default:
-        target: 80
+        threshold: "5%"
   ignore:
     - "**/migrations/*.py"
