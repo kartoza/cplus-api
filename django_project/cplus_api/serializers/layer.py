@@ -35,7 +35,12 @@ LAYER_SCHEMA_FIELDS = {
         ),
         'component_type': openapi.Schema(
             title='Component Type',
-            type=openapi.TYPE_STRING
+            type=openapi.TYPE_STRING,
+            enum=[
+                InputLayer.ComponentTypes.NCS_CARBON,
+                InputLayer.ComponentTypes.NCS_PATHWAY,
+                InputLayer.ComponentTypes.PRIORITY_LAYER
+            ],
         ),
         'privacy_type': openapi.Schema(
             title='Privacy Type',
