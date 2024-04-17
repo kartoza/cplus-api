@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from drf_yasg import openapi
 from cplus_api.models.layer import BaseLayer, InputLayer
+from cplus_api.utils.api_helper import build_minio_absolute_url
 
 
 LAYER_SCHEMA_FIELDS = {
@@ -82,7 +83,7 @@ class InputLayerSerializer(serializers.ModelSerializer):
             return None
         if not obj.file.storage.exists(obj.file.name):
             return None
-        return obj.file.url
+        return build_minio_absolute_url(obj.file.url)
 
     class Meta:
         swagger_schema_fields = LAYER_SCHEMA_FIELDS
@@ -124,4 +125,73 @@ class PaginatedInputLayerSerializer(serializers.Serializer):
                     items=openapi.Items(**LAYER_SCHEMA_FIELDS),
                 )
             }
+        }
+
+
+class UploadLayerSerializer(serializers.Serializer):
+    layer_type = serializers.IntegerField()
+    component_type = serializers.CharField()
+    privacy_type = serializers.CharField()
+    client_id = serializers.CharField(required=False)
+    uuid = serializers.CharField(required=False)
+    name = serializers.CharField(required=True)
+    size = serializers.IntegerField(required=True, min_value=1)
+
+    class Meta:
+        swagger_schema_fields = {
+            'type': openapi.TYPE_OBJECT,
+            'title': 'Layer Upload',
+            'properties': {
+                'layer_type': openapi.Schema(
+                    title=(
+                        'Layer Type - 0 (Raster), 1 (Vector), -1 (Undefined)'
+                    ),
+                    type=openapi.TYPE_INTEGER,
+                    enum=[
+                        BaseLayer.LayerTypes.RASTER,
+                        BaseLayer.LayerTypes.VECTOR,
+                        BaseLayer.LayerTypes.UNDEFINED
+                    ],
+                    default=BaseLayer.LayerTypes.RASTER
+                ),
+                'component_type': openapi.Schema(
+                    title='Component Type',
+                    type=openapi.TYPE_STRING,
+                    enum=[
+                        InputLayer.ComponentTypes.NCS_CARBON,
+                        InputLayer.ComponentTypes.NCS_PATHWAY,
+                        InputLayer.ComponentTypes.PRIORITY_LAYER,
+                    ]
+                ),
+                'privacy_type': openapi.Schema(
+                    title='Privacy Type',
+                    type=openapi.TYPE_STRING,
+                    enum=[
+                        InputLayer.PrivacyTypes.PRIVATE,
+                        InputLayer.PrivacyTypes.INTERNAL,
+                        InputLayer.PrivacyTypes.COMMON,
+                    ],
+                    default=InputLayer.PrivacyTypes.PRIVATE
+                ),
+                'client_id': openapi.Schema(
+                    title='ID given by the client',
+                    type=openapi.TYPE_STRING
+                ),
+                'uuid': openapi.Schema(
+                    title='Layer UUID for updating existing layer',
+                    type=openapi.TYPE_STRING
+                ),
+                'name': openapi.Schema(
+                    title='Layer file name',
+                    type=openapi.TYPE_STRING
+                ),
+                'size': openapi.Schema(
+                    title='Layer file size',
+                    type=openapi.TYPE_INTEGER
+                )
+            },
+            'required': [
+                'layer_type', 'component_type', 'privacy_type',
+                'name', 'size'
+            ]
         }

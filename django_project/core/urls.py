@@ -24,14 +24,15 @@ from drf_yasg import openapi
 from drf_yasg.generators import OpenAPISchemaGenerator
 from django.http import HttpResponseNotFound
 import json
+from core.views.flower_proxy_view import FlowerProxyView
 
 
 class CustomSchemaGenerator(OpenAPISchemaGenerator):
     def get_schema(self, request=None, public=False):
         schema = super().get_schema(request, public)
         schema.schemes = ['https']
-        if settings.DEBUG:
-            schema.schemes = ['http'] + schema.schemes
+        # if settings.DEBUG:
+        schema.schemes = ['http'] + schema.schemes
         return schema
 
 
@@ -68,6 +69,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     re_path(r'^api/v1/',
             include(('cplus_api.urls_v1', 'api'), namespace='v1')),
+    FlowerProxyView.as_url(),
+    re_path(
+        r'', RedirectView.as_view(url='/api/v1/docs/', permanent=False),
+        name='default-view'
+    ),
 ]
 
 if settings.DEBUG:

@@ -3,7 +3,8 @@ from rest_framework.response import Response
 from rest_framework.exceptions import (
     NotAuthenticated,
     PermissionDenied as RestPermissionDenied,
-    AuthenticationFailed
+    AuthenticationFailed,
+    ValidationError as RestValidationError
 )
 from django.core.exceptions import (
     ValidationError,
@@ -49,6 +50,15 @@ def custom_exception_handler(exc, context):
         response = Response(
             {
                 'detail': str(exc)
+            },
+            status=400,
+            headers={}
+        )
+    elif isinstance(exc, RestValidationError):
+        _log_exception(exc)
+        response = Response(
+            {
+                'detail': exc.detail
             },
             status=400,
             headers={}

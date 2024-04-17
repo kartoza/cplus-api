@@ -1,4 +1,11 @@
+import os
+import math
+from datetime import timedelta
 from drf_yasg import openapi
+from minio import Minio
+from minio.error import S3Error
+from django.conf import settings
+from django.contrib.sites.models import Site
 from core.models.preferences import SitePreferences
 
 
@@ -10,6 +17,10 @@ SCENARIO_OUTPUT_API_TAG = '03-scenario-outputs'
 PARAM_LAYER_UUID_IN_PATH = openapi.Parameter(
     'layer_uuid', openapi.IN_PATH,
     description='Layer UUID', type=openapi.TYPE_STRING
+)
+PARAM_SCENARIO_UUID_IN_PATH = openapi.Parameter(
+    'scenario_uuid', openapi.IN_PATH,
+    description='Scenario UUID', type=openapi.TYPE_STRING
 )
 
 
@@ -32,3 +43,52 @@ def get_page_size(request):
     if page_size > max_size:
         page_size = max_size
     return page_size
+
+
+def build_minio_absolute_url(url):
+    minio_site = Site.objects.filter(
+        name__icontains='minio api'
+    ).first()
+    current_site = minio_site if minio_site else Site.objects.get_current()
+    scheme = 'https://'
+    if settings.DEBUG:
+        scheme = 'http://'
+    domain = current_site.domain
+    if not domain.endswith('/'):
+        domain = domain + '/'
+    result = url.replace('http://minio:9000/', f'{scheme}{domain}')
+    return result
+
+
+def get_minio_client():
+    # Initialize MinIO client
+    minio_client = Minio(
+        os.environ.get("MINIO_ENDPOINT", "").replace(
+            "https://", "").replace("http://", ""),
+        access_key=os.environ.get("MINIO_ACCESS_KEY_ID"),
+        secret_key=os.environ.get("MINIO_SECRET_ACCESS_KEY"),
+        secure=False  # Set to True if using HTTPS
+    )
+    return minio_client
+
+
+def get_presigned_url(filename):
+    try:
+        minio_client = get_minio_client()
+        # Generate pre-signed URL for uploading an object
+        upload_url = minio_client.presigned_put_object(
+            os.environ.get("MINIO_BUCKET_NAME"), filename,
+            expires=timedelta(hours=3))
+        return build_minio_absolute_url(upload_url)
+    except S3Error:
+        return None
+
+
+def convert_size(size_bytes):
+    if size_bytes == 0:
+        return "0B"
+    size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+    i = int(math.floor(math.log(size_bytes, 1024)))
+    p = math.pow(1024, i)
+    s = round(size_bytes / p, 2)
+    return "%s %s" % (s, size_name[i])
