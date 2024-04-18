@@ -296,11 +296,11 @@ class OutputLayerSerializer(serializers.ModelSerializer):
         return obj.owner.email
 
     def get_url(self, obj: OutputLayer):
+        if not self.check_generate_all_outputs(obj):
+            return None
         if not obj.file.name:
             return None
         if not obj.file.storage.exists(obj.file.name):
-            return None
-        if not self.check_generate_all_outputs(obj):
             return None
         if settings.DEBUG:
             return build_minio_absolute_url(obj.file.url)

@@ -25,7 +25,7 @@ from cplus_api.utils.api_helper import (
 )
 
 
-class ScenarioAnalysisOutput(BaseScenarioReadAccess, APIView):
+class UserScenarioAnalysisOutput(BaseScenarioReadAccess, APIView):
     """API to fetch output list of ScenarioAnalysis"""
     permission_classes = [IsAuthenticated]
     param_all_outputs = openapi.Parameter(
@@ -87,7 +87,7 @@ class ScenarioAnalysisOutput(BaseScenarioReadAccess, APIView):
         })
 
 
-class DownloadScenarioAnalysisOutput(BaseScenarioReadAccess, APIView):
+class FetchScenarioAnalysisOutput(BaseScenarioReadAccess, APIView):
     """Generate download URL for scenario outputs by UUIDs."""
     permission_classes = [IsAuthenticated]
 

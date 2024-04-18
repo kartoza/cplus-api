@@ -10,7 +10,7 @@ from rest_framework.test import APIRequestFactory
 from cplus_api.models.profile import UserRoleType
 from cplus_api.tests.factories import UserF
 from django.core.files.storage import storages
-from cplus_api.models.layer import InputLayer
+from cplus_api.models.layer import InputLayer, OutputLayer
 
 
 class DummyTask:
@@ -65,12 +65,12 @@ class BaseInitData(unittest.TestCase):
         minio_storage = storages['minio']
         clear_test_dir(minio_storage.location)
 
-    def store_input_layer_file(self, input_layer: InputLayer,
-                               file_path, file_name=None):
-        """Store existing file_path to input_layer filefield."""
+    def store_layer_file(self, layer: InputLayer | OutputLayer,
+                         file_path, file_name=None):
+        """Store existing file_path to layer filefield."""
         name = file_name if file_name else os.path.basename(file_path)
         with open(file_path, 'rb') as output_file:
-            input_layer.file.save(name, output_file)
+            layer.file.save(name, output_file)
 
     def read_uploaded_file(self, file_path):
         """Return file for data upload."""
@@ -100,6 +100,7 @@ class BaseInitData(unittest.TestCase):
             self.assertIn(message, details)
 
     def create_internal_user(self):
+        """Create a new user with internal role."""
         user = UserF.create()
         role, _ = UserRoleType.objects.get_or_create(
             name='Internal',
@@ -110,6 +111,14 @@ class BaseInitData(unittest.TestCase):
         user.user_profile.role = role
         user.user_profile.save()
         return user
+
+    def find_layer_from_response(self, layers, layer_uuid):
+        """Find layer (input/output) from response data."""
+        find_layer = [
+            layer for layer in layers if
+            layer['uuid'] == str(layer_uuid)
+        ]
+        return find_layer[0] if len(find_layer) > 0 else None
 
 
 class BaseAPIViewTest(BaseInitData, TestCase):
