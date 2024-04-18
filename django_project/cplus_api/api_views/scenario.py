@@ -1,13 +1,14 @@
+import math
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
 from django.contrib.contenttypes.models import ContentType
+from django.core.paginator import Paginator
 from core.celery import cancel_task
 from core.models.base_task_request import READ_ONLY_STATUS, TaskStatus
 from core.models.task_log import TaskLog
@@ -16,14 +17,18 @@ from cplus_api.serializers.scenario import (
     ScenarioInputSerializer,
     ScenarioTaskStatusSerializer,
     ScenarioTaskLogListSerializer,
-    ScenarioTaskLogSerializer
+    ScenarioTaskLogSerializer,
+    PaginatedScenarioTaskStatusSerializer
 )
 from cplus_api.serializers.common import (
     APIErrorSerializer
 )
 from cplus_api.utils.api_helper import (
     SCENARIO_API_TAG,
-    PARAM_SCENARIO_UUID_IN_PATH
+    PARAM_SCENARIO_UUID_IN_PATH,
+    BaseScenarioReadAccess,
+    PARAMS_PAGINATION,
+    get_page_size
 )
 from cplus_api.tasks.runner import run_scenario_analysis_task
 
@@ -91,17 +96,6 @@ class ScenarioAnalysisSubmit(APIView):
         return Response(status=201, data={
             'uuid': str(scenario_task.uuid)
         })
-
-
-class BaseScenarioReadAccess(object):
-    """Base class to validate whether user can access the scenario."""
-
-    def validate_user_access(self, user, scenario_task: ScenarioTask,
-                             method='access'):
-        if scenario_task.submitted_by != user:
-            raise PermissionDenied(
-                f'You are not allowed to {method} '
-                f'scenario {str(scenario_task.uuid)}!')
 
 
 class ExecuteScenarioAnalysis(BaseScenarioReadAccess, APIView):
@@ -209,7 +203,7 @@ class CancelScenarioAnalysisTask(BaseScenarioReadAccess, APIView):
 
 
 class ScenarioAnalysisTaskStatus(BaseScenarioReadAccess, APIView):
-    """API to fetch logs from scenario task."""
+    """API to fetch status from scenario analysis."""
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
@@ -262,3 +256,67 @@ class ScenarioAnalysisTaskLogs(BaseScenarioReadAccess, APIView):
         return Response(status=200, data=(
             ScenarioTaskLogSerializer(task_log_qs, many=True).data
         ))
+
+
+class ScenarioAnalysisHistory(APIView):
+    """API to fetch scenario analysis submitted by the user."""
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_id='scenario-analysis-history',
+        tags=[SCENARIO_API_TAG],
+        manual_parameters=PARAMS_PAGINATION,
+        responses={
+            200: PaginatedScenarioTaskStatusSerializer,
+            400: APIErrorSerializer,
+            404: APIErrorSerializer
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        page = int(request.GET.get('page', '1'))
+        page_size = get_page_size(request)
+        scenarios = ScenarioTask.objects.filter(
+            submitted_by=request.user
+        ).order_by('submitted_on')
+        # set pagination
+        paginator = Paginator(scenarios, page_size)
+        total_page = math.ceil(paginator.count / page_size)
+        if page > total_page:
+            output = []
+        else:
+            paginated_entities = paginator.get_page(page)
+            output = (
+                ScenarioTaskStatusSerializer(
+                    paginated_entities,
+                    many=True
+                ).data
+            )
+        return Response(status=200, data={
+            'page': page,
+            'total_page': total_page,
+            'page_size': page_size,
+            'results': output
+        })
+
+
+class ScenarioAnalysisTaskDetail(BaseScenarioReadAccess, APIView):
+    """API to fetch scenario detail."""
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_id='scenario-analysis-detail',
+        tags=[SCENARIO_API_TAG],
+        manual_parameters=[PARAM_SCENARIO_UUID_IN_PATH],
+        responses={
+            200: ScenarioInputSerializer,
+            400: APIErrorSerializer,
+            403: APIErrorSerializer,
+            404: APIErrorSerializer
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        scenario_uuid = kwargs.get('scenario_uuid')
+        scenario_task = get_object_or_404(
+            ScenarioTask, uuid=scenario_uuid)
+        self.validate_user_access(request.user, scenario_task)
+        return Response(status=200, data=scenario_task.detail)

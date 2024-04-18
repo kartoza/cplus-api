@@ -25,13 +25,6 @@ from cplus_api.tests.factories import InputLayerF, UserF
 
 class TestLayerAPIView(BaseAPIViewTransactionTest):
 
-    def find_layer_from_response(self, layers, layer_uuid):
-        find_layer = [
-            layer for layer in layers if
-            layer['uuid'] == str(layer_uuid)
-        ]
-        return find_layer[0] if len(find_layer) > 0 else None
-
     def test_is_internal_user(self):
         user_1 = UserF.create()
         # has external role
@@ -90,7 +83,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
             'cplus_api', 'tests', 'data',
             'models', 'test_model_1.tif'
         )
-        self.store_input_layer_file(input_layer, file_path)
+        self.store_layer_file(input_layer, file_path)
         response = view(request)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data['results']), 1)
@@ -159,7 +152,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
             'cplus_api', 'tests', 'data',
             'models', 'test_model_1.tif'
         )
-        self.store_input_layer_file(input_layer, file_path)
+        self.store_layer_file(input_layer, file_path)
         kwargs = {
             'layer_uuid': str(input_layer.uuid)
         }
@@ -190,7 +183,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
             'cplus_api', 'tests', 'data',
             'models', 'test_model_1.tif'
         )
-        self.store_input_layer_file(input_layer, file_path)
+        self.store_layer_file(input_layer, file_path)
         layer_uuid = input_layer.uuid
         layer_filename = input_layer.file.name
         kwargs = {
@@ -367,7 +360,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertEqual(input_layer.name, response.data['name'])
         self.assertTrue(os.path.exists(dest_file_path))
         # test update should remove old file
-        self.store_input_layer_file(
+        self.store_layer_file(
             input_layer, file_path, file_name=input_layer.name)
         input_layer.refresh_from_db()
         old_filename = input_layer.name

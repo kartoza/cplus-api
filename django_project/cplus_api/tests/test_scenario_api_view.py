@@ -8,7 +8,9 @@ from cplus_api.api_views.scenario import (
     ExecuteScenarioAnalysis,
     CancelScenarioAnalysisTask,
     ScenarioAnalysisTaskStatus,
-    ScenarioAnalysisTaskLogs
+    ScenarioAnalysisTaskLogs,
+    ScenarioAnalysisHistory,
+    ScenarioAnalysisTaskDetail
 )
 from cplus_api.models.layer import InputLayer
 from cplus_api.models.scenario import ScenarioTask
@@ -74,7 +76,7 @@ class TestScenarioAPIView(BaseAPIViewTransactionTest):
             'cplus_api', 'tests', 'data',
             'models', 'test_model_1.tif'
         )
-        self.store_input_layer_file(input_layer, file_path)
+        self.store_layer_file(input_layer, file_path)
         request = self.factory.post(
             reverse('v1:scenario-submit'), data, format='json'
         )
@@ -293,3 +295,49 @@ class TestScenarioAPIView(BaseAPIViewTransactionTest):
         self.assertEqual(response.data['uuid'], str(scenario_task.uuid))
         self.assertEqual(response.data['task_id'], str(scenario_task.task_id))
         self.assertFalse(response.data['scenario_name'])
+
+    def test_scenario_history(self):
+        view = ScenarioAnalysisHistory.as_view()
+        # page > total_page
+        page = 10
+        request = self.factory.get(
+            reverse('v1:scenario-history') + f'?page={page}'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
+        response = view(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['results']), 0)
+        # valid
+        scenario_task = ScenarioTaskF.create(
+            submitted_by=self.user_1,
+            status=TaskStatus.PENDING
+        )
+        request = self.factory.get(
+            reverse('v1:scenario-history')
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
+        response = view(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['results']), 1)
+        scenario = response.data['results'][0]
+        self.assertEqual(str(scenario_task.uuid), scenario['uuid'])
+
+    def test_scenario_detail(self):
+        view = ScenarioAnalysisTaskDetail.as_view()
+        scenario_task = ScenarioTaskF.create(
+            submitted_by=self.user_1,
+            status=TaskStatus.PENDING
+        )
+        kwargs = {
+            'scenario_uuid': str(scenario_task.uuid)
+        }
+        request = self.factory.get(
+            reverse('v1:scenario-detail', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data)

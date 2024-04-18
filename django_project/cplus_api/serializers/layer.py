@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from drf_yasg import openapi
-from cplus_api.models.layer import BaseLayer, InputLayer
+from django.conf import settings
+from cplus_api.models.layer import BaseLayer, InputLayer, OutputLayer
 from cplus_api.utils.api_helper import build_minio_absolute_url
 
 
@@ -11,6 +12,10 @@ LAYER_SCHEMA_FIELDS = {
         'filename': openapi.Schema(
             title='Filename',
             type=openapi.TYPE_STRING
+        ),
+        'size': openapi.Schema(
+            title='Layer File Size',
+            type=openapi.TYPE_INTEGER
         ),
         'uuid': openapi.Schema(
             title='Layer UUID',
@@ -35,7 +40,12 @@ LAYER_SCHEMA_FIELDS = {
         ),
         'component_type': openapi.Schema(
             title='Component Type',
-            type=openapi.TYPE_STRING
+            type=openapi.TYPE_STRING,
+            enum=[
+                InputLayer.ComponentTypes.NCS_CARBON,
+                InputLayer.ComponentTypes.NCS_PATHWAY,
+                InputLayer.ComponentTypes.PRIORITY_LAYER
+            ],
         ),
         'privacy_type': openapi.Schema(
             title='Privacy Type',
@@ -58,6 +68,7 @@ LAYER_SCHEMA_FIELDS = {
     'required': [],
     'example': {
         'filename': 'Final_Alien_Invasive_Plant_priority_norm.tif',
+        'size': 100000000,
         'uuid': '8c4582ab-15b1-4ed0-b8e4-00640ec10a65',
         'layer_type': 0,
         'component_type': 'ncs_pathway',
@@ -66,6 +77,73 @@ LAYER_SCHEMA_FIELDS = {
         'created_on': '2022-08-15T08:09:15.049806Z',
         'url': '',
         'client_id': ''
+    }
+}
+
+
+OUTPUT_LAYER_SCHEMA_FIELDS = {
+    'type': openapi.TYPE_OBJECT,
+    'title': 'Scenario Output',
+    'properties': {
+        'filename': openapi.Schema(
+            title='Filename',
+            type=openapi.TYPE_STRING
+        ),
+        'size': openapi.Schema(
+            title='Layer File Size',
+            type=openapi.TYPE_INTEGER
+        ),
+        'uuid': openapi.Schema(
+            title='Output Layer UUID',
+            type=openapi.TYPE_STRING
+        ),
+        'created_on': openapi.Schema(
+            title='Created Date Time',
+            type=openapi.TYPE_STRING
+        ),
+        'created_by': openapi.Schema(
+            title='Owner email',
+            type=openapi.TYPE_STRING
+        ),
+        'layer_type': openapi.Schema(
+            title='Layer Type',
+            type=openapi.TYPE_INTEGER,
+            enum=[
+                BaseLayer.LayerTypes.RASTER,
+                BaseLayer.LayerTypes.VECTOR,
+                BaseLayer.LayerTypes.UNDEFINED
+            ],
+        ),
+        'url': openapi.Schema(
+            title='Layer Download URL',
+            type=openapi.TYPE_STRING
+        ),
+        'is_final_output': openapi.Schema(
+            title='Is Final Output Layer',
+            type=openapi.TYPE_BOOLEAN,
+        ),
+        'group': openapi.Schema(
+            title='Layer Output Group',
+            type=openapi.TYPE_STRING,
+            enum=[
+                "implementation_models",
+                "normalized_ims",
+                "normalized_pathways",
+                "weighted_ims"
+            ],
+        ),
+    },
+    'required': [],
+    'example': {
+        'filename': 'Final_Alien_Invasive_Plant_priority_norm.tif',
+        'size': 100000000,
+        'uuid': '8c4582ab-15b1-4ed0-b8e4-00640ec10a65',
+        'layer_type': 0,
+        'created_by': 'admin@admin.com',
+        'created_on': '2022-08-15T08:09:15.049806Z',
+        'url': '',
+        'is_final_output': False,
+        'group': 'weighted_ims'
     }
 }
 
@@ -195,3 +273,80 @@ class UploadLayerSerializer(serializers.Serializer):
                 'name', 'size'
             ]
         }
+
+
+class OutputLayerSerializer(serializers.ModelSerializer):
+    DEFAULT_GROUP_IN_OUTPUT_URL = ['weighted_ims']
+    filename = serializers.CharField(source='name')
+    created_by = serializers.SerializerMethodField()
+    url = serializers.SerializerMethodField()
+
+    def check_generate_all_outputs(self, obj: OutputLayer):
+        is_fetch_all = self.context.get('is_fetch_all', False)
+        if is_fetch_all:
+            return True
+        if (
+            not obj.is_final_output and
+            obj.group not in self.DEFAULT_GROUP_IN_OUTPUT_URL
+        ):
+            return False
+        return True
+
+    def get_created_by(self, obj: OutputLayer):
+        return obj.owner.email
+
+    def get_url(self, obj: OutputLayer):
+        if not self.check_generate_all_outputs(obj):
+            return None
+        if not obj.file.name:
+            return None
+        if not obj.file.storage.exists(obj.file.name):
+            return None
+        if settings.DEBUG:
+            return build_minio_absolute_url(obj.file.url)
+        return obj.file.url
+
+    class Meta:
+        swagger_schema_fields = OUTPUT_LAYER_SCHEMA_FIELDS
+        model = OutputLayer
+        fields = [
+            'uuid', 'filename', 'created_on',
+            'created_by', 'layer_type', 'size',
+            'url', 'is_final_output', 'group'
+        ]
+
+
+class PaginatedOutputLayerSerializer(serializers.Serializer):
+    page = serializers.IntegerField()
+    total_page = serializers.IntegerField()
+    page_size = serializers.IntegerField()
+    results = OutputLayerSerializer(many=True)
+
+    class Meta:
+        swagger_schema_fields = {
+            'type': openapi.TYPE_OBJECT,
+            'title': 'Output Layer List',
+            'properties': {
+                'page': openapi.Schema(
+                    title='Page Number',
+                    type=openapi.TYPE_INTEGER
+                ),
+                'total_page': openapi.Schema(
+                    title='Total Page',
+                    type=openapi.TYPE_INTEGER
+                ),
+                'page_size': openapi.Schema(
+                    title='Total item in 1 page',
+                    type=openapi.TYPE_INTEGER
+                ),
+                'results': openapi.Schema(
+                    title='Results',
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Items(**OUTPUT_LAYER_SCHEMA_FIELDS),
+                )
+            }
+        }
+
+
+class OutputLayerListSerializer(serializers.ListSerializer):
+    child = OutputLayerSerializer()

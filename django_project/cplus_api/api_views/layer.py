@@ -29,7 +29,8 @@ from cplus_api.utils.api_helper import (
     LAYER_API_TAG,
     PARAM_LAYER_UUID_IN_PATH,
     get_presigned_url,
-    convert_size
+    convert_size,
+    PARAMS_PAGINATION
 )
 
 
@@ -52,6 +53,7 @@ class LayerList(APIView):
     @swagger_auto_schema(
         operation_id='layer-list',
         tags=[LAYER_API_TAG],
+        manual_parameters=PARAMS_PAGINATION,
         responses={
             200: PaginatedInputLayerSerializer,
             400: APIErrorSerializer,
