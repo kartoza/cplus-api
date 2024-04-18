@@ -116,7 +116,7 @@ class TestOutputAPIView(BaseAPIViewTransactionTest):
             reverse(
                 'v1:scenario-output-list',
                 kwargs=kwargs
-            ) + f'?fetch_all=true'
+            ) + '?fetch_all=true'
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
