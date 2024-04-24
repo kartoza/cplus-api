@@ -1,8 +1,14 @@
+# -*- coding: utf-8 -*-
+"""
+    Plugin utilities
+"""
+
+
 import os
 import uuid
-import logging
 from pathlib import Path
-from qgis.PyQt import QtGui
+
+from qgis.PyQt import QtCore, QtGui
 from qgis.core import (
     Qgis,
     QgsCoordinateReferenceSystem,
@@ -14,20 +20,20 @@ from qgis.core import (
     QgsProject,
     QgsProcessing,
     QgsRasterLayer,
+    QgsRectangle,
     QgsUnitTypes,
 )
 
 from qgis.analysis import QgsAlignRaster
+
 from qgis import processing
-from cplus.definitions.defaults import TEMPLATE_NAME
+
+from cplus.definitions.defaults import DOCUMENTATION_SITE, REPORT_FONT_NAME, TEMPLATE_NAME
 from cplus.definitions.constants import (
     NCS_CARBON_SEGMENT,
     NCS_PATHWAY_SEGMENT,
     PRIORITY_LAYERS_SEGMENT,
 )
-
-
-logger = logging.getLogger(__name__)
 
 
 def tr(message):
@@ -41,7 +47,7 @@ def tr(message):
     :rtype: QString
     """
     # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-    return message
+    return QtCore.QCoreApplication.translate("QgisCplus", message)
 
 
 def log(
@@ -76,6 +82,58 @@ def log(
     )
 
 
+def open_documentation(url=None):
+    """Opens documentation website in the default browser
+
+    :param url: URL link to documentation site (e.g. gh pages site)
+    :type url: str
+
+    """
+    url = DOCUMENTATION_SITE if url is None else url
+    result = QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+    return result
+
+
+def get_plugin_version() -> [str, None]:
+    """Returns the current plugin version
+    as saved in the metadata.txt plugin file.
+
+    :returns version: Plugin version
+    :rtype version: str
+    """
+    metadata_file = Path(__file__).parent.resolve() / "metadata.txt"
+
+    with open(metadata_file, "r") as f:
+        for line in f.readlines():
+            if line.startswith("version"):
+                version = line.strip().split("=")[1]
+                return version
+    return None
+
+
+def get_report_font(size=11.0, bold=False, italic=False) -> QtGui.QFont:
+    """Uses the default font family name to create a
+    font for use in the report.
+
+    :param size: The font point size, default is 11.
+    :type size: float
+
+    :param bold: True for bold font else False which is the default.
+    :type bold: bool
+
+    :param italic: True for font to be in italics else False which is the default.
+    :type italic: bool
+
+    :returns: Font to use in a report.
+    :rtype: QtGui.QFont
+    """
+    font_weight = 50
+    if bold is True:
+        font_weight = 75
+
+    return QtGui.QFont(REPORT_FONT_NAME, int(size), font_weight, italic)
+
+
 def clean_filename(filename):
     """Creates a safe filename by removing operating system
     invalid filename characters.
@@ -96,15 +154,13 @@ def clean_filename(filename):
 
 
 def calculate_raster_value_area(
-    layer: QgsRasterLayer, band_number: int = 1,
-    feedback: QgsProcessingFeedback = None
+    layer: QgsRasterLayer, band_number: int = 1, feedback: QgsProcessingFeedback = None
 ) -> dict:
-    """Calculates the area of value pixels for
-    the given band in a raster layer.
+    """Calculates the area of value pixels for the given band in a raster layer.
 
-    Please note that this function will run in the main application thread
-    hence for best results, it is recommended to execute it
-    in a background process if part of a bigger workflow.
+    Please note that this function will run in the main application thread hence
+    for best results, it is recommended to execute it in a background process
+    if part of a bigger workflow.
 
     :param layer: Input layer whose area for value pixels is to be calculated.
     :type layer: QgsRasterLayer
@@ -116,9 +172,8 @@ def calculate_raster_value_area(
     :type feedback: QgsProcessingFeedback
 
     :returns: A dictionary containing the pixel value as
-    the key and the corresponding area in hectares as the value
-    for all the pixels in the raster otherwise
-    returns a empty dictionary if the raster is invalid
+    the key and the corresponding area in hectares as the value for all the pixels
+    in the raster otherwise returns a empty dictionary if the raster is invalid
     or if it is empty.
     :rtype: float
     """
@@ -134,8 +189,7 @@ def calculate_raster_value_area(
         "OUTPUT_HTML_FILE": QgsProcessing.TEMPORARY_OUTPUT,
     }
 
-    algorithm_result = processing.run(
-        algorithm_name, params, feedback=feedback)
+    algorithm_result = processing.run(algorithm_name, params, feedback=feedback)
 
     # Get number of pixels with values
     total_pixel_count = algorithm_result["TOTAL_PIXEL_COUNT"]
@@ -172,7 +226,6 @@ def calculate_raster_value_area(
     return pixel_areas
 
 
-
 def transform_extent(extent, source_crs, dest_crs):
     """Transforms the passed extent into the destination crs
 
@@ -186,8 +239,7 @@ def transform_extent(extent, source_crs, dest_crs):
     :type dest_crs: QgsCoordinateReferenceSystem
     """
 
-    transform = QgsCoordinateTransform(
-        source_crs, dest_crs, QgsProject.instance())
+    transform = QgsCoordinateTransform(source_crs, dest_crs, QgsProject.instance())
     transformed_extent = transform.transformBoundingBox(extent)
 
     return transformed_extent
@@ -234,8 +286,7 @@ def align_rasters(
         input_path = Path(input_raster_source)
 
         input_layer_output = os.path.join(
-            f"{snap_directory}",
-            f"{input_path.stem}_{str(uuid.uuid4())[:4]}.tif"
+            f"{snap_directory}", f"{input_path.stem}_{str(uuid.uuid4())[:4]}.tif"
         )
 
         FileUtils.create_new_file(input_layer_output)
@@ -248,8 +299,7 @@ def align_rasters(
         resample_method_value = QgsAlignRaster.ResampleAlg.RA_NearestNeighbour
 
         try:
-            resample_method_value = QgsAlignRaster.ResampleAlg(
-                int(resample_method))
+            resample_method_value = QgsAlignRaster.ResampleAlg(int(resample_method))
         except Exception as e:
             log(f"Problem creating a resample value when snapping, {e}")
 
@@ -320,8 +370,7 @@ class FileUtils:
         :returns: Icon object matching the file name.
         :rtype: QtGui.QIcon
         """
-        icon_path = os.path.normpath(
-            f"{FileUtils.plugin_dir()}/icons/{file_name}")
+        icon_path = os.path.normpath(f"{FileUtils.plugin_dir()}/icons/{file_name}")
 
         if not os.path.exists(icon_path):
             return QtGui.QIcon()
@@ -357,9 +406,8 @@ class FileUtils:
             return
 
         ncs_pathway_dir = f"{base_dir}/{NCS_PATHWAY_SEGMENT}"
-        message = (
-            "Missing parent directory when "
-            "creating NCS pathways subdirectory."
+        message = tr(
+            "Missing parent directory when creating NCS pathways subdirectory."
         )
         FileUtils.create_new_dir(ncs_pathway_dir, message)
 
@@ -372,9 +420,7 @@ class FileUtils:
             return
 
         ncs_carbon_dir = f"{base_dir}/{NCS_CARBON_SEGMENT}"
-        message = (
-            "Missing parent directory when creating NCS carbon subdirectory."
-        )
+        message = tr("Missing parent directory when creating NCS carbon subdirectory.")
         FileUtils.create_new_dir(ncs_carbon_dir, message)
 
     def create_pwls_dir(base_dir: str):
@@ -385,9 +431,8 @@ class FileUtils:
             return
 
         pwl_dir = f"{base_dir}/{PRIORITY_LAYERS_SEGMENT}"
-        message = (
-            "Missing parent directory when creating "
-            "priority weighting layers subdirectory."
+        message = tr(
+            "Missing parent directory when creating priority weighting layers subdirectory."
         )
         FileUtils.create_new_dir(pwl_dir, message)
 

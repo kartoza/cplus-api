@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+"""
+    Handles storage and retrieval of the plugin QgsSettings.
+"""
+
 import contextlib
 import dataclasses
 import enum
@@ -8,7 +13,7 @@ import typing
 import uuid
 
 from qgis.PyQt import QtCore
-from qgis.core import QgsSettings
+from qgis.core import QgsRectangle, QgsSettings
 
 from cplus.definitions.defaults import PRIORITY_LAYERS
 
@@ -24,13 +29,13 @@ from cplus.definitions.constants import (
 )
 
 from cplus.models.base import (
-    ImplementationModel,
+    Activity,
     NcsPathway,
     Scenario,
-    SpatialExtent
+    SpatialExtent,
 )
 from cplus.models.helpers import (
-    create_implementation_model,
+    create_activity,
     create_ncs_pathway,
     layer_component_to_dict,
     ncs_pathway_to_dict,
@@ -124,6 +129,9 @@ class Settings(enum.Enum):
     REPORT_FOOTER = "report/footer"
     REPORT_DISCLAIMER = "report/disclaimer"
     REPORT_LICENSE = "report/license"
+    REPORT_STAKEHOLDERS = "report/stakeholders"
+    REPORT_CULTURE_POLICIES = "report/culture_policies"
+    REPORT_CULTURE_CONSIDERATIONS = "report/culture_considerations"
 
     # Last selected data directory
     LAST_DATA_DIR = "last_data_dir"
@@ -150,6 +158,10 @@ class Settings(enum.Enum):
     RESAMPLING_METHOD = "snap_method"
     SNAP_PIXEL_VALUE = "snap_pixel_value"
 
+    # Sieve function parameters
+    SIEVE_ENABLED = "sieve_enabled"
+    SIEVE_THRESHOLD = "sieve_threshold"
+    SIEVE_MASK_PATH = "mask_path"
 
 
 class SettingsManager(QtCore.QObject):
@@ -161,7 +173,7 @@ class SettingsManager(QtCore.QObject):
     PRIORITY_LAYERS_GROUP_NAME: str = "priority_layers"
     NCS_PATHWAY_BASE: str = "ncs_pathways"
 
-    IMPLEMENTATION_MODEL_BASE: str = "implementation_models"
+    ACTIVITY_BASE: str = "activities"
 
     settings = QgsSettings()
 
@@ -190,8 +202,7 @@ class SettingsManager(QtCore.QObject):
         :param name: Name of setting key
         :type name: str
 
-        :param default: Default value returned when
-            the setting key does not exist
+        :param default: Default value returned when the setting key does not exist
         :type default: Any
 
         :param setting_type: Type of the store setting
@@ -303,7 +314,7 @@ class SettingsManager(QtCore.QObject):
             )
         return scenario_settings
 
-    def get_scenario_by_id(self, scenario_id):
+    def get_scenario(self, scenario_id):
         """Retrieves the first scenario that matched the passed scenario id.
 
         :param scenario_id: Scenario id
@@ -313,18 +324,15 @@ class SettingsManager(QtCore.QObject):
         :rtype: ScenarioSettings
         """
 
+        result = []
         with qgis_settings(
             f"{self.BASE_GROUP_NAME}/" f"{self.SCENARIO_GROUP_NAME}"
         ) as settings:
-            for scenario_uuid in settings.childGroups():
-                scenario_settings_key = (
-                    self._get_scenario_settings_base(scenario_uuid)
-                )
-                with (
-                    qgis_settings(scenario_settings_key)
-                ) as scenario_settings:
+            for uuid in settings.childGroups():
+                scenario_settings_key = self._get_scenario_settings_base(uuid)
+                with qgis_settings(scenario_settings_key) as scenario_settings:
                     scenario = ScenarioSettings.from_qgs_settings(
-                        scenario_uuid, scenario_settings
+                        uuid, scenario_settings
                     )
                     if scenario.id == scenario_id:
                         return scenario
@@ -340,18 +348,15 @@ class SettingsManager(QtCore.QObject):
         with qgis_settings(
             f"{self.BASE_GROUP_NAME}/" f"{self.SCENARIO_GROUP_NAME}"
         ) as settings:
-            for scenario_uuid in settings.childGroups():
-                scenario_settings_key = self._get_scenario_settings_base(
-                    scenario_uuid
-                )
+            for uuid in settings.childGroups():
+                scenario_settings_key = self._get_scenario_settings_base(uuid)
                 with qgis_settings(scenario_settings_key) as scenario_settings:
                     scenario = ScenarioSettings.from_qgs_settings(
-                        scenario_uuid, scenario_settings
+                        uuid, scenario_settings
                     )
                     scenario.extent = self.get_scenario_
                     result.append(
-                        ScenarioSettings.from_qgs_settings(
-                            scenario_uuid, scenario_settings)
+                        ScenarioSettings.from_qgs_settings(uuid, scenario_settings)
                     )
         return result
 
@@ -428,40 +433,27 @@ class SettingsManager(QtCore.QObject):
         with qgis_settings(
             f"{self.BASE_GROUP_NAME}/" f"{self.PRIORITY_LAYERS_GROUP_NAME}"
         ) as settings:
-            for scenario_uuid in settings.childGroups():
-                priority_layer_settings = (
-                    self._get_priority_layers_settings_base(scenario_uuid)
-                )
-                with (
-                    qgis_settings(priority_layer_settings)
-                ) as priority_settings:
+            for uuid in settings.childGroups():
+                priority_layer_settings = self._get_priority_layers_settings_base(uuid)
+                with qgis_settings(priority_layer_settings) as priority_settings:
                     groups_key = f"{priority_layer_settings}/groups"
                     groups = []
 
                     with qgis_settings(groups_key) as groups_settings:
                         for name in groups_settings.childGroups():
                             group_settings_key = f"{groups_key}/{name}"
-                            with (
-                                qgis_settings(group_settings_key)
-                            ) as group_settings:
+                            with qgis_settings(group_settings_key) as group_settings:
                                 stored_group = {}
-                                stored_group["uuid"] = (
-                                    group_settings.value("uuid")
-                                )
-                                stored_group["name"] = (
-                                    group_settings.value("name")
-                                )
-                                stored_group["value"] = (
-                                    group_settings.value("value")
-                                )
+                                stored_group["uuid"] = group_settings.value("uuid")
+                                stored_group["name"] = group_settings.value("name")
+                                stored_group["value"] = group_settings.value("value")
                                 groups.append(stored_group)
                     layer = {
-                        "uuid": scenario_uuid,
+                        "uuid": uuid,
                         "name": priority_settings.value("name"),
                         "description": priority_settings.value("description"),
                         "path": priority_settings.value("path"),
-                        "selected": priority_settings.value(
-                            "selected", type=bool),
+                        "selected": priority_settings.value("selected", type=bool),
                         "user_defined": priority_settings.value(
                             "user_defined", defaultValue=True, type=bool
                         ),
@@ -485,19 +477,14 @@ class SettingsManager(QtCore.QObject):
             f"{self.BASE_GROUP_NAME}/" f"{self.PRIORITY_LAYERS_GROUP_NAME}"
         ) as settings:
             for layer_id in settings.childGroups():
-                layer_settings_key = (
-                    self._get_priority_layers_settings_base(layer_id)
-                )
+                layer_settings_key = self._get_priority_layers_settings_base(layer_id)
                 with qgis_settings(layer_settings_key) as layer_settings:
                     layer_name = layer_settings.value("name")
                     if layer_name == name:
                         found_id = uuid.UUID(layer_id)
                         break
 
-        return (
-            self.get_priority_layer(found_id) if
-            found_id is not None else None
-        )
+        return self.get_priority_layer(found_id) if found_id is not None else None
 
     def find_layers_by_group(self, group) -> typing.List:
         """Finds priority layers inside the plugin QgsSettings
@@ -514,21 +501,18 @@ class SettingsManager(QtCore.QObject):
             f"{self.BASE_GROUP_NAME}/" f"{self.PRIORITY_LAYERS_GROUP_NAME}"
         ) as settings:
             for layer_id in settings.childGroups():
-                priority_layer_settings = (
-                    self._get_priority_layers_settings_base(layer_id)
+                priority_layer_settings = self._get_priority_layers_settings_base(
+                    layer_id
                 )
-                with qgis_settings(priority_layer_settings):
+                with qgis_settings(priority_layer_settings) as priority_settings:
                     groups_key = f"{priority_layer_settings}/groups"
 
                     with qgis_settings(groups_key) as groups_settings:
                         for name in groups_settings.childGroups():
                             group_settings_key = f"{groups_key}/{name}"
-                            with (
-                                qgis_settings(group_settings_key)
-                            ) as group_settings:
+                            with qgis_settings(group_settings_key) as group_settings:
                                 if group == group_settings.value("name"):
-                                    layers.append(
-                                        self.get_priority_layer(layer_id))
+                                    layers.append(self.get_priority_layer(layer_id))
         return layers
 
     def save_priority_layer(self, priority_layer):
@@ -540,19 +524,15 @@ class SettingsManager(QtCore.QObject):
         :param priority_layer: Priority layer
         :type priority_layer: dict
         """
-        settings_key = (
-            self._get_priority_layers_settings_base(priority_layer["uuid"])
-        )
+        settings_key = self._get_priority_layers_settings_base(priority_layer["uuid"])
 
         with qgis_settings(settings_key) as settings:
             groups = priority_layer.get("groups", [])
             settings.setValue("name", priority_layer["name"])
             settings.setValue("description", priority_layer["description"])
             settings.setValue("path", priority_layer["path"])
-            settings.setValue(
-                "selected", priority_layer.get("selected", False))
-            settings.setValue(
-                "user_defined", priority_layer.get("user_defined", True))
+            settings.setValue("selected", priority_layer.get("selected", False))
+            settings.setValue("user_defined", priority_layer.get("user_defined", True))
             groups_key = f"{settings_key}/groups"
             with qgis_settings(groups_key) as groups_settings:
                 for group_id in groups_settings.childGroups():
@@ -576,9 +556,7 @@ class SettingsManager(QtCore.QObject):
             f"{self.BASE_GROUP_NAME}/" f"{self.PRIORITY_LAYERS_GROUP_NAME}/"
         ) as settings:
             for priority_layer in settings.childGroups():
-                settings_key = (
-                    self._get_priority_layers_settings_base(identifier)
-                )
+                settings_key = self._get_priority_layers_settings_base(identifier)
                 with qgis_settings(settings_key) as layer_settings:
                     layer_settings.setValue(
                         "selected", str(priority_layer) == str(identifier)
@@ -622,8 +600,7 @@ class SettingsManager(QtCore.QObject):
         )
 
     def find_group_by_name(self, name) -> typing.Dict:
-        """Finds a priority group setting inside
-        the plugin QgsSettings by name.
+        """Finds a priority group setting inside the plugin QgsSettings by name.
 
         :param name: Name of the group
         :type name: str
@@ -638,9 +615,7 @@ class SettingsManager(QtCore.QObject):
             f"{self.BASE_GROUP_NAME}/" f"{self.PRIORITY_GROUP_NAME}"
         ) as settings:
             for group_id in settings.childGroups():
-                group_settings_key = (
-                    self._get_priority_groups_settings_base(group_id)
-                )
+                group_settings_key = self._get_priority_groups_settings_base(group_id)
                 with qgis_settings(group_settings_key) as group_settings_key:
                     group_name = group_settings_key.value("name")
                     if group_name == name:
@@ -680,15 +655,11 @@ class SettingsManager(QtCore.QObject):
         with qgis_settings(
             f"{self.BASE_GROUP_NAME}/" f"{self.PRIORITY_GROUP_NAME}"
         ) as settings:
-            for group_uuid in settings.childGroups():
-                priority_layer_settings = (
-                    self._get_priority_groups_settings_base(group_uuid)
-                )
-                with (
-                    qgis_settings(priority_layer_settings)
-                ) as priority_settings:
+            for uuid in settings.childGroups():
+                priority_layer_settings = self._get_priority_groups_settings_base(uuid)
+                with qgis_settings(priority_layer_settings) as priority_settings:
                     group = {
-                        "uuid": group_uuid,
+                        "uuid": uuid,
                         "name": priority_settings.value("name"),
                         "value": priority_settings.value("value"),
                         "description": priority_settings.value("description"),
@@ -703,15 +674,12 @@ class SettingsManager(QtCore.QObject):
         :type priority_group: str
         """
 
-        settings_key = (
-            self._get_priority_groups_settings_base(priority_group["uuid"])
-        )
+        settings_key = self._get_priority_groups_settings_base(priority_group["uuid"])
 
         with qgis_settings(settings_key) as settings:
             settings.setValue("name", priority_group["name"])
             settings.setValue("value", priority_group["value"])
-            settings.setValue(
-                "description", priority_group.get("description"))
+            settings.setValue("description", priority_group.get("description"))
 
     def delete_priority_group(self, identifier):
         """Removes priority group that match the passed identifier
@@ -761,8 +729,7 @@ class SettingsManager(QtCore.QObject):
         with qgis_settings(ncs_root) as settings:
             settings.setValue(ncs_uuid, ncs_str)
 
-    def get_ncs_pathway(self,
-                        ncs_uuid: str) -> typing.Union[NcsPathway, None]:
+    def get_ncs_pathway(self, ncs_uuid: str) -> typing.Union[NcsPathway, None]:
         """Gets an NCS pathway object matching the given unique identified.
 
         :param ncs_uuid: Unique identifier for the NCS pathway object.
@@ -868,9 +835,7 @@ class SettingsManager(QtCore.QObject):
                 # Similarly, if the given carbon path does not exist then try
                 # to use the default one in the ncs_carbon directory.
                 if not cp.exists():
-                    abs_carbon_path = (
-                        f"{base_dir}/{NCS_CARBON_SEGMENT}/" f"{cp.name}"
-                    )
+                    abs_carbon_path = f"{base_dir}/{NCS_CARBON_SEGMENT}/" f"{cp.name}"
                     abs_carbon_path = str(os.path.normpath(abs_carbon_path))
                     abs_carbon_paths.append(abs_carbon_path)
                 else:
@@ -892,168 +857,144 @@ class SettingsManager(QtCore.QObject):
         if self.get_ncs_pathway(ncs_uuid) is not None:
             self.remove(f"{self.NCS_PATHWAY_BASE}/{ncs_uuid}")
 
-    def _get_implementation_model_settings_base(self) -> str:
-        """Returns the path for implementation model settings.
+    def _get_activity_settings_base(self) -> str:
+        """Returns the path for activity settings.
 
-        :returns: Base path to implementation model group.
+        :returns: Base path to activity group.
         :rtype: str
         """
-        return f"{self.BASE_GROUP_NAME}/" f"{self.IMPLEMENTATION_MODEL_BASE}"
+        return f"{self.BASE_GROUP_NAME}/" f"{self.ACTIVITY_BASE}"
 
-    def save_implementation_model(
-        self, implementation_model: typing.Union[ImplementationModel, dict]
-    ):
-        """Saves an implementation model object serialized to a json string
+    def save_activity(self, activity: typing.Union[Activity, dict]):
+        """Saves an activity object serialized to a json string
         indexed by the UUID.
 
-        :param implementation_model: Implementation model object or attribute
+        :param activity: Activity object or attribute
         values in a dictionary which are then serialized to a JSON string.
-        :type implementation_model: ImplementationModel, dict
+        :type activity: Activity, dict
         """
-        if isinstance(implementation_model, ImplementationModel):
-            priority_layers = implementation_model.priority_layers
-            layer_styles = implementation_model.layer_styles
-            style_pixel_value = implementation_model.style_pixel_value
+        if isinstance(activity, Activity):
+            priority_layers = activity.priority_layers
+            layer_styles = activity.layer_styles
+            style_pixel_value = activity.style_pixel_value
 
             ncs_pathways = []
-            for ncs in implementation_model.pathways:
+            for ncs in activity.pathways:
                 ncs_pathways.append(str(ncs.uuid))
 
-            implementation_model = layer_component_to_dict(
-                implementation_model)
-            implementation_model[PRIORITY_LAYERS_SEGMENT] = priority_layers
-            implementation_model[PATHWAYS_ATTRIBUTE] = ncs_pathways
-            implementation_model[STYLE_ATTRIBUTE] = layer_styles
-            implementation_model[PIXEL_VALUE_ATTRIBUTE] = style_pixel_value
+            activity = layer_component_to_dict(activity)
+            activity[PRIORITY_LAYERS_SEGMENT] = priority_layers
+            activity[PATHWAYS_ATTRIBUTE] = ncs_pathways
+            activity[STYLE_ATTRIBUTE] = layer_styles
+            activity[PIXEL_VALUE_ATTRIBUTE] = style_pixel_value
 
-        if isinstance(implementation_model, dict):
+        if isinstance(activity, dict):
             priority_layers = []
-            if implementation_model.get("pwls_ids") is not None:
-                for layer_id in implementation_model.get("pwls_ids", []):
+            if activity.get("pwls_ids") is not None:
+                for layer_id in activity.get("pwls_ids", []):
                     layer = self.get_priority_layer(layer_id)
                     priority_layers.append(layer)
                 if len(priority_layers) > 0:
-                    implementation_model[PRIORITY_LAYERS_SEGMENT] = (
-                        priority_layers
-                    )
+                    activity[PRIORITY_LAYERS_SEGMENT] = priority_layers
 
-        implementation_model_str = json.dumps(implementation_model)
+        activity_str = json.dumps(activity)
 
-        implementation_model_uuid = implementation_model[UUID_ATTRIBUTE]
-        implementation_model_root = (
-            self._get_implementation_model_settings_base()
-        )
+        activity_uuid = activity[UUID_ATTRIBUTE]
+        activity_root = self._get_activity_settings_base()
 
-        with qgis_settings(implementation_model_root) as settings:
-            settings.setValue(
-                implementation_model_uuid, implementation_model_str)
+        with qgis_settings(activity_root) as settings:
+            settings.setValue(activity_uuid, activity_str)
 
-    def get_implementation_model(
-        self, implementation_model_uuid: str
-    ) -> typing.Union[ImplementationModel, None]:
-        """Gets an implementation model object matching the given unique
-        identified.
+    def get_activity(self, activity_uuid: str) -> typing.Union[Activity, None]:
+        """Gets an activity object matching the given unique
+        identifier.
 
-        :param implementation_model_uuid: Unique identifier for the
-        implementation model object.
-        :type implementation_model_uuid: str
+        :param activity_uuid: Unique identifier of the
+        activity object.
+        :type activity_uuid: str
 
-        :returns: Returns the implementation model object matching the given
+        :returns: Returns the activity object matching the given
         identifier else None if not found.
-        :rtype: ImplementationModel
+        :rtype: Activity
         """
-        implementation_model = None
+        activity = None
 
-        implementation_model_root = (
-            self._get_implementation_model_settings_base()
-        )
+        activity_root = self._get_activity_settings_base()
 
-        with qgis_settings(implementation_model_root) as settings:
-            implementation_model = settings.value(
-                implementation_model_uuid, None)
+        with qgis_settings(activity_root) as settings:
+            activity = settings.value(activity_uuid, None)
             ncs_uuids = []
-            if implementation_model is not None:
-                implementation_model_dict = {}
+            if activity is not None:
+                activity_dict = {}
                 try:
-                    implementation_model_dict = json.loads(
-                        implementation_model)
+                    activity_dict = json.loads(activity)
                 except json.JSONDecodeError:
-                    log("Implementation model JSON is invalid.")
+                    log("Activity JSON is invalid.")
 
-                if PATHWAYS_ATTRIBUTE in implementation_model_dict:
-                    ncs_uuids = implementation_model_dict[PATHWAYS_ATTRIBUTE]
+                if PATHWAYS_ATTRIBUTE in activity_dict:
+                    ncs_uuids = activity_dict[PATHWAYS_ATTRIBUTE]
 
-                implementation_model = create_implementation_model(
-                    implementation_model_dict
-                )
-                if implementation_model is not None:
+                activity = create_activity(activity_dict)
+                if activity is not None:
                     for ncs_uuid in ncs_uuids:
                         ncs = self.get_ncs_pathway(ncs_uuid)
                         if ncs is not None:
-                            implementation_model.add_ncs_pathway(ncs)
+                            activity.add_ncs_pathway(ncs)
 
-        return implementation_model
+        return activity
 
-    def find_implementation_model_by_name(self, name) -> typing.Dict:
-        """Finds an implementation model setting inside
+    def find_activity_by_name(self, name) -> typing.Dict:
+        """Finds an activity setting inside
         the plugin QgsSettings that equals or matches the name.
 
-        :param name: Implementation model name
+        :param name: Activity name.
         :type name: str
 
-        :returns: Implementation model
-        :rtype: ImplementationModel
+        :returns: Activity object.
+        :rtype: Activity
         """
-        for model in self.get_all_implementation_models():
-            model_name = model.name
+        for activity in self.get_all_activities():
+            model_name = activity.name
             trimmed_name = model_name.replace(" ", "_")
-            if (
-                model_name == name or model_name in name or
-                trimmed_name in name
-            ):
-                return model
+            if model_name == name or model_name in name or trimmed_name in name:
+                return activity
 
         return None
 
-    def get_all_implementation_models(
-            self) -> typing.List[ImplementationModel]:
-        """Get all the implementation model objects stored in settings.
+    def get_all_activities(self) -> typing.List[Activity]:
+        """Get all the activity objects stored in settings.
 
-        :returns: Returns all the implementation model objects.
+        :returns: Returns all the activity objects.
         :rtype: list
         """
-        implementation_models = []
+        activities = []
 
-        implementation_model_root = (
-            self._get_implementation_model_settings_base()
-        )
+        activity_root = self._get_activity_settings_base()
 
-        with qgis_settings(implementation_model_root) as settings:
+        with qgis_settings(activity_root) as settings:
             keys = settings.childKeys()
             for k in keys:
-                implementation_model = self.get_implementation_model(k)
-                if implementation_model is not None:
-                    implementation_models.append(implementation_model)
+                activity = self.get_activity(k)
+                if activity is not None:
+                    activities.append(activity)
 
-        return sorted(implementation_models,
-                      key=lambda imp_model: imp_model.name)
+        return sorted(activities, key=lambda activity: activity.name)
 
-    def update_implementation_model(
-            self, implementation_model: ImplementationModel):
-        """Updates the attributes of the Implementation object
+    def update_activity(self, activity: Activity):
+        """Updates the attributes of the activity object
         in settings. On the path, the BASE_DIR in settings
         is used to reflect the absolute path of each NCS
         pathway layer. If BASE_DIR is empty then the NCS
         pathway setting will not be updated.
 
-        :param implementation_model: ImplementationModel object to be updated.
-        :type implementation_model: ImplementationModel
+        :param activity: Activity object to be updated.
+        :type activity: Activity
         """
         base_dir = self.get_value(Settings.BASE_DIR)
 
         if base_dir:
             # PWLs path update
-            for layer in implementation_model.priority_layers:
+            for layer in activity.priority_layers:
                 if layer in PRIORITY_LAYERS and base_dir not in layer.get(
                     PATH_ATTRIBUTE
                 ):
@@ -1065,35 +1006,25 @@ class SettingsManager(QtCore.QObject):
                     layer[PATH_ATTRIBUTE] = abs_pwl_path
 
         # Remove then re-insert
-        self.remove_implementation_model(str(implementation_model.uuid))
-        self.save_implementation_model(implementation_model)
+        self.remove_activity(str(activity.uuid))
+        self.save_activity(activity)
 
-    def update_implementation_models(self):
-        """Updates the attributes of the avaialable implementation models
+    def update_activities(self):
+        """Updates the attributes of the existing activities."""
+        activities = self.get_all_activities()
 
-        :param implementation_model: Implementation model object to be updated
-        :type implementation_model: ImplementationModel
+        for activity in activities:
+            self.update_activity(activity)
+
+    def remove_activity(self, activity_uuid: str):
+        """Removes an activity settings entry using the UUID.
+
+        :param activity_uuid: Unique identifier of the activity
+        to be removed.
+        :type activity_uuid: str
         """
-        models = self.get_all_implementation_models()
-
-        for implementation_model in models:
-            self.update_implementation_model(implementation_model)
-
-    def remove_implementation_model(self, implementation_model_uuid: str):
-        """Removes an implementation model settings entry using the UUID.
-
-        :param implementation_model_uuid: Unique identifier of the
-        implementation model entry to removed.
-        :type implementation_model_uuid: str
-        """
-        if (
-            self.get_implementation_model(
-                implementation_model_uuid) is not None
-        ):
-            self.remove(
-                f"{self.IMPLEMENTATION_MODEL_BASE}/"
-                f"{implementation_model_uuid}"
-            )
+        if self.get_activity(activity_uuid) is not None:
+            self.remove(f"{self.ACTIVITY_BASE}/{activity_uuid}")
 
 
 settings_manager = SettingsManager()

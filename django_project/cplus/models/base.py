@@ -27,8 +27,8 @@ from qgis.core import (
 from cplus.definitions.constants import (
     COLOR_RAMP_PROPERTIES_ATTRIBUTE,
     COLOR_RAMP_TYPE_ATTRIBUTE,
-    IM_LAYER_STYLE_ATTRIBUTE,
-    IM_SCENARIO_STYLE_ATTRIBUTE,
+    ACTIVITY_LAYER_STYLE_ATTRIBUTE,
+    ACTIVITY_SCENARIO_STYLE_ATTRIBUTE,
 )
 
 
@@ -101,11 +101,11 @@ class LayerType(IntEnum):
 
 class ModelComponentType(Enum):
     """Type of model component i.e. NCS pathway or
-    implementation model.
+    activity.
     """
 
     NCS_PATHWAY = "ncs_pathway"
-    IMPLEMENTATION_MODEL = "implementation_model"
+    ACTIVITY = "activity"
     UNKNOWN = "unknown"
 
     @staticmethod
@@ -121,8 +121,8 @@ class ModelComponentType(Enum):
         """
         if str_enum.lower() == "ncs_pathway":
             return ModelComponentType.NCS_PATHWAY
-        elif str_enum.lower() == "implementation_model":
-            return ModelComponentType.IMPLEMENTATION_MODEL
+        elif str_enum.lower() == "activity":
+            return ModelComponentType.ACTIVITY
 
         return ModelComponentType.UNKNOWN
 
@@ -280,8 +280,7 @@ class NcsPathway(LayerModelComponent):
         if the path is not defined.
         :rtype: list
         """
-        return [
-            QgsRasterLayer(carbon_path) for carbon_path in self.carbon_paths]
+        return [QgsRasterLayer(carbon_path) for carbon_path in self.carbon_paths]
 
     def is_carbon_valid(self) -> bool:
         """Checks if the carbon layers are valid.
@@ -313,17 +312,16 @@ class NcsPathway(LayerModelComponent):
 
 
 @dataclasses.dataclass
-class ImplementationModel(LayerModelComponent):
-    """Contains information about the implementation model
-    for a scenario. If the layer has been set then it will
+class Activity(LayerModelComponent):
+    """Contains information about an activity used in a scenario.
+     If the layer has been set then it will
     not be possible to add NCS pathways unless the layer
     is cleared.
     Priority will be given to the layer property.
     """
 
     pathways: typing.List[NcsPathway] = dataclasses.field(default_factory=list)
-    priority_layers: typing.List[typing.Dict] = dataclasses.field(
-        default_factory=list)
+    priority_layers: typing.List[typing.Dict] = dataclasses.field(default_factory=list)
     layer_styles: dict = dataclasses.field(default_factory=dict)
     style_pixel_value: int = -1
 
@@ -335,7 +333,7 @@ class ImplementationModel(LayerModelComponent):
         uuids = [str(p.uuid) for p in self.pathways]
 
         if len(set(uuids)) != len(uuids):
-            msg = "Duplicate pathways found in implementation model"
+            msg = "Duplicate pathways found in activity"
             raise ValueError(f"{msg} {self.name}.")
 
         # Reset pathways if layer has also been set.
@@ -360,7 +358,7 @@ class ImplementationModel(LayerModelComponent):
     def add_ncs_pathway(self, ncs: NcsPathway) -> bool:
         """Adds an NCS pathway object to the collection.
 
-        :param ncs: NCS pathway to be added to the model.
+        :param ncs: NCS pathway to be added to the activity.
         :type ncs: NcsPathway
 
         :returns: True if the NCS pathway was successfully added, else False
@@ -379,8 +377,7 @@ class ImplementationModel(LayerModelComponent):
         return True
 
     def clear_layer(self):
-        """Removes a reference to the layer URI defined in the path attribute.
-        """
+        """Removes a reference to the layer URI defined in the path attribute."""
         self.path = ""
 
     def remove_ncs_pathway(self, pathway_uuid: str) -> bool:
@@ -393,10 +390,7 @@ class ImplementationModel(LayerModelComponent):
          else False if there is no object matching the given UUID.
         :rtype: bool
         """
-        idxs = [
-            i for i, p in enumerate(self.pathways) if
-            str(p.uuid) == pathway_uuid
-        ]
+        idxs = [i for i, p in enumerate(self.pathways) if str(p.uuid) == pathway_uuid]
 
         if len(idxs) == 0:
             return False
@@ -406,8 +400,7 @@ class ImplementationModel(LayerModelComponent):
 
         return True
 
-    def pathway_by_uuid(
-            self, pathway_uuid: str) -> typing.Union[NcsPathway, None]:
+    def pathway_by_uuid(self, pathway_uuid: str) -> typing.Union[NcsPathway, None]:
         """Returns an NCS pathway matching the given UUID.
 
         :param pathway_uuid: UUID for the NCS pathway to retrieve.
@@ -425,17 +418,14 @@ class ImplementationModel(LayerModelComponent):
         return pathways[0]
 
     def pw_layers(self) -> typing.List[QgsRasterLayer]:
-        """Returns the list of priority weighting layers wdefined under
+        """Returns the list of priority weighting layers defined under
         the :py:attr:`~priority_layers` attribute.
 
         :returns: Priority layers for the implementation or an empty list
         if the path is not defined.
         :rtype: list
         """
-        return [
-            QgsRasterLayer(layer.get("path")) for
-            layer in self.priority_layers
-        ]
+        return [QgsRasterLayer(layer.get("path")) for layer in self.priority_layers]
 
     def is_pwls_valid(self) -> bool:
         """Checks if the priority layers are valid.
@@ -472,43 +462,43 @@ class ImplementationModel(LayerModelComponent):
             return True
 
     def scenario_layer_style_info(self) -> dict:
-        """Returns the fill symbol properties for styling the implementation
+        """Returns the fill symbol properties for styling the activity
         layer in the final scenario result.
 
-        :returns: Fill symbol properties for the implementation model
+        :returns: Fill symbol properties for the activity layer
         styling in the scenario layer or an empty dictionary if there was
         no definition found in the root style.
         :rtype: dict
         """
         if (
-            len(self.layer_styles) == 0 or
-            IM_SCENARIO_STYLE_ATTRIBUTE not in self.layer_styles
+            len(self.layer_styles) == 0
+            or ACTIVITY_SCENARIO_STYLE_ATTRIBUTE not in self.layer_styles
         ):
             return dict()
 
-        return self.layer_styles[IM_SCENARIO_STYLE_ATTRIBUTE]
+        return self.layer_styles[ACTIVITY_SCENARIO_STYLE_ATTRIBUTE]
 
-    def model_layer_style_info(self) -> dict:
-        """Returns the color ramp properties for styling the implementation
+    def activity_layer_style_info(self) -> dict:
+        """Returns the color ramp properties for styling the activity
         layer resulting from a scenario run.
 
-        :returns: Color ramp properties for the implementation model styling
-        or an empty dictionary if there was no definition found in the root
+        :returns: Color ramp properties for the activity styling or an
+        empty dictionary if there was no definition found in the root
         style.
         :rtype: dict
         """
         if (
-            len(self.layer_styles) == 0 or
-            IM_LAYER_STYLE_ATTRIBUTE not in self.layer_styles
+            len(self.layer_styles) == 0
+            or ACTIVITY_LAYER_STYLE_ATTRIBUTE not in self.layer_styles
         ):
             return dict()
 
-        return self.layer_styles[IM_LAYER_STYLE_ATTRIBUTE]
+        return self.layer_styles[ACTIVITY_LAYER_STYLE_ATTRIBUTE]
 
     def scenario_fill_symbol(self) -> typing.Union[QgsFillSymbol, None]:
-        """Creates a fill symbol for the implementation model in the scenario.
+        """Creates a fill symbol for the activity in the scenario.
 
-        :returns: Fill symbol for the implementation model in the scenario
+        :returns: Fill symbol for the activity in the scenario
         or None if there was no definition found.
         :rtype: QgsFillSymbol
         """
@@ -518,20 +508,19 @@ class ImplementationModel(LayerModelComponent):
 
         return QgsFillSymbol.createSimple(scenario_style_info)
 
-    def model_color_ramp(self) -> typing.Union[QgsColorRamp, None]:
-        """Create a color ramp for styling the implementation layer resulting
+    def color_ramp(self) -> typing.Union[QgsColorRamp, None]:
+        """Create a color ramp for styling the activity layer resulting
         from a scenario run.
 
-        :returns: A color ramp for styling the implementation layer or None
+        :returns: A color ramp for styling the activity layer or None
         if there was no definition found.
         :rtype: QgsColorRamp
         """
-        model_layer_info = self.model_layer_style_info()
+        model_layer_info = self.activity_layer_style_info()
         if len(model_layer_info) == 0:
             return None
 
-        ramp_info = model_layer_info.get(
-            COLOR_RAMP_PROPERTIES_ATTRIBUTE, None)
+        ramp_info = model_layer_info.get(COLOR_RAMP_PROPERTIES_ATTRIBUTE, None)
         if ramp_info is None or len(ramp_info) == 0:
             return None
 
@@ -573,8 +562,8 @@ class Scenario(BaseModelComponent):
     """
 
     extent: SpatialExtent
-    models: typing.List[ImplementationModel]
-    weighted_models: typing.List[ImplementationModel]
+    activities: typing.List[Activity]
+    weighted_activities: typing.List[Activity]
     priority_layer_groups: typing.List
     state: ScenarioState = ScenarioState.IDLE
 

@@ -65,7 +65,10 @@ LAYER_SCHEMA_FIELDS = {
             type=openapi.TYPE_STRING,
         ),
     },
-    'required': [],
+    'required': [
+        'filename', 'size', 'uuid', 'layer_type',
+        'component_type', 'privacy_type'
+    ],
     'example': {
         'filename': 'Final_Alien_Invasive_Plant_priority_norm.tif',
         'size': 100000000,
@@ -133,7 +136,9 @@ OUTPUT_LAYER_SCHEMA_FIELDS = {
             ],
         ),
     },
-    'required': [],
+    'required': [
+        'filename', 'size', 'uuid', 'layer_type'
+    ],
     'example': {
         'filename': 'Final_Alien_Invasive_Plant_priority_norm.tif',
         'size': 100000000,

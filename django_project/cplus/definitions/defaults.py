@@ -15,30 +15,47 @@ PILOT_AREA_EXTENT = {
 
 DEFAULT_CRS_ID = 4326
 
-DOCUMENTATION_SITE = "https://kartoza.github.io/cplus-plugin"
-USER_DOCUMENTATION_SITE = "https://kartoza.github.io/cplus-plugin/user/guide"
-ABOUT_DOCUMENTATION_SITE = "https://kartoza.github.io/cplus-plugin/about/ci"
-REPORT_DOCUMENTATION = (
-    "https://kartoza.github.io/cplus-plugin/user/guide/#report-generating"
+DOCUMENTATION_SITE = "https://conservationinternational.github.io/cplus-plugin"
+USER_DOCUMENTATION_SITE = (
+    "https://conservationinternational.github.io/cplus-plugin/user/guide"
 )
+ABOUT_DOCUMENTATION_SITE = (
+    "https://conservationinternational.github.io/cplus-plugin/about/ci"
+)
+REPORT_DOCUMENTATION = "https://conservationinternational.github.io/cplus-plugin/user/guide/#report-generating"
 
 OPTIONS_TITLE = "CPLUS"  # Title in the QGIS settings
+GENERAL_OPTIONS_TITLE = "General"
+REPORT_OPTIONS_TITLE = "Reporting"
+LOG_OPTIONS_TITLE = "Logs"
 ICON_PATH = ":/plugins/cplus_plugin/icon.svg"
+REPORT_SETTINGS_ICON_PATH = str(
+    os.path.normpath(
+        os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        + "/icons/report_settings.svg"
+    )
+)
+LOG_SETTINGS_ICON_PATH = str(
+    os.path.normpath(
+        os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        + "/icons/log_settings.svg"
+    )
+)
 ICON_PDF = (
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))) +
-    "/icons/mActionSaveAsPDF.svg"
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    + "/icons/mActionSaveAsPDF.svg"
 )
 ICON_LAYOUT = (
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))) +
-    "/icons/mActionNewLayout.svg"
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    + "/icons/mActionNewLayout.svg"
 )
 ICON_REPORT = (
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))) +
-    "/icons/mIconReport.svg"
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    + "/icons/mIconReport.svg"
 )
 ICON_HELP = (
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))) +
-    "/icons/mActionHelpContents_green.svg"
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    + "/icons/mActionHelpContents_green.svg"
 )
 
 ADD_LAYER_ICON_PATH = ":/plugins/cplus_plugin/cplus_left_arrow.svg"
@@ -63,7 +80,7 @@ PILOT_AREA_SCENARIO_SYMBOLOGY = {
     "Sustainable Crop Farming & Aquaponics": {"val": 13, "color": "#781a8b"},
 }
 
-IM_COLOUR_RAMPS = {
+ACTIVITY_COLOUR_RAMPS = {
     "Agroforestry": "Reds",
     "Alien Plant Removal": "Greys",
     "Alien_Plant_Removal": "Greys",
@@ -93,19 +110,18 @@ IM_COLOUR_RAMPS = {
 QGIS_GDAL_PROVIDER = "gdal"
 
 DEFAULT_LOGO_PATH = (
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))) +
-    "/icons/ci_logo.png"
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + "/icons/ci_logo.png"
 )
 CPLUS_LOGO_PATH = str(
     os.path.normpath(
-        os.path.dirname(os.path.dirname(os.path.realpath(__file__))) +
-        "/icons/cplus_logo.svg"
+        os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        + "/icons/cplus_logo.svg"
     )
 )
 CI_LOGO_PATH = str(
     os.path.normpath(
-        os.path.dirname(os.path.dirname(os.path.realpath(__file__))) +
-        "/icons/ci_logo.svg"
+        os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        + "/icons/ci_logo.svg"
     )
 )
 
@@ -120,13 +136,15 @@ MINIMUM_ITEM_HEIGHT = 100
 REPORT_FONT_NAME = "Ubuntu"
 
 # IDs for the given tables in the report template
-IMPLEMENTATION_MODEL_AREA_TABLE_ID = "implementation_model_area_table"
+ACTIVITY_AREA_TABLE_ID = "activity_area_table"
 PRIORITY_GROUP_WEIGHT_TABLE_ID = "assigned_weights_table"
 
 # Initiliazing the plugin default data as found in the data directory
 priority_layer_path = (
-    Path(__file__).parent.parent.resolve() / "data" / "default" /
-    "priority_weighting_layers.json"
+    Path(__file__).parent.parent.resolve()
+    / "data"
+    / "default"
+    / "priority_weighting_layers.json"
 )
 
 with priority_layer_path.open("r") as fh:
@@ -135,26 +153,23 @@ PRIORITY_LAYERS = priority_layers_dict["layers"]
 
 
 pathways_path = (
-    Path(__file__).parent.parent.resolve() / "data" / "default" /
-    "ncs_pathways.json"
+    Path(__file__).parent.parent.resolve() / "data" / "default" / "ncs_pathways.json"
 )
 
 with pathways_path.open("r") as fh:
     pathways_dict = json.load(fh)
-# Path just contains the file name and is relative to
-# {download_folder}/ncs_pathways
+# Path just contains the file name and is relative to {download_folder}/ncs_pathways
 DEFAULT_NCS_PATHWAYS = pathways_dict["pathways"]
 
 
-models_path = (
-    Path(__file__).parent.parent.resolve() / "data" / "default" /
-    "implementation_models.json"
+activities_path = (
+    Path(__file__).parent.parent.resolve() / "data" / "default" / "activities.json"
 )
 
-with models_path.open("r") as fh:
+with activities_path.open("r") as fh:
     models_dict = json.load(fh)
 
-DEFAULT_IMPLEMENTATION_MODELS = models_dict["models"]
+DEFAULT_ACTIVITIES = models_dict["activities"]
 
 
 PRIORITY_GROUPS = [

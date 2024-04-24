@@ -164,8 +164,7 @@ class PriorityLayerSerializer(BaseLayerSerializer):
                     items=openapi.Items(
                         **GroupSerializer.Meta.swagger_schema_fields)
                 ),
-            },
-            'required': []
+            }
         }
 
 
@@ -187,19 +186,18 @@ class PathwaySerializer(BaseLayerSerializer):
                         type=openapi.TYPE_STRING
                     )
                 ),
-            },
-            'required': []
+            }
         }
 
 
-class ImplementationModelSerializer(BaseLayerSerializer):
+class ActivitySerializer(BaseLayerSerializer):
     pathways = PathwaySerializer(many=True)
     priority_layers = PriorityLayerSerializer(many=True)
 
     class Meta:
         swagger_schema_fields = {
             'type': openapi.TYPE_OBJECT,
-            'title': 'Implementation Model',
+            'title': 'Activity',
             'properties': {
                 **BaseLayerSerializer.Meta.properties_fields,
                 'pathways': openapi.Schema(
@@ -214,8 +212,7 @@ class ImplementationModelSerializer(BaseLayerSerializer):
                     items=openapi.Items(
                         **PriorityLayerSerializer.Meta.swagger_schema_fields)
                 ),
-            },
-            'required': []
+            }
         }
 
 
@@ -223,11 +220,16 @@ class ScenarioInputSerializer(serializers.Serializer):
     scenario_name = serializers.CharField(required=True)
     scenario_desc = serializers.CharField(required=True)
     snapping_enabled = serializers.BooleanField(required=False)
-    snap_layer = serializers.CharField(required=False)
+    snap_layer = serializers.CharField(
+        required=False, validators=[validate_layer_uuid])
     pathway_suitability_index = serializers.IntegerField(required=False)
     carbon_coefficient = serializers.FloatField(required=False)
     snap_rescale = serializers.BooleanField(required=False)
     snap_method = serializers.IntegerField(required=False)
+    sieve_enabled = serializers.BooleanField(required=False)
+    sieve_threshold = serializers.FloatField(required=False)
+    mask_path = serializers.CharField(
+        required=False, validators=[validate_layer_uuid])
     extent = serializers.ListField(
         child=serializers.FloatField(),
         allow_empty=False,
@@ -236,7 +238,7 @@ class ScenarioInputSerializer(serializers.Serializer):
     )
     priority_layers = PriorityLayerSerializer(many=True)
     priority_layer_groups = PriorityGroupSerializer(many=True)
-    implementation_models = ImplementationModelSerializer(many=True)
+    activities = ActivitySerializer(many=True)
 
     class Meta:
         swagger_schema_fields = {
@@ -244,19 +246,19 @@ class ScenarioInputSerializer(serializers.Serializer):
             'title': 'Scenario Detail',
             'properties': {
                 'scenario_name': openapi.Schema(
-                    title='Scenario Name',
+                    title='Scenario name',
                     type=openapi.TYPE_STRING
                 ),
                 'scenario_desc': openapi.Schema(
-                    title='Scenario Description',
+                    title='Scenario description',
                     type=openapi.TYPE_STRING
                 ),
                 'snapping_enabled': openapi.Schema(
-                    title='Is Snapping Enabled',
+                    title='Is snapping enabled',
                     type=openapi.TYPE_BOOLEAN
                 ),
                 'snap_layer': openapi.Schema(
-                    title='Snap layer path',
+                    title='Snap layer UUID',
                     type=openapi.TYPE_STRING
                 ),
                 'pathway_suitability_index': openapi.Schema(
@@ -272,11 +274,23 @@ class ScenarioInputSerializer(serializers.Serializer):
                     type=openapi.TYPE_BOOLEAN
                 ),
                 'snap_method': openapi.Schema(
-                    title='Snap Method',
+                    title='Snap method',
                     type=openapi.TYPE_INTEGER
                 ),
+                'sieve_enabled': openapi.Schema(
+                    title='Is sieve function enabled',
+                    type=openapi.TYPE_BOOLEAN
+                ),
+                'sieve_threshold': openapi.Schema(
+                    title='Sieve function threshold',
+                    type=openapi.TYPE_NUMBER
+                ),
+                'mask_path': openapi.Schema(
+                    title='Sieve mask layer UUID',
+                    type=openapi.TYPE_STRING
+                ),
                 'extent': openapi.Schema(
-                    title='Analysis Extent',
+                    title='Analysis extent',
                     type=openapi.TYPE_ARRAY,
                     items=openapi.Items(type=openapi.TYPE_NUMBER),
                     minItems=4,
@@ -298,16 +312,15 @@ class ScenarioInputSerializer(serializers.Serializer):
                         swagger_schema_fields
                     )
                 ),
-                'implementation_models': openapi.Schema(
-                    title='List of implementation model',
+                'activities': openapi.Schema(
+                    title='List of activity',
                     type=openapi.TYPE_ARRAY,
                     items=openapi.Items(
-                        **ImplementationModelSerializer.Meta.
+                        **ActivitySerializer.Meta.
                         swagger_schema_fields
                     )
                 ),
-            },
-            'required': []
+            }
         }
 
 
@@ -389,7 +402,6 @@ class ScenarioTaskStatusSerializer(serializers.ModelSerializer):
                     type=openapi.TYPE_STRING
                 ),
             },
-            'required': [],
             'example': {
                 'uuid': '8c4582ab-15b1-4ed0-b8e4-00640ec10a65',
                 'task_id': '3e0c7dff-51f2-48c5-a316-15d9ca2407cb',
@@ -438,7 +450,6 @@ class ScenarioTaskLogSerializer(serializers.ModelSerializer):
                     type=openapi.TYPE_STRING
                 ),
             },
-            'required': [],
             'example': {
                 'date_time': '2022-08-15T09:09:15.049806Z',
                 'severity': 'INFO',

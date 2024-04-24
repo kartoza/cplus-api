@@ -5,7 +5,7 @@ import os
 import logging
 from django.utils import timezone
 from cplus.models.base import (
-    ImplementationModel,
+    Activity,
     NcsPathway,
     Scenario,
     SpatialExtent,
@@ -24,7 +24,7 @@ class TaskConfig(object):
     scenario_name = ''
     scenario_desc = ''
     scenario_uuid = uuid.uuid4()
-    analysis_implementation_models: typing.List[ImplementationModel] = []
+    analysis_activities: typing.List[Activity] = []
     priority_layers: typing.List = []
     priority_layer_groups: typing.List = []
     analysis_extent: SpatialExtent = None
@@ -34,6 +34,9 @@ class TaskConfig(object):
     carbon_coefficient = 0.0
     snap_rescale = False
     snap_method = 0
+    sieve_enabled = False
+    sieve_threshold = 10.0
+    mask_path = ''
     scenario: Scenario = None
     pathway_uuid_layers = {}
     carbon_uuid_layers = {}
@@ -41,18 +44,20 @@ class TaskConfig(object):
     total_input_layers = 0
 
     def __init__(self, scenario_name, scenario_desc, extent,
-                 analysis_implementation_models, priority_layers,
+                 analysis_activities, priority_layers,
                  priority_layer_groups,
                  snapping_enabled=False, snap_layer='',
                  pathway_suitability_index=0,
                  carbon_coefficient=0.0, snap_rescale=False,
-                 snap_method=0, scenario_uuid=None) -> None:
+                 snap_method=0, sieve_enabled=False,
+                 sieve_threshold=10.0, mask_path='',
+                 scenario_uuid=None) -> None:
         self.scenario_name = scenario_name
         self.scenario_desc = scenario_desc
         if scenario_uuid:
             self.scenario_uuid = uuid.UUID(scenario_uuid)
         self.analysis_extent = SpatialExtent(bbox=extent)
-        self.analysis_implementation_models = analysis_implementation_models
+        self.analysis_activities = analysis_activities
         self.priority_layers = priority_layers
         self.priority_layer_groups = priority_layer_groups
         self.snapping_enabled = snapping_enabled
@@ -61,27 +66,30 @@ class TaskConfig(object):
         self.carbon_coefficient = carbon_coefficient
         self.snap_rescale = snap_rescale
         self.snap_method = snap_method
+        self.sieve_enabled = sieve_enabled
+        self.sieve_threshold = sieve_threshold
+        self.mask_path = mask_path
         self.scenario = Scenario(
             uuid=self.scenario_uuid,
             name=self.scenario_name,
             description=self.scenario_desc,
             extent=self.analysis_extent,
-            models=self.analysis_implementation_models,
-            weighted_models=[],
+            activities=self.analysis_activities,
+            weighted_activities=[],
             priority_layer_groups=self.priority_layer_groups
         )
 
-    def get_implementation_model(
-        self, implementation_model_uuid: str
-    ) -> typing.Union[ImplementationModel, None]:
-        implementation_model = None
+    def get_activity(
+        self, activity_uuid: str
+    ) -> typing.Union[Activity, None]:
+        activity = None
         filtered = [
-            im for im in self.analysis_implementation_models if
-            str(im.uuid) == implementation_model_uuid
+            act for act in self.analysis_activities if
+            str(act.uuid) == activity_uuid
         ]
         if filtered:
-            implementation_model = filtered[0]
-        return implementation_model
+            activity = filtered[0]
+        return activity
 
     def get_priority_layers(self) -> typing.List:
         return self.priority_layers
@@ -102,28 +110,37 @@ class TaskConfig(object):
             'scenario_name': self.scenario.name,
             'scenario_desc': self.scenario.description,
             'extent': self.analysis_extent.bbox,
+            'snapping_enabled': self.snapping_enabled,
+            'snap_layer': self.snap_layer,
+            'pathway_suitability_index': self.pathway_suitability_index,
+            'carbon_coefficient': self.carbon_coefficient,
+            'snap_rescale': self.snap_rescale,
+            'snap_method': self.snap_method,
+            'sieve_enabled': self.sieve_enabled,
+            'sieve_threshold': self.sieve_threshold,
+            'mask_path': self.mask_path,
             'priority_layers': self.priority_layers,
             'priority_layer_groups': self.priority_layer_groups,
-            'implementation_models': [],
+            'activities': [],
             'pathway_uuid_layers': self.pathway_uuid_layers,
             'carbon_uuid_layers': self.carbon_uuid_layers,
             'priority_uuid_layers': self.priority_uuid_layers,
             'total_input_layers': self.total_input_layers
         }
-        for model in self.analysis_implementation_models:
-            im_model_dict = {
-                'uuid': str(model.uuid),
-                'name': model.name,
-                'description': model.description,
-                'path': model.path,
-                'layer_type': model.layer_type,
-                'user_defined': model.user_defined,
+        for activity in self.analysis_activities:
+            activity_dict = {
+                'uuid': str(activity.uuid),
+                'name': activity.name,
+                'description': activity.description,
+                'path': activity.path,
+                'layer_type': activity.layer_type,
+                'user_defined': activity.user_defined,
                 'pathways': [],
-                'priority_layers': model.priority_layers,
-                'layer_styles': model.layer_styles
+                'priority_layers': activity.priority_layers,
+                'layer_styles': activity.layer_styles
             }
-            for pathway in model.pathways:
-                im_model_dict["pathways"].append({
+            for pathway in activity.pathways:
+                activity_dict["pathways"].append({
                     'uuid': str(pathway.uuid),
                     'name': pathway.name,
                     'description': pathway.description,
@@ -131,7 +148,7 @@ class TaskConfig(object):
                     'layer_type': pathway.layer_type,
                     'carbon_paths': pathway.carbon_paths
                 })
-            input_dict["implementation_models"].append(im_model_dict)
+            input_dict["activities"].append(activity_dict)
         return input_dict
 
     @classmethod
@@ -149,6 +166,9 @@ class TaskConfig(object):
         config.carbon_coefficient = data.get('carbon_coefficient', 0.0)
         config.snap_rescale = data.get('snap_rescale', False)
         config.snap_method = data.get('snap_method', 0)
+        config.sieve_enabled = data.get('sieve_enabled', False)
+        config.sieve_threshold = data.get('sieve_threshold', 10.0)
+        config.mask_path = data.get('mask_path', '')
         # store dict of <layer_uuid, list of obj identifier>
         config.priority_uuid_layers = {}
         config.pathway_uuid_layers = {}
@@ -167,10 +187,10 @@ class TaskConfig(object):
                 config.priority_uuid_layers[layer_uuid] = [
                     priority_layer_uuid
                 ]
-        _models = data.get('implementation_models', [])
-        for model in _models:
-            uuid_str = model.get('uuid', None)
-            m_priority_layers = model.get('priority_layers', [])
+        _activities = data.get('activities', [])
+        for activity in _activities:
+            uuid_str = activity.get('uuid', None)
+            m_priority_layers = activity.get('priority_layers', [])
             filtered_priority_layer = []
             for m_priority_layer in m_priority_layers:
                 if not m_priority_layer:
@@ -190,18 +210,18 @@ class TaskConfig(object):
                     config.priority_uuid_layers[m_priority_layer_uuid] = [
                         m_priority_uuid
                     ]
-            im_model = ImplementationModel(
+            activity_obj = Activity(
                 uuid=uuid.UUID(uuid_str) if uuid_str else uuid.uuid4(),
-                name=model.get('name', ''),
-                description=model.get('description', ''),
+                name=activity.get('name', ''),
+                description=activity.get('description', ''),
                 path='',
-                layer_type=LayerType(model.get('layer_type', -1)),
-                user_defined=model.get('user_defined', False),
+                layer_type=LayerType(activity.get('layer_type', -1)),
+                user_defined=activity.get('user_defined', False),
                 pathways=[],
                 priority_layers=filtered_priority_layer,
-                layer_styles=model.get('layer_styles', {})
+                layer_styles=activity.get('layer_styles', {})
             )
-            pathways = model.get('pathways', [])
+            pathways = activity.get('pathways', [])
             for pathway in pathways:
                 pw_uuid_str = pathway.get('uuid', None)
                 pw_uuid = (
@@ -217,7 +237,7 @@ class TaskConfig(object):
                     # store carbon layer uuids instead of the path
                     carbon_paths=pathway.get('carbon_uuids', [])
                 )
-                im_model.pathways.append(pathway_model)
+                activity_obj.pathways.append(pathway_model)
                 pw_layer_uuid = pathway.get('layer_uuid', None)
                 if pw_layer_uuid:
                     if pw_layer_uuid in config.pathway_uuid_layers:
@@ -237,14 +257,14 @@ class TaskConfig(object):
                             str(pw_uuid)
                         ]
 
-            config.analysis_implementation_models.append(im_model)
+            config.analysis_activities.append(activity_obj)
         config.scenario = Scenario(
             uuid=config.scenario_uuid,
             name=config.scenario_name,
             description=config.scenario_desc,
             extent=config.analysis_extent,
-            models=config.analysis_implementation_models,
-            weighted_models=[],
+            activities=config.analysis_activities,
+            weighted_activities=[],
             priority_layer_groups=config.priority_layer_groups
         )
         config.total_input_layers = (
@@ -252,6 +272,10 @@ class TaskConfig(object):
             len(config.priority_uuid_layers) +
             len(config.carbon_uuid_layers)
         )
+        if config.snap_layer:
+            config.total_input_layers += 1
+        if config.mask_path:
+            config.total_input_layers += 1
         return config
 
 
@@ -283,7 +307,7 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
         super().__init__(
             task_config.scenario_name,
             task_config.scenario_desc,
-            task_config.analysis_implementation_models,
+            task_config.analysis_activities,
             task_config.priority_layer_groups,
             task_config.analysis_extent,
             task_config.scenario
@@ -337,11 +361,27 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
             )
         if priority_layer_paths:
             self.patch_layer_path_to_priority_layers(priority_layer_paths)
-        self.patch_layer_path_to_implementation_models(
+        self.patch_layer_path_to_activities(
             priority_layer_paths,
             pathway_layer_paths,
             carbon_layer_paths
         )
+        # init snap layer
+        if self.task_config.snap_layer:
+            layer_uuid = self.task_config.snap_layer
+            layer_paths = self.copy_input_layers_by_uuids(
+                None, [layer_uuid], scenario_path
+            )
+            if layer_uuid in layer_paths:
+                self.task_config.snap_layer = layer_paths[layer_uuid]
+        # init sieve mask path
+        if self.task_config.mask_path:
+            layer_uuid = self.task_config.mask_path
+            layer_paths = self.copy_input_layers_by_uuids(
+                None, [layer_uuid], scenario_path
+            )
+            if layer_uuid in layer_paths:
+                self.task_config.mask_path = layer_paths[layer_uuid]
         self.log_message(
             'Finished copy input layers: '
             f'{self.task_config.total_input_layers}'
@@ -352,9 +392,12 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
             uuids: list, scenario_path: str):
         results = {}
         layers = InputLayer.objects.filter(
-            component_type=component_type,
             uuid__in=uuids
         )
+        if component_type:
+            layers = layers.filter(
+                component_type=component_type
+            )
         for layer in layers:
             file_path = layer.download_to_working_directory(scenario_path)
             if not file_path:
@@ -371,7 +414,7 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                 continue
             priority_layer['path'] = priority_layer_paths[layer_uuid]
 
-    def patch_layer_path_to_implementation_models(
+    def patch_layer_path_to_activities(
             self, priority_layer_paths,
             pathway_layer_paths, carbon_layer_paths):
         pw_uuid_mapped = self.transform_uuid_layer_paths(
@@ -379,9 +422,9 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
         priority_uuid_mapped = self.transform_uuid_layer_paths(
             self.task_config.priority_uuid_layers, priority_layer_paths
         )
-        # iterate implementation models
-        for model in self.task_config.analysis_implementation_models:
-            for priority_layer in model.priority_layers:
+        # iterate activities
+        for activity in self.task_config.analysis_activities:
+            for priority_layer in activity.priority_layers:
                 priority_layer_uuid = priority_layer.get('uuid', None)
                 if not priority_layer_uuid:
                     continue
@@ -390,7 +433,7 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                 priority_layer['path'] = (
                     priority_uuid_mapped[priority_layer_uuid]
                 )
-            for pathway in model.pathways:
+            for pathway in activity.pathways:
                 pathway_uuid = str(pathway.uuid)
                 if pathway_uuid in pw_uuid_mapped:
                     pathway.path = pw_uuid_mapped[pathway_uuid]
@@ -400,9 +443,9 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                         carbon_paths.append(
                             carbon_layer_paths[carbon_layer_uuid])
                 pathway.carbon_paths = carbon_paths
-        self.scenario.models = self.task_config.analysis_implementation_models
-        self.analysis_implementation_models = (
-            self.task_config.analysis_implementation_models
+        self.scenario.activities = self.task_config.analysis_activities
+        self.analysis_activities = (
+            self.task_config.analysis_activities
         )
 
     def transform_uuid_layer_paths(self, uuid_layers, layer_paths):
@@ -424,9 +467,8 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
     def get_priority_layer(self, identifier):
         return self.task_config.get_priority_layer(identifier)
 
-    def get_implementation_model(self, implementation_model_uuid):
-        return self.task_config.get_implementation_model(
-            implementation_model_uuid)
+    def get_activity(self, activity_uuid):
+        return self.task_config.get_activity(activity_uuid)
 
     def get_priority_layers(self):
         return self.task_config.get_priority_layers()
