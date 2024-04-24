@@ -485,3 +485,24 @@ class LayerDetail(APIView):
                 f"You are not allowed to delete layer {layer_uuid}!")
         input_layer.delete()
         return Response(status=204)
+
+
+class CheckLayer(APIView):
+    """API to check whether layer is ready by its identifier."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        id_type = request.GET.get('id_type', 'client_id')
+        filters = {}
+        if id_type == 'layer_uuid':
+            filters = {
+                'uuid__in': request.data
+            }
+        else:
+            filters = {
+                'client_id__in': request.data
+            }
+        layers = InputLayer.objects.filter(
+            **filters
+        ).order_by('name')
+        return Response(status=200, data={})
