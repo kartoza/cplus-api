@@ -39,7 +39,7 @@ class TestScenarioAPIView(BaseAPIViewTransactionTest):
             data = json.load(f)
         view = ScenarioAnalysisSubmit.as_view()
         # invalid UUID
-        data['implementation_models'][0]['pathways'][0]['layer_uuid'] = (
+        data['activities'][0]['pathways'][0]['layer_uuid'] = (
             'aedf5106'
         )
         request = self.factory.post(
@@ -50,7 +50,7 @@ class TestScenarioAPIView(BaseAPIViewTransactionTest):
         response = view(request)
         self.assertEqual(response.status_code, 400)
         # InputLayer object does not exist
-        data['implementation_models'][0]['pathways'][0]['layer_uuid'] = (
+        data['activities'][0]['pathways'][0]['layer_uuid'] = (
             '5fe775ba-0e80-4b70-a53a-1ed874b72da3'
         )
         request = self.factory.post(
@@ -61,7 +61,7 @@ class TestScenarioAPIView(BaseAPIViewTransactionTest):
         response = view(request)
         self.assertEqual(response.status_code, 400)
         # missing file in the storage
-        data['implementation_models'][0]['pathways'][0]['layer_uuid'] = (
+        data['activities'][0]['pathways'][0]['layer_uuid'] = (
             str(input_layer.uuid)
         )
         request = self.factory.post(

@@ -10,7 +10,10 @@ echo "-----------------------------------------------------"
 
 CPLUS_C=${CPLUS_QUEUE_CONCURRENCY:-1}
 
-# start tile and validate workers
+# remove pids
+rm -f /var/run/celery/cplus.pid
+
+# start cplus workers
 celery -A core multi start cplus -c:cplus $CPLUS_C -Q:cplus cplus -l INFO --logfile=/proc/1/fd/1 --statedb=/var/run/celery/%n.state
 
 # start default worker
