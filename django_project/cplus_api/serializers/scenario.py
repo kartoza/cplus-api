@@ -499,3 +499,26 @@ class PaginatedScenarioTaskStatusSerializer(serializers.Serializer):
                 )
             }
         }
+
+
+class ScenarioDetailSerializer(ScenarioTaskStatusSerializer):
+    class Meta:
+        model = ScenarioTask
+        fields = [
+            'uuid', 'task_id', 'plugin_version',
+            'scenario_name', 'status', 'submitted_on',
+            'created_by', 'started_at', 'finished_at',
+            'errors', 'progress', 'progress_text',
+            'detail'
+        ]
+        swagger_schema_fields = {
+            'type': openapi.TYPE_OBJECT,
+            'title': 'Scenario Task Detail',
+            'properties': {
+                **ScenarioTaskStatusSerializer.Meta.
+                swagger_schema_fields['properties'],
+                'detail': {
+                    **ScenarioInputSerializer.Meta.swagger_schema_fields
+                }
+            }
+        }
