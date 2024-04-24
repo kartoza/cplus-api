@@ -129,7 +129,7 @@ OUTPUT_LAYER_SCHEMA_FIELDS = {
             title='Layer Output Group',
             type=openapi.TYPE_STRING,
             enum=[
-                "implementation_models",
+                "activities",
                 "normalized_ims",
                 "normalized_pathways",
                 "weighted_ims"
