@@ -179,7 +179,7 @@ class ScenarioTaskF(BaseFactory[ScenarioTask],
                 "layers": []
             }
         ],
-        "implementation_models": [
+        "activities": [
             {
                 "uuid": "1c8db48b-717b-451b-a644-3af1bee984ea",
                 "name": "Alien Plant Removal",
