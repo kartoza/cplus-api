@@ -608,7 +608,9 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                     'processing_time': (
                         self.scenario_task.get_processing_time()
                     ),
-                    'output_layers': output_layers
+                    'output_layers': output_layers,
+                    'progress_text': self.scenario_task.progress_text,
+                    'errors': self.scenario_task.errors
                 },
             )
             subject = (

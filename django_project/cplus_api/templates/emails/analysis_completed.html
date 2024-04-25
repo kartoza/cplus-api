@@ -317,7 +317,11 @@
                                                     </p>
                                                     <p class="pcontent">
                                                         <span>
+                                                            {% if is_success %}
                                                             We would like to inform you that the processing of {{scenario_name}} has finished.
+                                                            {% else %}
+                                                            We would like to inform you that the processing of {{scenario_name}} has stopped with errors.
+                                                            {% endif %}
                                                         </span>
                                                     </p>
                                                     <p class="pcontent">
@@ -350,6 +354,7 @@
                                                     </ul>
                                                     <p class="pcontent"><span>Started At: {{started_at}} UTC</span></p>
                                                     <p class="pcontent"><span>Processing Time: {{processing_time}}</span></p>
+                                                    {% if is_success %}
                                                     <p class="pcontent"><span>Output Files:</span></p>
                                                     <table>
                                                         <thead>
@@ -369,6 +374,10 @@
                                                             {% endfor %}
                                                         </tbody>
                                                     </table>
+                                                    {% else %}
+                                                    <p class="pcontent"><span>Progress: {{progress_text}}</span></p>
+                                                    <p class="pcontent"><span>Errors: {{errors}}</span></p>
+                                                    {% endif %}
                                                     <p class="pcontent">
                                                         <span>
                                                             &nbsp;
