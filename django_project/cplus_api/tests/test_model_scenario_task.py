@@ -1,6 +1,6 @@
 import mock
 import uuid
-from datetime import timedelta
+from datetime import timedelta, datetime
 from django.test import TestCase
 from django.utils import timezone
 from django.contrib.contenttypes.models import ContentType
@@ -275,3 +275,20 @@ class TestModelScenarioTask(TestCase):
         scenario_task.refresh_from_db()
         self.assertEqual(scenario_task.celery_retry, 1)
         self.assertEqual(scenario_task.celery_retry_reason, 'test-retry')
+
+    def test_get_detail_value(self):
+        scenario_task = ScenarioTaskF.create()
+        self.assertEqual(
+            scenario_task.get_detail_value('scenario_name'), 'Scenario 1')
+        self.assertEqual(
+            scenario_task.get_detail_value('invalid', ''), '')
+
+    def test_get_processing_time(self):
+        scenario_task = ScenarioTaskF.create()
+        self.assertEqual(scenario_task.get_processing_time(), '')
+        scenario_task.started_at = datetime(2023, 8, 14, 8, 8, 8)
+        scenario_task.finished_at = datetime(2023, 8, 14, 8, 8, 10)
+        self.assertEqual(
+            scenario_task.get_processing_time(),
+            '00:00:02.00'
+        )
