@@ -164,7 +164,7 @@ class InputLayerSerializer(serializers.ModelSerializer):
     def get_url(self, obj: InputLayer):
         if not obj.file.name:
             return None
-        if not obj.file.storage.exists(obj.file.name):
+        if not obj.is_available():
             return None
         return build_minio_absolute_url(obj.file.url)
 

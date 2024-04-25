@@ -1,4 +1,5 @@
 import os
+import uuid
 from django.urls import reverse
 from rest_framework.exceptions import PermissionDenied
 from core.settings.utils import absolute_path
@@ -8,7 +9,9 @@ from cplus_api.api_views.layer import (
     LayerUpload,
     LayerUploadStart,
     LayerUploadFinish,
-    is_internal_user
+    CheckLayer,
+    is_internal_user,
+    validate_layer_access
 )
 from cplus_api.models.layer import (
     InputLayer,
@@ -70,8 +73,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         )
         input_layer.save()
         self.assertTrue(input_layer.file)
-        self.assertFalse(
-            input_layer.file.storage.exists(input_layer.file.name))
+        self.assertFalse(input_layer.is_available())
         response = view(request)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data['results']), 1)
@@ -102,21 +104,20 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         input_layer_3 = InputLayerF.create(
             privacy_type=InputLayer.PrivacyTypes.PRIVATE
         )
-        layer_detail_view = LayerDetail()
-        self.assertTrue(layer_detail_view.validate_layer_access(
+        self.assertTrue(validate_layer_access(
             input_layer_1, self.superuser
         ))
-        self.assertTrue(layer_detail_view.validate_layer_access(
+        self.assertTrue(validate_layer_access(
             input_layer_1, self.user_1
         ))
         user_2 = self.create_internal_user()
-        self.assertTrue(layer_detail_view.validate_layer_access(
+        self.assertTrue(validate_layer_access(
             input_layer_2, user_2
         ))
-        self.assertFalse(layer_detail_view.validate_layer_access(
+        self.assertFalse(validate_layer_access(
             input_layer_3, self.user_1
         ))
-        self.assertTrue(layer_detail_view.validate_layer_access(
+        self.assertTrue(validate_layer_access(
             input_layer_3, input_layer_3.owner
         ))
         # upload access
@@ -185,7 +186,6 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         )
         self.store_layer_file(input_layer, file_path)
         layer_uuid = input_layer.uuid
-        layer_filename = input_layer.file.name
         kwargs = {
             'layer_uuid': str(layer_uuid)
         }
@@ -210,9 +210,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
                 uuid=layer_uuid
             ).exists()
         )
-        self.assertFalse(
-            input_layer.file.storage.exists(layer_filename)
-        )
+        self.assertFalse(input_layer.is_available())
 
     def test_layer_upload(self):
         view = LayerUpload.as_view()
@@ -261,8 +259,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertEqual(input_layer.privacy_type, data['privacy_type'])
         self.assertEqual(input_layer.client_id, data['client_id'])
         self.assertTrue(input_layer.size > 0)
-        self.assertTrue(
-            input_layer.file.storage.exists(input_layer.file.name))
+        self.assertTrue(input_layer.is_available())
         # test update
         file_path = absolute_path(
             'cplus_api', 'tests', 'data',
@@ -440,5 +437,77 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertEqual(response.status_code, 200)
         input_layer.refresh_from_db()
         self.assertTrue(input_layer.file.name)
-        self.assertTrue(
-            input_layer.file.storage.exists(input_layer.file.name))
+        self.assertTrue(input_layer.is_available())
+
+    def test_check_layer(self):
+        view = CheckLayer.as_view()
+        # create layer by superuser
+        layer_1 = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE,
+            name='test_superuser_layer.tif',
+            size=10,
+            owner=self.superuser,
+            client_id='layer-1'
+        )
+        # create layer by user with+without file
+        layer_2 = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE,
+            name='test_layer_2.tif',
+            size=10,
+            owner=self.user_1,
+            client_id='layer-2'
+        )
+        layer_3 = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE,
+            name='test_layer_3.tif',
+            size=10,
+            owner=self.user_1,
+            client_id='layer-3'
+        )
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'models', 'test_model_1.tif'
+        )
+        self.store_layer_file(layer_3, file_path, layer_3.name)
+        # test with layer_uuid
+        data = [
+            str(layer_1.uuid),
+            str(layer_2.uuid),
+            str(layer_3.uuid),
+            str(uuid.uuid4())
+        ]
+        request = self.factory.post(
+            reverse('v1:layer-check') + '?id_type=layer_uuid',
+            data, format='json'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
+        response = view(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('available', response.data)
+        self.assertIn('unavailable', response.data)
+        self.assertIn('invalid', response.data)
+        self.assertEqual(len(response.data['invalid']), 2)
+        self.assertIn(str(layer_1.uuid), response.data['invalid'])
+        self.assertIn(str(layer_2.uuid), response.data['unavailable'])
+        self.assertIn(str(layer_3.uuid), response.data['available'])
+        # test with client id
+        data = [
+            layer_1.client_id,
+            layer_2.client_id,
+            layer_3.client_id,
+            'test-layer-invalid'
+        ]
+        request = self.factory.post(
+            reverse('v1:layer-check') + '?id_type=client_id',
+            data, format='json'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
+        response = view(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['invalid']), 2)
+        self.assertIn('test-layer-invalid', response.data['invalid'])
+        self.assertIn(layer_1.client_id, response.data['invalid'])
+        self.assertIn(layer_2.client_id, response.data['unavailable'])
+        self.assertIn(layer_3.client_id, response.data['available'])
