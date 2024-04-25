@@ -87,3 +87,16 @@ class ScenarioTask(BaseTaskRequest):
                     results[parent_dir_name] = [fp]
                 total_files += 1
         return results, total_files
+
+    def get_detail_value(self, key, default=None):
+        return self.detail.get(key, default)
+
+    def get_processing_time(self):
+        if not self.finished_at:
+            return ''
+        hours, rem = divmod(
+            (self.finished_at - self.started_at).seconds, 3600
+        )
+        minutes, seconds = divmod(rem, 60)
+        return "{:0>2}:{:0>2}:{:05.2f}".format(
+            int(hours), int(minutes), seconds)

@@ -19,6 +19,7 @@ from cplus.tasks.analysis import ScenarioAnalysisTask
 from cplus.utils.conf import Settings
 from cplus_api.models.scenario import ScenarioTask
 from cplus_api.models.layer import BaseLayer, OutputLayer, InputLayer
+from cplus_api.utils.api_helper import convert_size
 
 logger = logging.getLogger(__name__)
 
@@ -548,11 +549,45 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
         if not self.scenario_task.submitted_by.email:
             return
         try:
-            scenario_name = (
-                self.scenario_task.detail['scenario_name'] if
-                'scenario_name' in self.scenario_task.detail else
-                f'scenario {self.scenario_task.uuid}'
-            )
+            scenario_name = self.scenario_task.get_detail_value(
+                'scenario_name', f'scenario {self.scenario_task.uuid}')
+            activities = []
+            activities_raw = self.scenario_task.get_detail_value(
+                'activities', [])
+            for activity in activities_raw:
+                pathways = [
+                    pathway['name'] for pathway in
+                    activity.get('pathways', [])
+                ]
+                activities.append({
+                    'name': activity.get('name', ''),
+                    'pathways': ', '.join(pathways)
+                })
+            priority_layer_groups = []
+            pl_groups = self.scenario_task.get_detail_value(
+                'priority_layer_groups', [])
+            for pl in pl_groups:
+                layers = pl.get('layers', [])
+                if not layers:
+                    continue
+                priority_layer_groups.append({
+                    'name': pl.get('name', ''),
+                    'value': pl.get('value', '0'),
+                    'layers': ', '.join(layers)
+                })
+            output_layers = []
+            layers = OutputLayer.objects.filter(
+                scenario=self.scenario_task
+            ).order_by('group')
+            for layer in layers:
+                output_layers.append({
+                    'name': layer.name,
+                    'type': (
+                        layer.group if not layer.is_final_output else
+                        'Final Output'
+                    ),
+                    'size': convert_size(layer.size)
+                })
             message = render_to_string(
                 'emails/analysis_completed.html',
                 {
@@ -562,7 +597,18 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                         self.scenario_task.submitted_by.username
                     ),
                     'scenario_name': scenario_name,
-                    'is_success': is_success
+                    'is_success': is_success,
+                    'scenario_desc': (
+                        self.scenario_task.get_detail_value(
+                            'scenario_desc', '')
+                    ),
+                    'activities': activities,
+                    'priority_layer_groups': priority_layer_groups,
+                    'started_at': self.scenario_task.started_at,
+                    'processing_time': (
+                        self.scenario_task.get_processing_time()
+                    ),
+                    'output_layers': output_layers
                 },
             )
             subject = (
@@ -593,5 +639,6 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                 f"Error from task scenario task {self.error}", info=False)
         # clean directory
         self.scenario_task.clear_resources()
+        self.scenario_task.task_on_completed()
         # send email to the submitter
         self.notify_user(result)

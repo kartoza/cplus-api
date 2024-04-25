@@ -50,7 +50,6 @@ def run_scenario_analysis_task(scenario_task_id):
     logger.info(f'execution time: {time.time() - start_time} seconds')
     # call finished() to upload layer outputs
     analysis_task.finished(True)
-    scenario_task.task_on_completed()
     # use qgs.exit() if worker can be reused to execute another task
     qgs.exit()
     # exitQgis causing worker lost
