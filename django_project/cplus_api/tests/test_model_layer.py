@@ -12,6 +12,7 @@ class TestModelLayer(TestCase):
     def test_input_layer_dir_path(self):
         # private layer
         input_layer = InputLayerF.create()
+        self.assertFalse(input_layer.is_available())
         path = input_layer_dir_path(input_layer, 'test.tif')
         self.assertEqual(
             path,

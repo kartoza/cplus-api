@@ -104,7 +104,7 @@ class InputLayer(BaseLayer):
     )
 
     def download_to_working_directory(self, base_dir):
-        if not self.file.storage.exists(self.file.name):
+        if not self.is_available():
             return None
         dir_path = os.path.join(
             base_dir,
@@ -127,6 +127,11 @@ class InputLayer(BaseLayer):
         if self.file:
             self.is_ready = True
         return super().save(*args, **kwargs)
+
+    def is_available(self):
+        if not self.file.name:
+            return False
+        return self.file.storage.exists(self.file.name)
 
 
 class OutputLayer(BaseLayer):

@@ -8,7 +8,8 @@ from cplus_api.api_views.layer import (
     LayerUpload,
     LayerUploadStart,
     LayerUploadFinish,
-    is_internal_user
+    is_internal_user,
+    validate_layer_access
 )
 from cplus_api.models.layer import (
     InputLayer,
@@ -70,8 +71,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         )
         input_layer.save()
         self.assertTrue(input_layer.file)
-        self.assertFalse(
-            input_layer.file.storage.exists(input_layer.file.name))
+        self.assertFalse(input_layer.is_available())
         response = view(request)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data['results']), 1)
@@ -102,21 +102,20 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         input_layer_3 = InputLayerF.create(
             privacy_type=InputLayer.PrivacyTypes.PRIVATE
         )
-        layer_detail_view = LayerDetail()
-        self.assertTrue(layer_detail_view.validate_layer_access(
+        self.assertTrue(validate_layer_access(
             input_layer_1, self.superuser
         ))
-        self.assertTrue(layer_detail_view.validate_layer_access(
+        self.assertTrue(validate_layer_access(
             input_layer_1, self.user_1
         ))
         user_2 = self.create_internal_user()
-        self.assertTrue(layer_detail_view.validate_layer_access(
+        self.assertTrue(validate_layer_access(
             input_layer_2, user_2
         ))
-        self.assertFalse(layer_detail_view.validate_layer_access(
+        self.assertFalse(validate_layer_access(
             input_layer_3, self.user_1
         ))
-        self.assertTrue(layer_detail_view.validate_layer_access(
+        self.assertTrue(validate_layer_access(
             input_layer_3, input_layer_3.owner
         ))
         # upload access
@@ -210,9 +209,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
                 uuid=layer_uuid
             ).exists()
         )
-        self.assertFalse(
-            input_layer.file.storage.exists(layer_filename)
-        )
+        self.assertFalse(input_layer.is_available())
 
     def test_layer_upload(self):
         view = LayerUpload.as_view()
@@ -261,8 +258,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertEqual(input_layer.privacy_type, data['privacy_type'])
         self.assertEqual(input_layer.client_id, data['client_id'])
         self.assertTrue(input_layer.size > 0)
-        self.assertTrue(
-            input_layer.file.storage.exists(input_layer.file.name))
+        self.assertTrue(input_layer.is_available())
         # test update
         file_path = absolute_path(
             'cplus_api', 'tests', 'data',
@@ -440,5 +436,4 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertEqual(response.status_code, 200)
         input_layer.refresh_from_db()
         self.assertTrue(input_layer.file.name)
-        self.assertTrue(
-            input_layer.file.storage.exists(input_layer.file.name))
+        self.assertTrue(input_layer.is_available())

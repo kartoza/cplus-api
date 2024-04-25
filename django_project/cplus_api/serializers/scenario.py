@@ -26,7 +26,7 @@ def validate_layer_uuid(value):
     if not input_layer:
         raise serializers.ValidationError(
             f'Invalid input layer object {value}!')
-    if not input_layer.file.storage.exists(input_layer.file.name):
+    if not input_layer.is_available():
         raise serializers.ValidationError(
             f'Missing input layer {value} file!')
 

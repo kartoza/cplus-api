@@ -46,6 +46,16 @@ def is_internal_user(user):
     return user_profile.role.name == 'Internal'
 
 
+def validate_layer_access(input_layer: InputLayer, user):
+    if user.is_superuser:
+        return True
+    if input_layer.privacy_type == InputLayer.PrivacyTypes.COMMON:
+        return True
+    elif input_layer.privacy_type == InputLayer.PrivacyTypes.INTERNAL:
+        return is_internal_user(user)
+    return input_layer.owner == user
+
+
 class LayerList(APIView):
     """API to return available layers."""
     permission_classes = [IsAuthenticated]
@@ -356,10 +366,7 @@ class LayerUploadStart(BaseLayerUpload):
         self.validate_upload_access(
             upload_param.validated_data['privacy_type'], request.user)
         input_layer, is_new = self.save_input_layer(upload_param, request.user)
-        if (
-            not is_new and
-            input_layer.file.storage.exists(input_layer.file.name)
-        ):
+        if not is_new and input_layer.is_available():
             # delete existing file
             input_layer.file = None
             input_layer.save()
@@ -433,15 +440,6 @@ class LayerDetail(APIView):
     """APIs to fetch and remove layer file."""
     permission_classes = [IsAuthenticated]
 
-    def validate_layer_access(self, input_layer: InputLayer, user):
-        if user.is_superuser:
-            return True
-        if input_layer.privacy_type == InputLayer.PrivacyTypes.COMMON:
-            return True
-        elif input_layer.privacy_type == InputLayer.PrivacyTypes.INTERNAL:
-            return is_internal_user(user)
-        return input_layer.owner == user
-
     @swagger_auto_schema(
         operation_id='layer-detail',
         operation_description='API to fetch layer detail.',
@@ -458,7 +456,7 @@ class LayerDetail(APIView):
         layer_uuid = kwargs.get('layer_uuid')
         input_layer = get_object_or_404(
             InputLayer, uuid=layer_uuid)
-        if not self.validate_layer_access(input_layer, request.user):
+        if not validate_layer_access(input_layer, request.user):
             raise PermissionDenied(
                 f"You are not allowed to access layer {layer_uuid}!")
         return Response(
@@ -480,7 +478,7 @@ class LayerDetail(APIView):
         layer_uuid = kwargs.get('layer_uuid')
         input_layer = get_object_or_404(
             InputLayer, uuid=layer_uuid)
-        if not self.validate_layer_access(input_layer, request.user):
+        if not validate_layer_access(input_layer, request.user):
             raise PermissionDenied(
                 f"You are not allowed to delete layer {layer_uuid}!")
         input_layer.delete()
@@ -491,6 +489,62 @@ class CheckLayer(APIView):
     """API to check whether layer is ready by its identifier."""
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        operation_id='check-layer',
+        operation_description='API to check whether layer is ready.',
+        tags=[LAYER_API_TAG],
+        manual_parameters=[
+            openapi.Parameter(
+                'id_type', openapi.IN_QUERY,
+                description='Type of layer id: client_id or layer_uuid',
+                type=openapi.TYPE_STRING,
+                required=False,
+                default='client_id',
+                enum=['client_id', 'layer_uuid']
+            )
+        ],
+        request_body=openapi.Schema(
+            title='List of layer id',
+            type=openapi.TYPE_ARRAY,
+            items=openapi.Items(
+                type=openapi.TYPE_STRING
+            )
+        ),
+        responses={
+            200: openapi.Schema(
+                description=(
+                    'Check Layer Response'
+                ),
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'available': openapi.Schema(
+                        title='List of available layer',
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Items(
+                            type=openapi.TYPE_STRING
+                        )
+                    ),
+                    'unavailable': openapi.Schema(
+                        title='List of unavailable layer (missing file)',
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Items(
+                            type=openapi.TYPE_STRING
+                        )
+                    ),
+                    'Invalid': openapi.Schema(
+                        title='List of layer with invalid ID or inaccessible',
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Items(
+                            type=openapi.TYPE_STRING
+                        )
+                    )
+                }
+            ),
+            400: APIErrorSerializer,
+            403: APIErrorSerializer,
+            404: APIErrorSerializer
+        }
+    )
     def post(self, request, *args, **kwargs):
         id_type = request.GET.get('id_type', 'client_id')
         filters = {}
@@ -505,4 +559,24 @@ class CheckLayer(APIView):
         layers = InputLayer.objects.filter(
             **filters
         ).order_by('name')
-        return Response(status=200, data={})
+        input_ids = set(request.data)
+        ids_found = set()
+        ids_available = set()
+        ids_not_available = set()
+        for layer in layers:
+            layer_id = (
+                str(layer.uuid) if id_type == 'layer_uuid' else
+                layer.client_id
+            )
+            if not validate_layer_access(layer, request.user):
+                continue
+            ids_found.add(layer_id)
+            if layer.is_available():
+                ids_available.add(layer_id)
+            else:
+                ids_not_available.add(layer_id)
+        return Response(status=200, data={
+            'available': list(ids_available),
+            'unavailable': list(ids_not_available),
+            'invalid': list(input_ids - ids_found)
+        })
