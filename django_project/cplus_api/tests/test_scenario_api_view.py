@@ -340,4 +340,11 @@ class TestScenarioAPIView(BaseAPIViewTransactionTest):
         request.user = self.superuser
         response = view(request, **kwargs)
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.data)
+        self.assertIn('detail', response.data)
+        self.assertTrue(response.data['detail'])
+        self.assertEqual(response.data['status'], TaskStatus.PENDING)
+        self.assertEqual(response.data['uuid'], str(scenario_task.uuid))
+        self.assertEqual(
+            response.data['scenario_name'],
+            scenario_task.detail['scenario_name']
+        )

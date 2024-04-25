@@ -18,7 +18,8 @@ from cplus_api.serializers.scenario import (
     ScenarioTaskStatusSerializer,
     ScenarioTaskLogListSerializer,
     ScenarioTaskLogSerializer,
-    PaginatedScenarioTaskStatusSerializer
+    PaginatedScenarioTaskStatusSerializer,
+    ScenarioDetailSerializer
 )
 from cplus_api.serializers.common import (
     APIErrorSerializer
@@ -308,7 +309,7 @@ class ScenarioAnalysisTaskDetail(BaseScenarioReadAccess, APIView):
         tags=[SCENARIO_API_TAG],
         manual_parameters=[PARAM_SCENARIO_UUID_IN_PATH],
         responses={
-            200: ScenarioInputSerializer,
+            200: ScenarioDetailSerializer,
             400: APIErrorSerializer,
             403: APIErrorSerializer,
             404: APIErrorSerializer
@@ -319,4 +320,5 @@ class ScenarioAnalysisTaskDetail(BaseScenarioReadAccess, APIView):
         scenario_task = get_object_or_404(
             ScenarioTask, uuid=scenario_uuid)
         self.validate_user_access(request.user, scenario_task)
-        return Response(status=200, data=scenario_task.detail)
+        return Response(
+            status=200, data=ScenarioDetailSerializer(scenario_task).data)
