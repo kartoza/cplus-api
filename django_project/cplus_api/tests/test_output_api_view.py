@@ -65,12 +65,12 @@ class TestOutputAPIView(BaseAPIViewTransactionTest):
             group='weighted_ims'
         )
         self.store_layer_file(output_layer_2, file_path)
-        # add implementation_models
+        # add activities
         output_layer_3 = OutputLayerF.create(
             scenario=scenario_task,
             owner=scenario_task.submitted_by,
             is_final_output=False,
-            group='implementation_models'
+            group='activities'
         )
         self.store_layer_file(output_layer_3, file_path)
         # add weighted_ims with empty output file
@@ -110,13 +110,13 @@ class TestOutputAPIView(BaseAPIViewTransactionTest):
         find_layer = self.find_layer_from_response(
             filtered_layers, output_layer_2.uuid)
         self.assertTrue(find_layer)
-        # test with fetch_all, should return 5 items
+        # test with download_all, should return 5 items
         # 3 items should have url
         request = self.factory.get(
             reverse(
                 'v1:scenario-output-list',
                 kwargs=kwargs
-            ) + '?fetch_all=true'
+            ) + '?download_all=true'
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
@@ -135,6 +135,22 @@ class TestOutputAPIView(BaseAPIViewTransactionTest):
         find_layer = self.find_layer_from_response(
             filtered_layers, output_layer_3.uuid)
         self.assertTrue(find_layer)
+        # filter by group
+        request = self.factory.get(
+            reverse(
+                'v1:scenario-output-list',
+                kwargs=kwargs
+            ) + '?download_all=true&group=activities'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['results']), 1)
+        find_layer = self.find_layer_from_response(
+            filtered_layers, output_layer_3.uuid)
+        self.assertTrue(find_layer)
+        self.assertTrue(find_layer['url'])
 
     def test_fetch_output_by_uuid(self):
         view = FetchScenarioAnalysisOutput.as_view()

@@ -29,10 +29,16 @@ class UserScenarioAnalysisOutput(BaseScenarioReadAccess, APIView):
     """API to fetch output list of ScenarioAnalysis"""
     permission_classes = [IsAuthenticated]
     param_all_outputs = openapi.Parameter(
-        'fetch_all', openapi.IN_QUERY,
+        'download_all', openapi.IN_QUERY,
         description='Whether to generate download URL for all outputs',
         type=openapi.TYPE_BOOLEAN,
         default=False,
+        required=False
+    )
+    param_group = openapi.Parameter(
+        'group', openapi.IN_QUERY,
+        description='Filter the outputs by group',
+        type=openapi.TYPE_STRING,
         required=False
     )
 
@@ -53,9 +59,10 @@ class UserScenarioAnalysisOutput(BaseScenarioReadAccess, APIView):
     def get(self, request, *args, **kwargs):
         page = int(request.GET.get('page', '1'))
         page_size = get_page_size(request)
-        is_fetch_all = request.GET.get('fetch_all', None)
+        is_fetch_all = request.GET.get('download_all', None)
         if is_fetch_all is not None:
             is_fetch_all = is_fetch_all.lower() == 'true'
+        group_filter = request.GET.get('group', None)
         scenario_uuid = kwargs.get('scenario_uuid')
         scenario_task = get_object_or_404(
             ScenarioTask, uuid=scenario_uuid)
@@ -63,6 +70,8 @@ class UserScenarioAnalysisOutput(BaseScenarioReadAccess, APIView):
         layers = OutputLayer.objects.filter(
             scenario=scenario_task
         ).order_by('id')
+        if group_filter:
+            layers = layers.filter(group=group_filter)
         # set pagination
         paginator = Paginator(layers, page_size)
         total_page = math.ceil(paginator.count / page_size)
