@@ -92,7 +92,7 @@ class ScenarioTask(BaseTaskRequest):
         return self.detail.get(key, default)
 
     def get_processing_time(self):
-        if not self.finished_at:
+        if not self.finished_at or not self.started_at:
             return ''
         hours, rem = divmod(
             (self.finished_at - self.started_at).seconds, 3600
