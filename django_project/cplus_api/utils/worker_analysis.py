@@ -3,7 +3,11 @@ import uuid
 import json
 import os
 import logging
+import traceback
+from django.conf import settings
 from django.utils import timezone
+from django.template.loader import render_to_string
+from django.core.mail import send_mail
 from cplus.models.base import (
     Activity,
     NcsPathway,
@@ -540,6 +544,46 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                     self.set_custom_progress(
                         100 * (total_uploaded_files / total_files))
 
+    def notify_user(self, is_success: bool):
+        if not self.scenario_task.submitted_by.email:
+            return
+        try:
+            scenario_name = (
+                self.scenario_task.detail['scenario_name'] if
+                'scenario_name' in self.scenario_task.detail else
+                f'scenario {self.scenario_task.uuid}'
+            )
+            message = render_to_string(
+                'emails/analysis_completed.html',
+                {
+                    'name': (
+                        self.scenario_task.submitted_by.first_name if
+                        self.scenario_task.submitted_by.first_name else
+                        self.scenario_task.submitted_by.username
+                    ),
+                    'scenario_name': scenario_name,
+                    'is_success': is_success
+                },
+            )
+            subject = (
+                f'Your analysis of {scenario_name} '
+                'has finished successfully' if
+                is_success else
+                f'Your analysis of {scenario_name} has stopped with errors'
+            )
+            send_mail(
+                subject,
+                None,
+                settings.SERVER_EMAIL,
+                [self.scenario_task.submitted_by.email],
+                html_message=message
+            )
+        except Exception as exc:
+            logger.error(f'Unexpected exception occured: {type(exc).__name__} '
+                         'when sending email')
+            logger.error(exc)
+            logger.error(traceback.format_exc())
+
     def finished(self, result: bool):
         if result:
             self.log_message("Finished from the main task \n")
@@ -549,3 +593,5 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                 f"Error from task scenario task {self.error}", info=False)
         # clean directory
         self.scenario_task.clear_resources()
+        # send email to the submitter
+        self.notify_user(result)
