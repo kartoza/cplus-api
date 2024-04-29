@@ -102,6 +102,7 @@ class InputLayer(BaseLayer):
         null=True,
         blank=True
     )
+    is_ready = models.BooleanField(default=False)
 
     def download_to_working_directory(self, base_dir):
         if not self.is_available():
