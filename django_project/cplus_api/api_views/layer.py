@@ -111,7 +111,7 @@ class LayerList(APIView):
 class BaseLayerUpload(APIView):
 
     def validate_upload_access(self, privacy_type, user,
-                               is_update = False, existing_layer = None):
+                               is_update=False, existing_layer=None):
         is_valid = False
         if user.is_superuser:
             is_valid = True
