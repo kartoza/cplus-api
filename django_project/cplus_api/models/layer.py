@@ -65,7 +65,6 @@ class BaseLayer(models.Model):
     class Meta:
         abstract = True
 
-
     def delete(self):
         self.file.delete()
         super().delete()
