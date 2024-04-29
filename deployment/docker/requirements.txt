@@ -58,6 +58,3 @@ minio==7.2.5
 
 flower==1.2.0
 django-revproxy @ https://github.com/jazzband/django-revproxy/archive/refs/tags/0.11.0.zip
-
-# For cronjob
-django-crontab==0.7.1

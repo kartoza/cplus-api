@@ -5,7 +5,6 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from cplus_api.models.scenario import ScenarioTask
 from cplus_api.models.layer import BaseLayer, InputLayer, OutputLayer
-from cplus_api.models.profile import UserProfile
 
 
 T = TypeVar('T')
@@ -33,14 +32,6 @@ class UserF(BaseFactory[User],
     )
     first_name = 'John'
     last_name = 'Doe'
-
-
-class UserProfileF(BaseFactory[UserProfile],
-            metaclass=BaseMetaFactory[UserProfile]):
-    class Meta:
-        model = UserProfile
-
-    user = factory.SubFactory(UserF)
 
 
 class ScenarioTaskF(BaseFactory[ScenarioTask],
