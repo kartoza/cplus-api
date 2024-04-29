@@ -66,6 +66,11 @@ class BaseLayer(models.Model):
         abstract = True
 
 
+    def delete(self):
+        self.file.delete()
+        super().delete()
+
+
 class InputLayer(BaseLayer):
     class ComponentTypes(models.TextChoices):
         NCS_PATHWAY = 'ncs_pathway', _('ncs_pathway')

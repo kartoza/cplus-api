@@ -94,3 +94,36 @@ if _load_initial_fixtures:
 print("-----------------------------------------------------")
 print("4. Collecting static files")
 call_command('collectstatic', '--noinput', verbosity=0)
+
+
+#########################################################
+# 5. Adding Periodic Task
+#########################################################
+def init_periodic_task():
+    from django_celery_beat.models import PeriodicTask, IntervalSchedule
+    from django.core.exceptions import ValidationError
+
+    schedule, created = IntervalSchedule.objects.get_or_create(
+        every=12,
+        period=IntervalSchedule.HOURS,
+    )
+    # Should we remove existing remove_layer task first?
+    # try:
+    #     task = PeriodicTask.objects.get(
+    #         name='Remove layers',  # simply describes this periodic task.
+    #         task='remove_layers',  # name of task.
+    #     )
+    #     task.delete()
+    # except PeriodicTask.DoesNotExist:
+    #     pass
+
+    try:
+        PeriodicTask.objects.get_or_create(
+            interval=schedule,                  # we created this above.
+            name='Remove layers',          # simply describes this periodic task.
+            task='remove_layers',  # name of task.
+        )
+    except ValidationError:
+        pass
+
+init_periodic_task()
