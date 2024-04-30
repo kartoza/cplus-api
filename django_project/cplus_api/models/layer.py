@@ -102,7 +102,6 @@ class InputLayer(BaseLayer):
         null=True,
         blank=True
     )
-    is_ready = models.BooleanField(default=False)
 
     def download_to_working_directory(self, base_dir):
         if not self.is_available():
@@ -123,11 +122,6 @@ class InputLayer(BaseLayer):
         self.last_used_on = timezone.now()
         self.save(update_fields=['last_used_on'])
         return file_path
-
-    def save(self, *args, **kwargs):
-        if self.file:
-            self.is_ready = True
-        return super().save(*args, **kwargs)
 
     def is_available(self):
         if not self.file.name:
