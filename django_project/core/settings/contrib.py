@@ -40,3 +40,14 @@ TEMPLATES[0]['OPTIONS']['context_processors'] += [
 ]
 
 SENTRY_DSN = os.environ.get('SENTRY_DSN', '')
+
+
+SWAGGER_SETTINGS = {
+   'SECURITY_DEFINITIONS': {
+      'TrendsEarth Token': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header'
+      }
+   }
+}
