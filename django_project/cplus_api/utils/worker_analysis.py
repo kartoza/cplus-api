@@ -308,7 +308,10 @@ def create_and_upload_output_layer(
         os.path.dirname(file_path),
         cog_name
     )
-    subprocess.run(f"gdal_translate -of COG -co COMPRESS=DEFLATE {file_path} {cog_path}", shell=True)
+    subprocess.run(
+        f"gdal_translate -of COG -co COMPRESS=DEFLATE {file_path} {cog_path}",
+        shell=True
+    )
     with open(cog_path, 'rb') as output_file:
         output_layer.file.save(filename, output_file)
     return output_layer
