@@ -2,8 +2,10 @@ import logging
 from datetime import timedelta
 from celery import shared_task
 from django.utils import timezone
+from django.db.models import Q
 
-from cplus_api.models import InputLayer, OutputLayer, UserProfile
+from core.models.preferences import SitePreferences
+from cplus_api.models import InputLayer, OutputLayer
 
 logger = logging.getLogger(__name__)
 
@@ -13,38 +15,26 @@ def remove_layers():
     """
     Remove layer that has been more than 2 weeks.
     """
-    ext_users = UserProfile.objects.exclude(
-        role__name='Internal'
-    ).values_list('user', flat=True)
-
     results = {
         InputLayer: 0,
         OutputLayer: 0
     }
 
+    # Remove private Input Layer that is more 2 weeks
     last_14_days_datetime = timezone.now() - timedelta(days=14)
+    input_layers = InputLayer.objects.filter(
+        privacy_type=InputLayer.PrivacyTypes.PRIVATE,
+        created_on__lt=last_14_days_datetime
+    )
+    results[InputLayer] = input_layers.count()
+    input_layers.delete()
 
-    for LayerClass in [InputLayer, OutputLayer]:
-        if LayerClass == InputLayer:
-            layers = InputLayer.objects.filter(
-                owner__in=ext_users,
-                created_on__lt=last_14_days_datetime
-            )
-        else:
-            layers = OutputLayer.objects.filter(
-                owner__in=ext_users,
-                is_final_output=False,
-                created_on__lt=last_14_days_datetime
-            )
-
-        for layer in layers:
-            logger.info(layer)
-            # do we only delete the file, or also the record from DB?
-            layer.delete()
-            results[LayerClass] += 1
+    # Remove private data that is more 2 weeks
+    output_group_to_keep = SitePreferences.preferences().output_group_to_keep
+    output_layers = OutputLayer.objects.exclude(
+        Q(is_final_output=True) | Q(group__in=output_group_to_keep)
+    )
+    results[OutputLayer] = output_layers.count()
+    output_layers.delete()
 
     logger.info(f'Removed {results}')
-
-
-if __name__ == '__main__':
-    remove_layers()

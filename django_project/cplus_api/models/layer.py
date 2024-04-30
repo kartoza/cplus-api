@@ -65,10 +65,6 @@ class BaseLayer(models.Model):
     class Meta:
         abstract = True
 
-    def delete(self):
-        self.file.delete()
-        super().delete()
-
 
 class InputLayer(BaseLayer):
     class ComponentTypes(models.TextChoices):
@@ -126,11 +122,6 @@ class InputLayer(BaseLayer):
         self.last_used_on = timezone.now()
         self.save(update_fields=['last_used_on'])
         return file_path
-
-    def save(self, *args, **kwargs):
-        if self.file:
-            self.is_ready = True
-        return super().save(*args, **kwargs)
 
     def is_available(self):
         if not self.file.name:

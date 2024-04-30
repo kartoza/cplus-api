@@ -7,6 +7,7 @@ from celery import Celery, signals
 from celery.utils.serialization import strtobool
 from celery.worker.control import inspect_command
 from celery.result import AsyncResult
+from celery.schedules import crontab
 
 
 logger = logging.getLogger(__name__)
@@ -45,12 +46,12 @@ app.conf.broker_url = BASE_REDIS_URL
 app.conf.beat_scheduler = 'django_celery_beat.schedulers.DatabaseScheduler'
 
 # Task cron job schedules
-# app.conf.beat_schedule = {
-#     'task-id': {
-#         'task': 'task_path',
-#         'schedule': crontab(minute='*/5'),  # Run every 5 minute
-#     },
-# }
+app.conf.beat_schedule = {
+    'remove-layers': {
+        'task': 'cplus_api.tasks.remove_layers.remove_layers',
+        'schedule': crontab(hour='1'),  # Run everyday at 1am
+    },
+}
 
 
 @signals.worker_before_create_process.connect

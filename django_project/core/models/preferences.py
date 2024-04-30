@@ -11,6 +11,12 @@ def default_api_config():
     return {'default_page_size': 50, 'max_page_size': 50}
 
 
+def default_output_group_to_keep():
+    """
+    Default value for Preference's output_group_to_keep.
+    """
+    return ["weighted_ims"]
+
 class SitePreferences(SingletonModel):
     """Preference settings specifically for website.
 
@@ -34,6 +40,11 @@ class SitePreferences(SingletonModel):
         default=default_api_config,
         blank=True,
         help_text='API pagination configuration.'
+    )
+    output_group_to_keep = models.JSONField(
+        default=default_output_group_to_keep,
+        blank=True,
+        help_text='Output group to keep from automatic removal.'
     )
 
     class Meta:  # noqa: D106
