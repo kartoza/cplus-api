@@ -123,11 +123,6 @@ class InputLayer(BaseLayer):
         self.save(update_fields=['last_used_on'])
         return file_path
 
-    def save(self, *args, **kwargs):
-        if self.file:
-            self.is_ready = True
-        return super().save(*args, **kwargs)
-
     def is_available(self):
         if not self.file.name:
             return False

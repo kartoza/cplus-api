@@ -15,6 +15,7 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command
 import os
 import time
+import ast
 
 import django
 
@@ -74,14 +75,10 @@ except get_user_model().DoesNotExist:
 #########################################################
 # 4. Loading fixtures
 #########################################################
-
 print("-----------------------------------------------------")
 print("4. Loading fixtures")
-
 # Disable fixtures loading in prod by including environment variable:
 #  INITIAL_FIXTURES=False
-import ast
-
 _load_initial_fixtures = ast.literal_eval(
     os.getenv('INITIAL_FIXTURES', 'True'))
 if _load_initial_fixtures:
