@@ -4,6 +4,7 @@ import json
 import os
 import logging
 import traceback
+import subprocess
 from django.conf import settings
 from django.utils import timezone
 from django.template.loader import render_to_string
@@ -288,17 +289,30 @@ def create_and_upload_output_layer(
         file_path: str, scenario_task: ScenarioTask,
         is_final_output: bool, group: str) -> OutputLayer:
     filename = os.path.basename(file_path)
+    cog_name = (
+        f"{os.path.basename(file_path).split('.')[0]}"
+        f"_COG."
+        f"{os.path.basename(file_path).split('.')[1]}"
+    )
+    cog_path = os.path.join(
+        os.path.dirname(file_path),
+        cog_name
+    )
+    subprocess.run(
+        f"gdal_translate -of COG -co COMPRESS=DEFLATE {file_path} {cog_path}",
+        shell=True
+    )
     output_layer = OutputLayer.objects.create(
         name=filename,
         created_on=timezone.now(),
         owner=scenario_task.submitted_by,
         layer_type=BaseLayer.LayerTypes.RASTER,
-        size=os.stat(file_path).st_size,
+        size=os.stat(cog_path).st_size,
         is_final_output=is_final_output,
         scenario=scenario_task,
         group=group
     )
-    with open(file_path, 'rb') as output_file:
+    with open(cog_path, 'rb') as output_file:
         output_layer.file.save(filename, output_file)
     return output_layer
 
