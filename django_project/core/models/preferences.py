@@ -17,6 +17,7 @@ def default_output_group_to_keep():
     """
     return ["weighted_ims"]
 
+
 class SitePreferences(SingletonModel):
     """Preference settings specifically for website.
 
