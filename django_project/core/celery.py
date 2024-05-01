@@ -48,8 +48,9 @@ app.conf.beat_scheduler = 'django_celery_beat.schedulers.DatabaseScheduler'
 # Task cron job schedules
 app.conf.beat_schedule = {
     'remove-layers': {
-        'task': 'cplus_api.tasks.remove_layers.remove_layers',
-        'schedule': crontab(hour='1'),  # Run everyday at 1am
+        # Use name from @shared_task(name="remove_layers")
+        'task': 'remove_layers',
+        'schedule': crontab(minute='*'),  # Run every day at 1am
     },
 }
 
