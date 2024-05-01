@@ -1,5 +1,6 @@
 import os
 import uuid
+from django.test import override_settings
 from django.urls import reverse
 from rest_framework.exceptions import PermissionDenied
 from core.settings.utils import absolute_path
@@ -174,6 +175,30 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         request.user = self.user_1
         response = view(request, **kwargs)
         self.assertEqual(response.status_code, 403)
+
+    @override_settings(DEBUG=True)
+    def test_layer_detail_from_dev(self):
+        view = LayerDetail.as_view()
+        input_layer = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE
+        )
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'models', 'test_model_1.tif'
+        )
+        self.store_layer_file(input_layer, file_path)
+        kwargs = {
+            'layer_uuid': str(input_layer.uuid)
+        }
+        request = self.factory.get(
+            reverse('v1:layer-detail', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data['url'])
+        self.assertEqual(response.data['uuid'], str(input_layer.uuid))
 
     def test_layer_delete(self):
         view = LayerDetail.as_view()
