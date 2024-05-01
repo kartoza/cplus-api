@@ -76,13 +76,13 @@ def get_page_size(request):
 
 
 def build_minio_absolute_url(url):
+    if not settings.DEBUG:
+        return url
     minio_site = Site.objects.filter(
         name__icontains='minio api'
     ).first()
     current_site = minio_site if minio_site else Site.objects.get_current()
     scheme = 'https://'
-    if settings.DEBUG:
-        scheme = 'http://'
     domain = current_site.domain
     if not domain.endswith('/'):
         domain = domain + '/'
@@ -92,13 +92,16 @@ def build_minio_absolute_url(url):
 
 def get_minio_client():
     # Initialize MinIO client
-    minio_client = Minio(
-        os.environ.get("MINIO_ENDPOINT", "").replace(
-            "https://", "").replace("http://", ""),
-        access_key=os.environ.get("MINIO_ACCESS_KEY_ID"),
-        secret_key=os.environ.get("MINIO_SECRET_ACCESS_KEY"),
-        secure=False  # Set to True if using HTTPS
-    )
+    if settings.DEBUG:
+        minio_client = Minio(
+            os.environ.get("MINIO_ENDPOINT", "").replace(
+                "https://", "").replace("http://", ""),
+            access_key=os.environ.get("MINIO_ACCESS_KEY_ID"),
+            secret_key=os.environ.get("MINIO_SECRET_ACCESS_KEY"),
+            secure=False  # Set to True if using HTTPS
+        )
+    else:
+        minio_client = Minio("s3.amazonaws.com")
     return minio_client
 
 
