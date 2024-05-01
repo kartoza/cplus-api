@@ -28,8 +28,8 @@ def output_layer_dir_path(instance, filename):
 
 
 def select_input_layer_storage():
-    """Return minio storage for input layer."""
-    return storages['minio']
+    """Return storage for input layer."""
+    return storages['input_layer_storage']
 
 
 class BaseLayer(models.Model):

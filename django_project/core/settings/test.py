@@ -16,7 +16,7 @@ STORAGES = {
     "staticfiles": {
         "BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage",
     },
-    "minio": {
+    "input_layer_storage": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
         "OPTIONS": {
           "location": "/home/web/media/minio_test",
