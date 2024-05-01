@@ -49,7 +49,10 @@ class SitePreferences(SingletonModel):
     )
     task_runtime_threshold = models.PositiveIntegerField(
         default=120,
-        help_text="Max minutes to pass before a task is marked 'Stopped with error'"
+        help_text=(
+            "Max minutes to pass before a task "
+            "is marked 'Stopped with error'"
+        )
     )
 
     class Meta:  # noqa: D106
