@@ -59,7 +59,8 @@ class TestTrendsEarthAuth(BaseAPIViewTest):
         view = UserInfo.as_view()
         response = view(request)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['detail'], 'OK')
+        self.assertEqual(response.data['username'], self.user.username)
+        self.assertEqual(response.data['trends_earth_id'], self.user.username)
         mocked_cache.assert_called_once()
         mocked_set_cache.assert_not_called()
 
