@@ -40,9 +40,18 @@ def check_scenario_task():
                     timezone.now() - last_log.date_time
             ).total_seconds()
         except TaskLog.DoesNotExist:
-            elapsed_seconds = (
-                    timezone.now() - scenario.started_at
-            ).total_seconds()
+            # check started_at if the task does not have log
+            if scenario.started_at:
+                elapsed_seconds = (
+                        timezone.now() - scenario.started_at
+                ).total_seconds()
+            # check submitted_on if the task does not have start_at value
+            elif scenario.submitted_on:
+                elapsed_seconds = (
+                        timezone.now() - scenario.submitted_on
+                ).total_seconds()
+            else:
+                continue
 
         # if elapsed seconds is more than threshold in seconds
         if elapsed_seconds > (elapsed_time_threshold * 60):

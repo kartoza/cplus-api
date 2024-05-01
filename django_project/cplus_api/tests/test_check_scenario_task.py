@@ -66,3 +66,17 @@ class TestCheckScenarioTask(BaseAPIViewTransactionTest):
         check_scenario_task()
         task_running.refresh_from_db()
         self.assertEquals(task_running.status, TaskStatus.STOPPED)
+
+    def test_running_task_without_log_started_at(self, mock_tz):
+        """
+        Running task without log and started_at will have its
+        submitted_on checked to be compared against threshold
+        """
+        mock_tz.now.return_value = timezone.now() - timedelta(minutes=150)
+        task_running = ScenarioTaskF.create(
+            status=TaskStatus.RUNNING,
+            submitted_on=timezone.now() - timedelta(minutes=150)
+        )
+        check_scenario_task()
+        task_running.refresh_from_db()
+        self.assertEquals(task_running.status, TaskStatus.STOPPED)
