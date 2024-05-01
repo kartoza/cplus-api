@@ -62,7 +62,7 @@ class BaseInitData(unittest.TestCase):
         """Delete storage used in default and minio."""
         default_storage = storages['default']
         clear_test_dir(default_storage.location)
-        minio_storage = storages['minio']
+        minio_storage = storages['input_layer_storage']
         clear_test_dir(minio_storage.location)
 
     def store_layer_file(self, layer: InputLayer | OutputLayer,
