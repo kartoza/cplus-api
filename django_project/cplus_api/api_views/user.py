@@ -44,12 +44,12 @@ class UserInfo(APIView):
                     ),
                 },
                 example={
-                  "trends_earth_id": "feac0387-8fe8-41e8-af08-d7e97d30ffed",
-                  "username": "feac0387-8fe8-41e8-af08-d7e97d30ffed",
-                  "email": "test@domain.com",
-                  "first_name": "User First Name",
-                  "last_name": "User Last Name",
-                  "role": "External"
+                    "trends_earth_id": "feac0387-8fe8-41e8-af08-d7e97d30ffed",
+                    "username": "feac0387-8fe8-41e8-af08-d7e97d30ffed",
+                    "email": "test@domain.com",
+                    "first_name": "User First Name",
+                    "last_name": "User Last Name",
+                    "role": "External"
                 }
             ),
             400: APIErrorSerializer,
