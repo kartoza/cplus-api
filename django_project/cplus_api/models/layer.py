@@ -71,6 +71,7 @@ class InputLayer(BaseLayer):
         NCS_PATHWAY = 'ncs_pathway', _('ncs_pathway')
         NCS_CARBON = 'ncs_carbon', _('ncs_carbon')
         PRIORITY_LAYER = 'priority_layer', _('priority_layer')
+        REFERENCE_LAYER = 'reference_layer', _('reference_layer')
 
     class PrivacyTypes(models.TextChoices):
         PRIVATE = 'private', _('private')
