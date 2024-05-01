@@ -48,8 +48,12 @@ app.conf.beat_scheduler = 'django_celery_beat.schedulers.DatabaseScheduler'
 # Task cron job schedules
 app.conf.beat_schedule = {
     'remove-layers': {
-        'task': 'cplus_api.tasks.remove_layers.remove_layers',
+        'task': 'remove_layers',
         'schedule': crontab(hour='1'),  # Run everyday at 1am
+    },
+    'check-scenario-task': {
+        'task': 'check_scenario_task',
+        'schedule': crontab(hour='*'),  # Run every hour
     },
 }
 

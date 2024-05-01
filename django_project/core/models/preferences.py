@@ -47,7 +47,7 @@ class SitePreferences(SingletonModel):
         blank=True,
         help_text='Output group to keep from automatic removal.'
     )
-    task_runtime_treshold = models.PositiveIntegerField(
+    task_runtime_threshold = models.PositiveIntegerField(
         default=120,
         help_text="Max minutes to pass before a task is marked 'Stopped with error'"
     )

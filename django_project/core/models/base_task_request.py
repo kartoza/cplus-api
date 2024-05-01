@@ -215,6 +215,7 @@ class BaseTaskRequest(models.Model):
         self.errors = ex_msg
         self.add_log('Task is stopped with errors.', logging.ERROR)
         self.add_log(str(exception), logging.ERROR)
+
         self.save(
             update_fields=['last_update', 'status', 'errors']
         )
