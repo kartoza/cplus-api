@@ -2,6 +2,7 @@
 import os
 import shutil
 import unittest
+from datetime import datetime
 from botocore.exceptions import ClientError
 from collections import OrderedDict
 from django.contrib.contenttypes.models import ContentType
@@ -22,6 +23,7 @@ class DummyTask:
 class MockS3Client:
     def __init__(self) -> None:
         self.raise_exc = False
+        self.mock_parts = None
 
     def generate_presigned_url(self, ClientMethod, Params, ExpiresIn):
         if self.raise_exc:
@@ -44,6 +46,32 @@ class MockS3Client:
     def complete_multipart_upload(self, Bucket, Key,
                                   MultipartUpload, UploadId):
         return True
+
+    def abort_multipart_upload(self, Bucket, Key, UploadId):
+        return True
+
+    def list_parts(self, Bucket, Key, UploadId):
+        if self.mock_parts is not None:
+            return self.mock_parts
+        return {
+            'AbortDate': datetime(2015, 1, 1),
+            'AbortRuleId': 'test',
+            'Bucket': Bucket,
+            'Key': Key,
+            'UploadId': UploadId,
+            'PartNumberMarker': 123,
+            'NextPartNumberMarker': 123,
+            'MaxParts': 123,
+            'IsTruncated': False,
+            'Parts': [
+                {
+                    'PartNumber': 123,
+                    'LastModified': datetime(2015, 1, 1),
+                    'ETag': 'string',
+                    'Size': 123
+                },
+            ]
+        }
 
 
 def mocked_process(*args, **kwargs):

@@ -319,7 +319,7 @@ class FinishUploadLayerSerializer(serializers.Serializer):
     class Meta:
         swagger_schema_fields = {
             'type': openapi.TYPE_OBJECT,
-            'title': 'Finish Upload Layer',
+            'title': 'Upload Layer Item',
             'properties': {
                 'multipart_upload_id': openapi.Schema(
                     title='Upload Id for multipart upload',

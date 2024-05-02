@@ -12,7 +12,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from cplus_api.models.layer import (
     BaseLayer, InputLayer, input_layer_dir_path,
-    select_input_layer_storage
+    select_input_layer_storage, MultipartUpload
 )
 from cplus_api.models.profile import UserProfile
 from cplus_api.serializers.layer import (
@@ -33,7 +33,8 @@ from cplus_api.utils.api_helper import (
     convert_size,
     PARAMS_PAGINATION,
     get_multipart_presigned_urls,
-    complete_multipart_upload
+    complete_multipart_upload,
+    abort_multipart_upload
 )
 
 
@@ -342,6 +343,14 @@ class LayerUploadStart(BaseLayerUpload):
             )
             if urls:
                 results.extend(urls)
+                # create MultipartUpload to store the upload_id
+                MultipartUpload.objects.create(
+                    upload_id=upload_id,
+                    input_layer_uuid=input_layer.uuid,
+                    created_on=timezone.now(),
+                    uploader=input_layer.owner,
+                    parts=number_of_parts
+                )
         return results, upload_id
 
     @swagger_auto_schema(
@@ -465,13 +474,20 @@ class LayerUploadFinish(APIView):
         file_path = input_layer_dir_path(input_layer, input_layer.name)
         upload_param = FinishUploadLayerSerializer(data=request.data)
         upload_param.is_valid(raise_exception=True)
-        if upload_param.validated_data.get('multipart_upload_id', None):
+        multipart_upload_id = (
+            upload_param.validated_data.get('multipart_upload_id', None)
+        )
+        if multipart_upload_id:
             # mark multipart as done
             complete_multipart_upload(
                 file_path,
-                upload_param.validated_data['multipart_upload_id'],
+                multipart_upload_id,
                 upload_param.validated_data['items']
             )
+            # remove MultipartUpload when upload is completed
+            MultipartUpload.objects.filter(
+                upload_id=multipart_upload_id
+            ).delete()
         storage_backend = select_input_layer_storage()
         # validate filepath exists
         if not storage_backend.exists(file_path):
@@ -492,6 +508,49 @@ class LayerUploadFinish(APIView):
             'name': input_layer.name,
             'size': input_layer.size
         })
+
+
+class LayerUploadAbort(APIView):
+    """API to abort multipart upload."""
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_id='layer-upload-abort',
+        tags=[LAYER_API_TAG],
+        manual_parameters=[PARAM_LAYER_UUID_IN_PATH],
+        request_body=FinishUploadLayerSerializer,
+        responses={
+            204: NoContentSerializer,
+            400: APIErrorSerializer,
+            404: APIErrorSerializer
+        }
+    )
+    def post(self, request, layer_uuid):
+        input_layer = get_object_or_404(InputLayer, uuid=layer_uuid)
+        # get filepath
+        file_path = input_layer_dir_path(input_layer, input_layer.name)
+        upload_param = FinishUploadLayerSerializer(data=request.data)
+        upload_param.is_valid(raise_exception=True)
+        multipart_upload_id = (
+            upload_param.validated_data.get('multipart_upload_id', None)
+        )
+        if not multipart_upload_id:
+            raise ValidationError('Missing multipart_upload_id!')
+        parts = abort_multipart_upload(file_path, multipart_upload_id)
+        if parts == 0:
+            # if parts is 0, then can safely remove MultipartUpload
+            MultipartUpload.objects.filter(
+                upload_id=multipart_upload_id
+            ).delete()
+        else:
+            # else cron job will check and do abort
+            MultipartUpload.objects.filter(
+                upload_id=multipart_upload_id
+            ).update(
+                is_aborted=True,
+                aborted_on=timezone.now()
+            )
+        return Response(status=204)
 
 
 class LayerDetail(APIView):

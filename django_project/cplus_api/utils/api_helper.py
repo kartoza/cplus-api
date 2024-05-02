@@ -184,6 +184,32 @@ def complete_multipart_upload(filename, upload_id, parts):
     return True
 
 
+def abort_multipart_upload(filename, upload_id):
+    """Abort multipart upload and return the part list."""
+    upload_client = get_upload_client()
+    bucket_name = os.environ.get("MINIO_BUCKET_NAME")
+    parts = 0
+    try:
+        upload_client.abort_multipart_upload(
+            Bucket=bucket_name,
+            Key=filename,
+            UploadId=upload_id
+        )
+        response = upload_client.list_parts(
+            Bucket=bucket_name,
+            Key=filename,
+            UploadId=upload_id
+        )
+        part_list = response.get('Parts', [])
+        parts = len(part_list)
+    except Exception as exc:
+        logger.error(f'Unexpected exception occured: {type(exc).__name__} '
+                     'in abort_multipart_upload')
+        logger.error(exc)
+        logger.error(traceback.format_exc())
+    return parts
+
+
 def convert_size(size_bytes):
     if size_bytes == 0:
         return "0B"
