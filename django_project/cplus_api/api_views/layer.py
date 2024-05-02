@@ -371,6 +371,8 @@ class LayerUploadStart(BaseLayerUpload):
             input_layer.file = None
             input_layer.save()
         upload_url = self.generate_upload_url(input_layer)
+        if upload_url is None:
+            raise RuntimeError('Cannot generate upload url!')
         return Response(status=201, data={
             'uuid': str(input_layer.uuid),
             'upload_url': upload_url,

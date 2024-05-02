@@ -2,6 +2,9 @@ import os
 import math
 import traceback
 import logging
+import boto3
+from botocore.exceptions import ClientError
+from botocore.client import Config
 from datetime import timedelta
 from rest_framework.exceptions import PermissionDenied
 from drf_yasg import openapi
@@ -108,7 +111,7 @@ def get_minio_client():
     return minio_client
 
 
-def get_presigned_url(filename):
+def get_minio_presigned_url(filename):
     try:
         minio_client = get_minio_client()
         # Generate pre-signed URL for uploading an object
@@ -122,6 +125,34 @@ def get_presigned_url(filename):
         logger.error(exc)
         logger.error(traceback.format_exc())
         return None
+
+
+def get_s3_presigned_url(filename):
+    s3_client = boto3.client('s3', config=Config(signature_version='s3v4'))
+    try:
+        method_parameters = {
+            'Bucket': os.environ.get("MINIO_BUCKET_NAME"),
+            'Key': filename
+        }
+        response = s3_client.generate_presigned_url(
+            ClientMethod='put_object',
+            Params=method_parameters,
+            ExpiresIn=3600 * 3)
+    except ClientError as exc:
+        logger.error(f'Unexpected exception occured: {type(exc).__name__} '
+                     'in get_presigned_url')
+        logger.error(exc)
+        logger.error(traceback.format_exc())
+        return None
+
+    # The response contains the presigned URL
+    return response
+
+
+def get_presigned_url(filename):
+    if settings.DEBUG:
+        return get_minio_presigned_url(filename)
+    return get_s3_presigned_url(filename)
 
 
 def convert_size(size_bytes):

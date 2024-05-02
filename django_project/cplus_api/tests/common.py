@@ -2,6 +2,7 @@
 import os
 import shutil
 import unittest
+from botocore.exceptions import ClientError
 from collections import OrderedDict
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase, TransactionTestCase
@@ -16,6 +17,24 @@ from cplus_api.models.layer import InputLayer, OutputLayer
 class DummyTask:
     def __init__(self, id):
         self.id = id
+
+
+class MockS3Client:
+    def __init__(self) -> None:
+        self.raise_exc = False
+
+    def generate_presigned_url(self, ClientMethod, Params, ExpiresIn):
+        if self.raise_exc:
+            raise ClientError(
+                {
+                    'Error': {
+                        'Code': '123',
+                        'Message': 'this_is_error'
+                    }
+                },
+                'put_object'
+            )
+        return 'this_is_url'
 
 
 def mocked_process(*args, **kwargs):
