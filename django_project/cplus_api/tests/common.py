@@ -18,6 +18,14 @@ class DummyTask:
         self.id = id
 
 
+class MockS3Client:
+    def __init__(self) -> None:
+        pass
+
+    def generate_presigned_url(self, ClientMethod, Params, ExpiresIn):
+        return 'this_is_url'
+
+
 def mocked_process(*args, **kwargs):
     return DummyTask('1')
 

@@ -1,5 +1,6 @@
 import os
 import uuid
+import mock
 from django.test import override_settings
 from django.urls import reverse
 from rest_framework.exceptions import PermissionDenied
@@ -22,7 +23,8 @@ from cplus_api.models.layer import (
 from cplus_api.models.profile import UserProfile
 from cplus_api.tests.common import (
     FakeResolverMatchV1,
-    BaseAPIViewTransactionTest
+    BaseAPIViewTransactionTest,
+    MockS3Client
 )
 from cplus_api.tests.factories import InputLayerF, UserF
 
@@ -326,6 +328,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         input_layer.refresh_from_db()
         self.assertEqual(input_layer.privacy_type, data['privacy_type'])
 
+    @override_settings(DEBUG=True)
     def test_layer_upload_start(self):
         file_path = absolute_path(
             'cplus_api', 'tests', 'data',
@@ -405,6 +408,36 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertEqual(input_layer.name, response.data['name'])
         self.assertFalse(storage_backend.exists(old_filename))
         self.assertFalse(os.path.exists(old_file_path))
+
+    @mock.patch('boto3.client')
+    def test_layer_upload_start_with_s3(self, mocked_s3):
+        mocked_s3.return_value = MockS3Client()
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'models', 'test_model_1.tif'
+        )
+        base_filename = 'test_model_1_start.tif'
+        view = LayerUploadStart.as_view()
+        data = {
+            'layer_type': 0,
+            'component_type': 'ncs_carbon',
+            'privacy_type': 'common',
+            'client_id': 'client-test-123',
+            'name': base_filename,
+            'size': os.stat(file_path).st_size
+        }
+        request = self.factory.post(
+            reverse('v1:layer-upload-start'), data
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request)
+        self.assertEqual(response.status_code, 201)
+        self.assertIn('uuid', response.data)
+        self.assertIn('name', response.data)
+        self.assertIn('upload_url', response.data)
+        self.assertEqual(response.data['name'], data['name'])
+        self.assertEqual(response.data['upload_url'], 'this_is_url')
 
     def test_layer_upload_finish(self):
         view = LayerUploadFinish.as_view()
