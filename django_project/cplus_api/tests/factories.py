@@ -1,10 +1,14 @@
 """Model factories."""
 import factory
+import uuid
 from typing import Generic, TypeVar
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from cplus_api.models.scenario import ScenarioTask
-from cplus_api.models.layer import BaseLayer, InputLayer, OutputLayer
+from cplus_api.models.layer import (
+    BaseLayer, InputLayer,
+    OutputLayer, MultipartUpload
+)
 
 
 T = TypeVar('T')
@@ -278,3 +282,18 @@ class OutputLayerF(BaseFactory[OutputLayer],
     owner = factory.SubFactory(UserF)
     layer_type = BaseLayer.LayerTypes.RASTER
     scenario = factory.SubFactory(ScenarioTaskF)
+
+
+class MultipartUploadF(BaseFactory[MultipartUpload],
+                       metaclass=BaseMetaFactory[MultipartUpload]):
+    class Meta:
+        model = MultipartUpload
+
+    upload_id = factory.Sequence(
+        lambda n: u'upload_id_ %s' % n
+    )
+    input_layer_uuid = uuid.uuid4()
+    created_on = timezone.now()
+    uploader = factory.SubFactory(UserF)
+    parts = 10
+    is_aborted = False
