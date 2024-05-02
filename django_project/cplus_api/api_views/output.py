@@ -47,7 +47,8 @@ class UserScenarioAnalysisOutput(BaseScenarioReadAccess, APIView):
         tags=[SCENARIO_OUTPUT_API_TAG],
         manual_parameters=[
             PARAM_SCENARIO_UUID_IN_PATH,
-            param_all_outputs
+            param_all_outputs,
+            param_group
         ] + PARAMS_PAGINATION,
         responses={
             200: PaginatedOutputLayerSerializer,
