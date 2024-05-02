@@ -330,7 +330,10 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertEqual(input_layer.privacy_type, data['privacy_type'])
 
     @override_settings(DEBUG=True)
-    def test_layer_upload_start(self):
+    @mock.patch('boto3.client')
+    def test_layer_upload_start(self, mocked_s3):
+        s3_client = MockS3Client()
+        mocked_s3.return_value = s3_client
         file_path = absolute_path(
             'cplus_api', 'tests', 'data',
             'models', 'test_model_1.tif'
@@ -354,7 +357,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertEqual(response.status_code, 201)
         self.assertIn('uuid', response.data)
         self.assertIn('name', response.data)
-        self.assertIn('upload_url', response.data)
+        self.assertIn('upload_urls', response.data)
         self.assertEqual(response.data['name'], data['name'])
         input_layer = InputLayer.objects.filter(
             uuid=response.data['uuid']
@@ -437,9 +440,15 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertEqual(response.status_code, 201)
         self.assertIn('uuid', response.data)
         self.assertIn('name', response.data)
-        self.assertIn('upload_url', response.data)
+        self.assertIn('upload_urls', response.data)
         self.assertEqual(response.data['name'], data['name'])
-        self.assertEqual(response.data['upload_url'], 'this_is_url')
+        self.assertEqual(
+            response.data['upload_urls'],
+            [{
+                'part_number': 1,
+                'url': 'this_is_url'
+            }]
+        )
         # test failed generate url
         s3_client.raise_exc = True
         data = {
@@ -458,6 +467,47 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         response = view(request)
         self.assertEqual(response.status_code, 400)
 
+    @mock.patch('boto3.client')
+    def test_layer_upload_start_with_s3_multipart(self, mocked_s3):
+        s3_client = MockS3Client()
+        mocked_s3.return_value = s3_client
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'models', 'test_model_1.tif'
+        )
+        base_filename = 'test_model_1_start2.tif'
+        view = LayerUploadStart.as_view()
+        data = {
+            'layer_type': 0,
+            'component_type': 'ncs_carbon',
+            'privacy_type': 'common',
+            'client_id': 'client-test-123',
+            'name': base_filename,
+            'size': os.stat(file_path).st_size,
+            'number_of_parts': 2
+        }
+        request = self.factory.post(
+            reverse('v1:layer-upload-start'), data
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request)
+        self.assertEqual(response.status_code, 201)
+        self.assertIn('uuid', response.data)
+        self.assertIn('name', response.data)
+        self.assertIn('upload_urls', response.data)
+        self.assertEqual(response.data['name'], data['name'])
+        self.assertEqual(
+            response.data['upload_urls'],
+            [{
+                'part_number': 1,
+                'url': 'this_is_url'
+            }, {
+                'part_number': 2,
+                'url': 'this_is_url'
+            }]
+        )
+
     def test_layer_upload_finish(self):
         view = LayerUploadFinish.as_view()
         file_path = absolute_path(
@@ -473,9 +523,11 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         kwargs = {
             'layer_uuid': str(input_layer.uuid)
         }
+        payload = {}
         # file not exist
-        request = self.factory.get(
-            reverse('v1:layer-upload-finish', kwargs=kwargs)
+        request = self.factory.post(
+            reverse('v1:layer-upload-finish', kwargs=kwargs),
+            data=payload, format='json'
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
@@ -491,8 +543,9 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
             input_layer_dir_path(input_layer, base_filename)
         )
         self.direct_upload_layer_file(file_path, dest_file_path)
-        request = self.factory.get(
-            reverse('v1:layer-upload-finish', kwargs=kwargs)
+        request = self.factory.post(
+            reverse('v1:layer-upload-finish', kwargs=kwargs),
+            data=payload, format='json'
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
@@ -505,8 +558,52 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         # succcess
         input_layer.size = os.stat(file_path).st_size
         input_layer.save(update_fields=['size'])
-        request = self.factory.get(
-            reverse('v1:layer-upload-finish', kwargs=kwargs)
+        request = self.factory.post(
+            reverse('v1:layer-upload-finish', kwargs=kwargs),
+            data=payload, format='json'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        input_layer.refresh_from_db()
+        self.assertTrue(input_layer.file.name)
+        self.assertTrue(input_layer.is_available())
+    
+    @mock.patch('boto3.client')
+    def test_layer_upload_finish_with_multipart(self, mocked_s3):
+        s3_client = MockS3Client()
+        mocked_s3.return_value = s3_client
+        view = LayerUploadFinish.as_view()
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'models', 'test_model_1.tif'
+        )
+        base_filename = 'test_model_1_finish2.tif'
+        input_layer = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE,
+            name=base_filename,
+            size=10
+        )
+        kwargs = {
+            'layer_uuid': str(input_layer.uuid)
+        }
+        payload = {
+            'multipart_upload_id': 'this_is_upload_id',
+            'items': [{
+                'part_number': 1,
+                'etag': 'etag-1'
+            }, {
+                'part_number': 2,
+                'etag': 'etag-2'
+            }]
+        }
+        input_layer.size = os.stat(file_path).st_size
+        input_layer.save(update_fields=['size'])
+        self.store_layer_file(input_layer, file_path, base_filename)
+        request = self.factory.post(
+            reverse('v1:layer-upload-finish', kwargs=kwargs),
+            data=payload, format='json'
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser

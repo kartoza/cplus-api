@@ -219,6 +219,7 @@ class UploadLayerSerializer(serializers.Serializer):
     uuid = serializers.CharField(required=False)
     name = serializers.CharField(required=True)
     size = serializers.IntegerField(required=True, min_value=1)
+    number_of_parts = serializers.IntegerField(required=False, default=0)
 
     class Meta:
         swagger_schema_fields = {
@@ -271,12 +272,67 @@ class UploadLayerSerializer(serializers.Serializer):
                 'size': openapi.Schema(
                     title='Layer file size',
                     type=openapi.TYPE_INTEGER
+                ),
+                'number_of_parts': openapi.Schema(
+                    title='Number of parts for multipart upload.',
+                    type=openapi.TYPE_INTEGER,
+                    default=0
                 )
             },
             'required': [
                 'layer_type', 'component_type', 'privacy_type',
                 'name', 'size'
             ]
+        }
+
+
+class UploadMetadataItem(serializers.Serializer):
+    etag = serializers.CharField()
+    part_number = serializers.IntegerField()
+
+    class Meta:
+        swagger_schema_fields = {
+            'type': openapi.TYPE_OBJECT,
+            'title': 'Upload metadata item',
+            'properties': {
+                'etag': openapi.Schema(
+                    title='Etag value from S3 Upload Response',
+                    type=openapi.TYPE_STRING
+                ),
+                'part_number': openapi.Schema(
+                    title='Part number',
+                    type=openapi.TYPE_INTEGER
+                )
+            },
+            'required': ['etag', 'part_number'],
+            'example': {
+                'etag': '8d242daa57a3ea8d439a71c68038b373',
+                'part_number': 1
+            }
+        }
+
+
+class FinishUploadLayerSerializer(serializers.Serializer):
+    multipart_upload_id = serializers.CharField(required=False)
+    items = UploadMetadataItem(many=True, required=False)
+
+    class Meta:
+        swagger_schema_fields = {
+            'type': openapi.TYPE_OBJECT,
+            'title': 'Finish Upload Layer',
+            'properties': {
+                'multipart_upload_id': openapi.Schema(
+                    title='Upload Id for multipart upload',
+                    type=openapi.TYPE_STRING
+                ),
+                'items': openapi.Schema(
+                    title='List of upload metadata item',
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Items(
+                        **UploadMetadataItem.Meta.swagger_schema_fields
+                    )
+                ),
+            }
         }
 
 

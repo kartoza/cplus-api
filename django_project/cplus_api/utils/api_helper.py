@@ -5,11 +5,8 @@ import logging
 import boto3
 from botocore.exceptions import ClientError
 from botocore.client import Config
-from datetime import timedelta
 from rest_framework.exceptions import PermissionDenied
 from drf_yasg import openapi
-from minio import Minio
-from minio.error import S3Error
 from django.conf import settings
 from django.contrib.sites.models import Site
 from core.models.preferences import SitePreferences
@@ -96,45 +93,32 @@ def build_minio_absolute_url(url):
     return result
 
 
-def get_minio_client():
-    # Initialize MinIO client
+def get_upload_client():
+    # Initialize upload client
     if settings.DEBUG:
-        minio_client = Minio(
-            os.environ.get("MINIO_ENDPOINT", "").replace(
-                "https://", "").replace("http://", ""),
-            access_key=os.environ.get("MINIO_ACCESS_KEY_ID"),
-            secret_key=os.environ.get("MINIO_SECRET_ACCESS_KEY"),
-            secure=False  # Set to True if using HTTPS
+        upload_client = boto3.client(
+            's3',
+            endpoint_url=os.environ.get("MINIO_ENDPOINT", ""),
+            aws_access_key_id=os.environ.get("MINIO_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.environ.get("MINIO_SECRET_ACCESS_KEY"),
+            config=Config(signature_version='s3v4'),
+            verify=False
         )
     else:
-        minio_client = Minio("s3.amazonaws.com")
-    return minio_client
+        upload_client = boto3.client(
+            's3', config=Config(signature_version='s3v4'))
+    return upload_client
 
 
-def get_minio_presigned_url(filename):
-    try:
-        minio_client = get_minio_client()
-        # Generate pre-signed URL for uploading an object
-        upload_url = minio_client.presigned_put_object(
-            os.environ.get("MINIO_BUCKET_NAME"), filename,
-            expires=timedelta(hours=3))
-        return build_minio_absolute_url(upload_url)
-    except S3Error as exc:
-        logger.error(f'Unexpected exception occured: {type(exc).__name__} '
-                     'in get_presigned_url')
-        logger.error(exc)
-        logger.error(traceback.format_exc())
-        return None
-
-
-def get_s3_presigned_url(filename):
-    s3_client = boto3.client('s3', config=Config(signature_version='s3v4'))
+def get_presigned_url(filename):
+    upload_client = get_upload_client()
+    bucket_name = os.environ.get("MINIO_BUCKET_NAME")
     try:
         method_parameters = {
-            'Bucket': os.environ.get("MINIO_BUCKET_NAME"),
+            'Bucket': bucket_name,
             'Key': filename
         }
-        response = s3_client.generate_presigned_url(
+        response = upload_client.generate_presigned_url(
             ClientMethod='put_object',
             Params=method_parameters,
             ExpiresIn=3600 * 3)
@@ -149,10 +133,55 @@ def get_s3_presigned_url(filename):
     return response
 
 
-def get_presigned_url(filename):
-    if settings.DEBUG:
-        return get_minio_presigned_url(filename)
-    return get_s3_presigned_url(filename)
+def get_multipart_presigned_urls(filename, parts):
+    upload_client = get_upload_client()
+    bucket_name = os.environ.get("MINIO_BUCKET_NAME")
+    response = upload_client.create_multipart_upload(
+        Bucket=bucket_name,
+        Key=filename
+    )
+    upload_id = response['UploadId']
+    results = []
+    for i in range(0, parts):
+        part_number = i + 1
+        method_parameters = {
+            'Bucket': bucket_name,
+            'Key': filename,
+            'UploadId': upload_id,
+            'PartNumber': part_number
+        }
+        results.append({
+            'part_number': part_number,
+            'url': upload_client.generate_presigned_url(
+                ClientMethod='upload_part',
+                Params=method_parameters,
+                ExpiresIn=3600 * 3
+            )
+        })
+    return upload_id, results
+
+
+def complete_multipart_upload(filename, upload_id, parts):
+    """
+    Mark multipart upload as completed.
+    """
+    upload_client = get_upload_client()
+    bucket_name = os.environ.get("MINIO_BUCKET_NAME")
+    # sort parts by part_number
+    sorted_parts = sorted(parts, key=lambda d: d['part_number'])
+    payloads = [{
+        'ETag': p['etag'],
+        'PartNumber': p['part_number']
+    } for p in sorted_parts]
+    upload_client.complete_multipart_upload(
+        Bucket=bucket_name,
+        Key=filename,
+        MultipartUpload={
+            'Parts': payloads
+        },
+        UploadId=upload_id
+    )
+    return True
 
 
 def convert_size(size_bytes):

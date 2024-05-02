@@ -36,6 +36,15 @@ class MockS3Client:
             )
         return 'this_is_url'
 
+    def create_multipart_upload(self, Bucket, Key):
+        return {
+            'UploadId': 'this_is_upload_id'
+        }
+
+    def complete_multipart_upload(self, Bucket, Key,
+                                  MultipartUpload, UploadId):
+        return True
+
 
 def mocked_process(*args, **kwargs):
     return DummyTask('1')

@@ -84,3 +84,6 @@ STORAGES = {
         },
     },
 }
+
+# enable session auth in swagger for dev
+SWAGGER_SETTINGS['USE_SESSION_AUTH'] = True

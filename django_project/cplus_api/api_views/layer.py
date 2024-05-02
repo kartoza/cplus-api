@@ -18,7 +18,8 @@ from cplus_api.models.profile import UserProfile
 from cplus_api.serializers.layer import (
     InputLayerSerializer,
     PaginatedInputLayerSerializer,
-    UploadLayerSerializer
+    UploadLayerSerializer,
+    FinishUploadLayerSerializer
 )
 from cplus_api.serializers.common import (
     APIErrorSerializer,
@@ -30,7 +31,9 @@ from cplus_api.utils.api_helper import (
     PARAM_LAYER_UUID_IN_PATH,
     get_presigned_url,
     convert_size,
-    PARAMS_PAGINATION
+    PARAMS_PAGINATION,
+    get_multipart_presigned_urls,
+    complete_multipart_upload
 )
 
 
@@ -314,7 +317,8 @@ class LayerUpload(BaseLayerUpload):
 class LayerUploadStart(BaseLayerUpload):
     """API to upload layer file direct to Minio."""
 
-    def generate_upload_url(self, input_layer: InputLayer):
+    def generate_upload_url(self, input_layer: InputLayer,
+                            number_of_parts = 0):
         storage_backend = select_input_layer_storage()
         filename = input_layer.name
         file_path = input_layer_dir_path(input_layer, filename)
@@ -323,7 +327,22 @@ class LayerUploadStart(BaseLayerUpload):
         if input_layer.name != final_filename:
             input_layer.name = final_filename
             input_layer.save(update_fields=['name'])
-        return get_presigned_url(available_name)
+        results = []
+        upload_id = None
+        if number_of_parts <= 1:
+            single_url = get_presigned_url(available_name)
+            if single_url:
+                results.append({
+                    'part_number': 1,
+                    'url': single_url
+                })
+        else:
+            upload_id, urls = get_multipart_presigned_urls(
+                available_name, number_of_parts
+            )
+            if urls:
+                results.extend(urls)
+        return results, upload_id
 
     @swagger_auto_schema(
         operation_id='layer-upload-start',
@@ -341,19 +360,43 @@ class LayerUploadStart(BaseLayerUpload):
                         title='Layer UUID',
                         type=openapi.TYPE_STRING
                     ),
-                    'upload_url': openapi.Schema(
-                        title='Upload URL',
-                        type=openapi.TYPE_STRING
+                    'upload_urls': openapi.Schema(
+                        title='List of Upload Presigned URL',
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Items(
+                            type=openapi.TYPE_OBJECT,
+                            title='Presigned URL item',
+                            properties={
+                                'part_number': openapi.Schema(
+                                    title='Part number for multipart upload',
+                                    type=openapi.TYPE_INTEGER
+                                ),
+                                'url': openapi.Schema(
+                                    title='Presigned URL',
+                                    type=openapi.TYPE_STRING
+                                )
+                            }
+                        )
                     ),
                     'name': openapi.Schema(
                         title='Layer name',
                         type=openapi.TYPE_STRING
                     ),
+                    'multipart_upload_id': openapi.Schema(
+                        title='Multipart Upload Id',
+                        type=openapi.TYPE_STRING
+                    ),
                 },
                 example={
-                    "upload_url": (
-                        "https://example.com/cplus/4/ncs_pathway/layer.geojson"
-                    )
+                    "upload_url": [
+                        {
+                            'part_number': 1,
+                            'url': (
+                                "https://example.com/cplus/4/ncs_pathway"
+                                "/layer.geojson"
+                            )
+                        }
+                    ]
                 }
             ),
             400: APIErrorSerializer,
@@ -370,13 +413,15 @@ class LayerUploadStart(BaseLayerUpload):
             # delete existing file
             input_layer.file = None
             input_layer.save()
-        upload_url = self.generate_upload_url(input_layer)
-        if upload_url is None:
+        upload_urls, upload_id = self.generate_upload_url(
+            input_layer, upload_param.validated_data['number_of_parts'])
+        if len(upload_urls) == 0:
             raise RuntimeError('Cannot generate upload url!')
         return Response(status=201, data={
             'uuid': str(input_layer.uuid),
-            'upload_url': upload_url,
-            'name': input_layer.name
+            'upload_urls': upload_urls,
+            'name': input_layer.name,
+            'multipart_upload_id': upload_id
         })
 
 
@@ -387,6 +432,8 @@ class LayerUploadFinish(APIView):
     @swagger_auto_schema(
         operation_id='layer-upload-finish',
         tags=[LAYER_API_TAG],
+        manual_parameters=[PARAM_LAYER_UUID_IN_PATH],
+        request_body=FinishUploadLayerSerializer,
         responses={
             200: openapi.Schema(
                 description=(
@@ -412,10 +459,19 @@ class LayerUploadFinish(APIView):
             404: APIErrorSerializer
         }
     )
-    def get(self, request, layer_uuid):
+    def post(self, request, layer_uuid):
         input_layer = get_object_or_404(InputLayer, uuid=layer_uuid)
         # get filepath
         file_path = input_layer_dir_path(input_layer, input_layer.name)
+        upload_param = FinishUploadLayerSerializer(data=request.data)
+        upload_param.is_valid(raise_exception=True)
+        if upload_param.validated_data.get('multipart_upload_id', None):
+            # mark multipart as done
+            complete_multipart_upload(
+                file_path,
+                upload_param.validated_data['multipart_upload_id'],
+                upload_param.validated_data['items']
+            )
         storage_backend = select_input_layer_storage()
         # validate filepath exists
         if not storage_backend.exists(file_path):
