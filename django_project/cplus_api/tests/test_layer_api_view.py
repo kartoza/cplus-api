@@ -416,7 +416,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
             'cplus_api', 'tests', 'data',
             'models', 'test_model_1.tif'
         )
-        base_filename = 'test_model_1_start.tif'
+        base_filename = 'test_model_1_start2.tif'
         view = LayerUploadStart.as_view()
         data = {
             'layer_type': 0,
