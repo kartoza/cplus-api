@@ -1,15 +1,21 @@
+import mock
 from datetime import timedelta
 from django.utils import timezone
 from cplus_api.tests.factories import (
     InputLayerF,
-    OutputLayerF
+    OutputLayerF,
+    MultipartUploadF
 )
 from cplus_api.models.layer import (
     InputLayer,
-    OutputLayer
+    OutputLayer,
+    MultipartUpload
 )
-from cplus_api.tasks.remove_layers import remove_layers
-from cplus_api.tests.common import BaseAPIViewTransactionTest
+from cplus_api.tasks.remove_layers import (
+    remove_layers,
+    clean_multipart_upload
+)
+from cplus_api.tests.common import BaseAPIViewTransactionTest, MockS3Client
 
 
 class TestRemoveLayers(BaseAPIViewTransactionTest):
@@ -98,3 +104,81 @@ class TestRemoveLayers(BaseAPIViewTransactionTest):
         self.assertTrue(OutputLayer.objects.filter(
             uuid=output_layer_2.uuid).exists()
         )
+
+    @mock.patch('boto3.client')
+    def test_clean_multipart_upload(self, mocked_s3):
+        input_layer = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE
+        )
+        s3_client = MockS3Client()
+        mocked_s3.return_value = s3_client
+        # record with less than 7days and is_aborted=False
+        # record with less than 1day and is_aborted=True
+        u1 = MultipartUploadF.create(
+            created_on=timezone.now() - timedelta(days=5),
+            is_aborted=False
+        )
+        u2 = MultipartUploadF.create(
+            created_on=timezone.now() - timedelta(minutes=5),
+            is_aborted=True
+        )
+        clean_multipart_upload()
+        # both should exist and not modified
+        self.assertEqual(
+            MultipartUpload.objects.filter(
+                upload_id__in=[u1.upload_id, u2.upload_id]
+            ).count(),
+            2
+        )
+        MultipartUpload.objects.all().delete()
+
+        # record with more than 7days and is_aborted=False
+        # record with more than 1day and is_aborted=True
+        u1 = MultipartUploadF.create(
+            created_on=timezone.now() - timedelta(days=10),
+            is_aborted=False
+        )
+        u2 = MultipartUploadF.create(
+            created_on=timezone.now() - timedelta(days=2),
+            is_aborted=True,
+        )
+        clean_multipart_upload()
+        # but without input_layer, both should be removed
+        self.assertEqual(MultipartUpload.objects.count(), 0)
+
+        # record with more than 7days and is_aborted=False
+        # record with more than 1day and is_aborted=True
+        u1 = MultipartUploadF.create(
+            created_on=timezone.now() - timedelta(days=10),
+            is_aborted=False,
+            input_layer_uuid=input_layer.uuid
+        )
+        u2 = MultipartUploadF.create(
+            created_on=timezone.now() - timedelta(days=2),
+            is_aborted=True,
+            input_layer_uuid=input_layer.uuid
+        )
+        clean_multipart_upload()
+        # parts return >0, both should be is_aborted=True
+        self.assertEqual(
+            MultipartUpload.objects.filter(is_aborted=True).count(), 2)
+        MultipartUpload.objects.all().delete()
+
+        # record with more than 7days and is_aborted=False
+        # record with more than 1day and is_aborted=True
+        u1 = MultipartUploadF.create(
+            created_on=timezone.now() - timedelta(days=10),
+            is_aborted=False,
+            input_layer_uuid=input_layer.uuid
+        )
+        u2 = MultipartUploadF.create(
+            created_on=timezone.now() - timedelta(days=2),
+            is_aborted=True,
+            input_layer_uuid=input_layer.uuid
+        )
+        s3_client.mock_parts = {
+            'Parts': []
+        }
+        clean_multipart_upload()
+        # parts return 0, both should be removed
+        self.assertEqual(MultipartUpload.objects.count(), 0)
