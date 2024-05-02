@@ -15,6 +15,11 @@ class SitePreferencesAdmin(admin.ModelAdmin):
                 'api_config',
             )
         }),
+        ('Output Group to Keep', {
+            'fields': (
+                'output_group_to_keep',
+            )
+        }),
     )
 
 
