@@ -1,5 +1,7 @@
 import os
 import math
+import traceback
+import logging
 from datetime import timedelta
 from rest_framework.exceptions import PermissionDenied
 from drf_yasg import openapi
@@ -11,6 +13,7 @@ from core.models.preferences import SitePreferences
 from cplus_api.models.scenario import ScenarioTask
 
 
+logger = logging.getLogger(__name__)
 LAYER_API_TAG = '01-layer'
 SCENARIO_API_TAG = '02-scenario-analysis'
 SCENARIO_OUTPUT_API_TAG = '03-scenario-outputs'
@@ -113,7 +116,11 @@ def get_presigned_url(filename):
             os.environ.get("MINIO_BUCKET_NAME"), filename,
             expires=timedelta(hours=3))
         return build_minio_absolute_url(upload_url)
-    except S3Error:
+    except S3Error as exc:
+        logger.error(f'Unexpected exception occured: {type(exc).__name__} '
+                     'in get_presigned_url')
+        logger.error(exc)
+        logger.error(traceback.format_exc())
         return None
 
 
