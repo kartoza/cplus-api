@@ -34,7 +34,8 @@ def start_upload(fp):
 
 def upload_part(signed_url, file_data, file_part_number):
     # TODO: use exponential backoff for retry
-    # ref: https://github.com/aws-samples/amazon-s3-multipart-upload-transfer-acceleration/blob/main/frontendV2/src/utils/upload.js#L119
+    # ref: https://github.com/aws-samples/amazon-s3-multipart-upload-
+    # transfer-acceleration/blob/main/frontendV2/src/utils/upload.js#L119
     res = requests.put(signed_url, data=file_data)
     return {
         'part_number': file_part_number,
@@ -69,12 +70,13 @@ def main():
     idx = 0
     with open(FILE_PATH, 'rb') as f:
         while True:
-            chunk = f.read(CHUNK_SIZE)  
+            chunk = f.read(CHUNK_SIZE)
             if not chunk:
                 break
             url_item = upload_urls[idx]
             print(f"starting upload part {url_item['part_number']}")
-            part_item = upload_part(url_item['url'], chunk, url_item['part_number'])
+            part_item = upload_part(
+                url_item['url'], chunk, url_item['part_number'])
             items.append(part_item)
             print(f"finished upload part {url_item['part_number']}")
             idx += 1
@@ -83,6 +85,6 @@ def main():
     # finish upload
     finish_upload(layer_uuid, upload_id, items)
 
+
 if __name__ == "__main__":
     main()
-

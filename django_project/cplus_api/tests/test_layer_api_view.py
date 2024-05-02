@@ -569,7 +569,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         input_layer.refresh_from_db()
         self.assertTrue(input_layer.file.name)
         self.assertTrue(input_layer.is_available())
-    
+
     @mock.patch('boto3.client')
     def test_layer_upload_finish_with_multipart(self, mocked_s3):
         s3_client = MockS3Client()
