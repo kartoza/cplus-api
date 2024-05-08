@@ -509,7 +509,7 @@ class ScenarioDetailSerializer(ScenarioTaskStatusSerializer):
             'scenario_name', 'status', 'submitted_on',
             'created_by', 'started_at', 'finished_at',
             'errors', 'progress', 'progress_text',
-            'detail'
+            'detail', 'updated_detail'
         ]
         swagger_schema_fields = {
             'type': openapi.TYPE_OBJECT,

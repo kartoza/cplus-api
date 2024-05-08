@@ -32,6 +32,13 @@ def select_input_layer_storage():
     return storages['input_layer_storage']
 
 
+def default_output_meta():
+    """
+    Default value for OutputLayer's output_meta.
+    """
+    return {}
+
+
 class BaseLayer(models.Model):
     class LayerTypes(models.IntegerChoices):
         RASTER = 0, _('Raster')
@@ -154,4 +161,9 @@ class OutputLayer(BaseLayer):
 
     is_deleted = models.BooleanField(
         default=False
+    )
+    output_meta = models.JSONField(
+        default=default_output_meta,
+        blank=True,
+        help_text='Output Metadata.'
     )

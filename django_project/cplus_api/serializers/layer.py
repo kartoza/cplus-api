@@ -135,6 +135,10 @@ OUTPUT_LAYER_SCHEMA_FIELDS = {
                 "weighted_ims"
             ],
         ),
+        'output_meta': openapi.Schema(
+            title='Output Metadata',
+            type=openapi.TYPE_OBJECT,
+        ),
     },
     'required': [
         'filename', 'size', 'uuid', 'layer_type'
@@ -281,7 +285,7 @@ class UploadLayerSerializer(serializers.Serializer):
 
 
 class OutputLayerSerializer(serializers.ModelSerializer):
-    DEFAULT_GROUP_IN_OUTPUT_URL = ['weighted_ims']
+    DEFAULT_GROUP_IN_OUTPUT_URL = ['weighted_activities']
     filename = serializers.CharField(source='name')
     created_by = serializers.SerializerMethodField()
     url = serializers.SerializerMethodField()
@@ -317,7 +321,8 @@ class OutputLayerSerializer(serializers.ModelSerializer):
         fields = [
             'uuid', 'filename', 'created_on',
             'created_by', 'layer_type', 'size',
-            'url', 'is_final_output', 'group'
+            'url', 'is_final_output', 'group',
+            'output_meta'
         ]
 
 

@@ -241,6 +241,11 @@ class ScenarioAnalysisTask(QgsTask):
             extent_string,
         )
 
+        from cplus_api.utils.api_helper import todict
+        print('weighted_act')
+        print(weighted_activities)
+        print(todict(weighted_activities))
+
         self.analysis_weighted_activities = weighted_activities
         self.scenario.weighted_activities = weighted_activities
 
@@ -1689,6 +1694,10 @@ class ScenarioAnalysisTask(QgsTask):
             self.log_message(
                 f"Layers sources {[Path(source).stem for source in sources]}"
             )
+
+            print('*********** LAYER PATH *******************')
+            print(sources)
+            print(output_file)
 
             alg_params = {
                 "IGNORE_NODATA": True,

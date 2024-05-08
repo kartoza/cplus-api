@@ -43,7 +43,7 @@ SENTRY_DSN = os.environ.get('SENTRY_DSN', '')
 
 
 SWAGGER_SETTINGS = {
-    'USE_SESSION_AUTH': False,
+    # 'USE_SESSION_AUTH': False,
     'SECURITY_DEFINITIONS': {
         'TrendsEarth Token': {
             'type': 'apiKey',

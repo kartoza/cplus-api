@@ -20,7 +20,7 @@ from cplus.tasks.analysis import ScenarioAnalysisTask
 from cplus.utils.conf import Settings
 from cplus_api.models.scenario import ScenarioTask
 from cplus_api.models.layer import BaseLayer, OutputLayer, InputLayer
-from cplus_api.utils.api_helper import convert_size
+from cplus_api.utils.api_helper import convert_size, todict, CustomJsonEncoder
 
 logger = logging.getLogger(__name__)
 
@@ -287,7 +287,8 @@ class TaskConfig(object):
 
 def create_and_upload_output_layer(
         file_path: str, scenario_task: ScenarioTask,
-        is_final_output: bool, group: str) -> OutputLayer:
+        is_final_output: bool, group: str,
+        output_meta: dict=None) -> OutputLayer:
     filename = os.path.basename(file_path)
     cog_name = (
         f"{os.path.basename(file_path).split('.')[0]}"
@@ -310,7 +311,8 @@ def create_and_upload_output_layer(
         size=os.stat(cog_path).st_size,
         is_final_output=is_final_output,
         scenario=scenario_task,
-        group=group
+        group=group,
+        output_meta={} if not output_meta else output_meta
     )
     with open(cog_path, 'rb') as output_file:
         output_layer.file.save(filename, output_file)
@@ -546,8 +548,13 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
         for group, files in scenario_output_files.items():
             is_final_output = group == 'final_output'
             if is_final_output:
+                output_meta = self.output
+                if 'OUTPUT' in output_meta:
+                    del output_meta['OUTPUT']
                 create_and_upload_output_layer(
-                    files[0], self.scenario_task, True, None)
+                    files[0], self.scenario_task,
+                    True, None, self.output
+                )
                 total_uploaded_files += 1
                 self.set_custom_progress(
                     100 * (total_uploaded_files / total_files))
@@ -656,5 +663,8 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
         # clean directory
         self.scenario_task.clear_resources()
         self.scenario_task.task_on_completed()
+        print(json.dumps(todict(self.scenario), cls=CustomJsonEncoder))
+        self.scenario_task.updated_detail = json.loads(json.dumps(todict(self.scenario), cls=CustomJsonEncoder))
+        self.scenario_task.save()
         # send email to the submitter
         self.notify_user(result)
