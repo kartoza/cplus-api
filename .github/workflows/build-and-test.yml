@@ -63,6 +63,7 @@ jobs:
           cp .template.test.env .env
           cd ../
           make dev
+          make init-bucket
           make wait-db
           make sleep
           make migrate

@@ -167,3 +167,33 @@ class OutputLayer(BaseLayer):
         blank=True,
         help_text='Output Metadata.'
     )
+
+
+class MultipartUpload(models.Model):
+    """Model to store id of multipart upload."""
+
+    upload_id = models.CharField(
+        max_length=512
+    )
+
+    input_layer_uuid = models.UUIDField()
+
+    created_on = models.DateTimeField()
+
+    uploader = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    parts = models.IntegerField()
+
+    is_aborted = models.BooleanField(
+        default=False
+    )
+
+    aborted_on = models.DateTimeField(
+        null=True,
+        blank=True
+    )
