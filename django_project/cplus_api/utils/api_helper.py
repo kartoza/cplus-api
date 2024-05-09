@@ -161,7 +161,7 @@ def get_multipart_presigned_urls(filename, parts):
                 ClientMethod='upload_part',
                 Params=method_parameters,
                 ExpiresIn=3600 * 3
-            )
+            ).replace('http://minio:9000', 'http://0.0.0.0:9010')
         })
     return upload_id, results
 

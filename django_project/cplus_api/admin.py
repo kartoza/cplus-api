@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 from core.celery import cancel_task
 from cplus_api.models.scenario import ScenarioTask
-from cplus_api.models.layer import InputLayer, OutputLayer
+from cplus_api.models.layer import InputLayer, OutputLayer, MultipartUpload
 from cplus_api.models.profile import UserProfile, UserRoleType
 
 
@@ -64,3 +64,4 @@ admin.site.register(InputLayer, InputLayerAdmin)
 admin.site.register(OutputLayer, OutputLayerAdmin)
 admin.site.register(UserRoleType, UserRoleTypeAdmin)
 admin.site.register(UserProfile, UserProfileAdmin)
+admin.site.register(MultipartUpload)
