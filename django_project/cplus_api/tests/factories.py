@@ -56,6 +56,17 @@ class ScenarioTaskF(BaseFactory[ScenarioTask],
             7216308.751738624,
             7279753.465204147
         ],
+        "snap_layer": "",
+        "snap_layer_uuid": "",
+        "pathway_suitability_index": 0,
+        "snap_rescale": False,
+        "snap_method": "0",
+        "sieve_enabled": False,
+        "sieve_threshold": 10,
+        "sieve_mask_path": "",
+        "sieve_mask_uuid": "",
+        "mask_path": "",
+        "mask_layer_uuids": [],
         "priority_layers": [
             {
                 "uuid": "3e0c7dff-51f2-48c5-a316-15d9ca2407cb",
