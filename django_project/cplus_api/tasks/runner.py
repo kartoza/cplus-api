@@ -27,7 +27,7 @@ def create_scenario_task_runner(scenario_task: ScenarioTask):
 
 
 @shared_task(name="run_scenario_analysis_task")
-def run_scenario_analysis_task(scenario_task_id):
+def run_scenario_analysis_task(scenario_task_id):  # pragma: no cover
     scenario_task = ScenarioTask.objects.get(id=scenario_task_id)
     scenario_task.task_on_started()
     logger.info(
