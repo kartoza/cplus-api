@@ -368,12 +368,15 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertTrue(input_layer)
         self.assertFalse(input_layer.file)
         self.assertEqual(input_layer.size, data['size'])
+
         # test with existing file
         storage_backend = select_input_layer_storage()
         dest_file_path = os.path.join(
             storage_backend.location,
             input_layer_dir_path(input_layer, base_filename)
         )
+        print(file_path)
+        print(dest_file_path)
         self.direct_upload_layer_file(file_path, dest_file_path)
         request = self.factory.post(
             reverse('v1:layer-upload-start'), data

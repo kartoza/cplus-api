@@ -17,9 +17,9 @@ def cancel_scenario_task(modeladmin, request, queryset):
 
 
 class ScenarioTaskAdmin(admin.ModelAdmin):
-    list_display = ('scenario_name', 'submitted_by', 'task_id', 'status',
-                    'progress', 'started_at', 'finished_at',
-                    'last_update', 'uuid')
+    list_display = ('scenario_name', 'uuid', 'submitted_by', 'task_id',
+                    'status', 'progress', 'started_at', 'finished_at',
+                    'last_update')
     search_fields = ['status', 'task_id', 'uuid']
     actions = [cancel_scenario_task]
     list_filter = ["status", "submitted_by"]

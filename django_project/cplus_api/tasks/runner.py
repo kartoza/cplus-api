@@ -44,7 +44,23 @@ def run_scenario_analysis_task(scenario_task_id):
     import processing  # noqa
     from processing.core.Processing import Processing
     Processing.initialize()
+
     analysis_task = create_scenario_task_runner(scenario_task)
+
+    # set sieve mask path, snap layer path, and mask layers path
+    from cplus.utils.conf import settings_manager, Settings
+    settings_manager.set_value(
+        Settings.SIEVE_MASK_PATH, analysis_task.task_config.sieve_mask_path
+    )
+    settings_manager.set_value(
+        Settings.SNAP_LAYER, analysis_task.task_config.snap_layer
+    )
+    settings_manager.set_value(
+        Settings.MASK_LAYERS_PATHS, '.'.join(
+            analysis_task.task_config.mask_paths
+        )
+    )
+
     start_time = time.time()
     analysis_task.run()
     logger.info(f'execution time: {time.time() - start_time} seconds')

@@ -1,22 +1,21 @@
 import json
-import os
-import math
-import traceback
 import logging
-import boto3
-from botocore.exceptions import ClientError
-from botocore.client import Config
-from datetime import timedelta
+import os
+import traceback
+from datetime import datetime
 from uuid import UUID
-from rest_framework.exceptions import PermissionDenied
-from drf_yasg import openapi
-from minio import Minio
-from minio.error import S3Error
+
+import boto3
+import math
+from botocore.client import Config
+from botocore.exceptions import ClientError
 from django.conf import settings
 from django.contrib.sites.models import Site
+from drf_yasg import openapi
+from rest_framework.exceptions import PermissionDenied
+
 from core.models.preferences import SitePreferences
 from cplus_api.models.scenario import ScenarioTask
-
 
 logger = logging.getLogger(__name__)
 LAYER_API_TAG = '01-layer'
@@ -161,7 +160,7 @@ def get_multipart_presigned_urls(filename, parts):
                 ClientMethod='upload_part',
                 Params=method_parameters,
                 ExpiresIn=3600 * 3
-            ).replace('http://minio:9000', 'http://0.0.0.0:9010')
+            )
         })
     return upload_id, results
 
@@ -247,9 +246,11 @@ def todict(obj, classkey=None):
     elif hasattr(obj, "__iter__") and not isinstance(obj, str):
         return [todict(v, classkey) for v in obj]
     elif hasattr(obj, "__dict__"):
-        data = dict([(key, todict(value, classkey))
-            for key, value in obj.__dict__.items()
-            if not callable(value) and not key.startswith('_')])
+        data = dict(
+            [(key, todict(value, classkey))
+             for key, value in obj.__dict__.items()
+             if not callable(value) and not key.startswith('_')]
+        )
         if classkey is not None and hasattr(obj, "__class__"):
             data[classkey] = obj.__class__.__name__
         return data

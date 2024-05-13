@@ -319,7 +319,7 @@ class LayerUploadStart(BaseLayerUpload):
     """API to upload layer file direct to Minio."""
 
     def generate_upload_url(self, input_layer: InputLayer,
-                            number_of_parts = 0):
+                            number_of_parts=0):
         storage_backend = select_input_layer_storage()
         filename = input_layer.name
         file_path = input_layer_dir_path(input_layer, filename)
