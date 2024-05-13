@@ -229,7 +229,7 @@ class CustomJsonEncoder(json.JSONEncoder):
         if isinstance(obj, UUID):
             # if the obj is uuid, we simply return the value of uuid
             return obj.hex
-        if isinstance(obj, datetime.datetime):
+        if isinstance(obj, datetime):
             # if the obj is uuid, we simply return the value of uuid
             return obj.isoformat()
         return json.JSONEncoder.default(self, obj)

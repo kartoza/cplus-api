@@ -1,6 +1,8 @@
+import uuid
+import json
+import datetime
 from django.test import TestCase
-
-from cplus_api.utils.api_helper import todict
+from cplus_api.utils.api_helper import todict, CustomJsonEncoder
 
 
 class SampleObj:
@@ -39,3 +41,38 @@ class TestUtils(TestCase):
             }
         ]
         self.assertEqual(todict(test_obj, SampleObj), expected_value)
+
+
+class TestCustomJSONEncoder(TestCase):
+    def test_uuid(self):
+        test_obj = {
+            'uuid': uuid.uuid4()
+        }
+        try:
+            json.dumps(test_obj)
+        except TypeError:
+            try:
+                json.dumps(test_obj, cls=CustomJsonEncoder)
+            except TypeError:
+                self.fail('TypeError raised')
+
+    def test_datetime(self):
+        test_obj = {
+            'datetime': datetime.datetime(2024, 5, 13, 1, 1, 1, 0)
+        }
+        try:
+            json.dumps(test_obj)
+        except TypeError:
+            try:
+                json.dumps(test_obj, cls=CustomJsonEncoder)
+            except TypeError:
+                self.fail('TypeError raised')
+
+    def test_other_type(self):
+        test_obj = {
+            'name': 'name'
+        }
+        try:
+            json.dumps(test_obj)
+        except TypeError:
+            self.fail('TypeError raised')
