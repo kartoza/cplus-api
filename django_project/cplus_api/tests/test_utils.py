@@ -1,9 +1,5 @@
-import json
-from datetime import date
 from django.test import TestCase
-from django.utils import timezone
-from cplus_api.tests.factories import ScenarioTaskF
-from core.settings.utils import absolute_path
+
 from cplus_api.utils.api_helper import todict
 
 
