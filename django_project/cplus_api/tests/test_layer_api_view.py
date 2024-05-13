@@ -375,8 +375,6 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
             storage_backend.location,
             input_layer_dir_path(input_layer, base_filename)
         )
-        print(file_path)
-        print(dest_file_path)
         self.direct_upload_layer_file(file_path, dest_file_path)
         request = self.factory.post(
             reverse('v1:layer-upload-start'), data
