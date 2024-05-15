@@ -456,3 +456,104 @@ class FileUtils:
                 p.touch(exist_ok=True)
             except FileNotFoundError:
                 log(log_message)
+
+
+def align_rasters(
+    input_raster_source,
+    reference_raster_source,
+    extent=None,
+    output_dir=None,
+    rescale_values=False,
+    resample_method=0,
+):
+    """
+    Based from work on https://github.com/inasafe/inasafe/pull/2070
+    Aligns the passed raster files source and save the results into new files.
+
+    :param input_raster_source: Input layer source
+    :type input_raster_source: str
+
+    :param reference_raster_source: Reference layer source
+    :type reference_raster_source: str
+
+    :param extent: Clip extent
+    :type extent: list
+
+    :param output_dir: Absolute path of the output directory for the snapped
+    layers
+    :type output_dir: str
+
+    :param rescale_values: Whether to rescale pixel values
+    :type rescale_values: bool
+
+    :param resample_method: Method to use when resampling
+    :type resample_method: QgsAlignRaster.ResampleAlg
+
+    """
+
+    try:
+        snap_directory = os.path.join(output_dir, "snap_layers")
+
+        FileUtils.create_new_dir(snap_directory)
+
+        input_path = Path(input_raster_source)
+
+        input_layer_output = os.path.join(
+            f"{snap_directory}", f"{input_path.stem}_{str(uuid.uuid4())[:4]}.tif"
+        )
+
+        FileUtils.create_new_file(input_layer_output)
+
+        align = QgsAlignRaster()
+        lst = [
+            QgsAlignRaster.Item(input_raster_source, input_layer_output),
+        ]
+
+        resample_method_value = QgsAlignRaster.ResampleAlg.RA_NearestNeighbour
+
+        try:
+            resample_method_value = QgsAlignRaster.ResampleAlg(int(resample_method))
+        except Exception as e:
+            log(f"Problem creating a resample value when snapping, {e}")
+
+        if rescale_values:
+            lst[0].rescaleValues = rescale_values
+
+        lst[0].resample_method = resample_method_value
+
+        align.setRasters(lst)
+        align.setParametersFromRaster(reference_raster_source)
+
+        layer = QgsRasterLayer(input_raster_source, "input_layer")
+
+        extent = transform_extent(
+            layer.extent(),
+            QgsCoordinateReferenceSystem(layer.crs()),
+            QgsCoordinateReferenceSystem(align.destinationCrs()),
+        )
+
+        align.setClipExtent(extent)
+
+        log(f"Snapping clip extent {layer.extent().asWktPolygon()} \n")
+
+        if not align.run():
+            log(
+                f"Problem during snapping for {input_raster_source} and "
+                f"{reference_raster_source}, {align.errorMessage()}"
+            )
+            raise Exception(align.errorMessage())
+    except Exception as e:
+        log(
+            f"Problem occured when snapping, {str(e)}."
+            f" Update snap settings and re-run the analysis"
+        )
+
+        return None, None
+
+    log(
+        f"Finished snapping"
+        f" original layer - {input_raster_source},"
+        f"snapped output - {input_layer_output} \n"
+    )
+
+    return input_layer_output, None

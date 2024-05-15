@@ -3,16 +3,13 @@
  Plugin tasks related to the scenario analysis
 
 """
-
-import math
+import datetime
 import os
 import uuid
-import json
-
-import datetime
-
 from pathlib import Path
 
+import math
+from qgis import processing
 from qgis.PyQt import QtCore
 from qgis.core import (
     Qgis,
@@ -22,28 +19,24 @@ from qgis.core import (
     QgsProcessingFeedback,
     QgsRasterLayer,
     QgsRectangle,
+    QgsVectorLayer,
+    QgsWkbTypes,
     QgsTask
 )
 
-from qgis import processing
-
 from cplus.utils.conf import settings_manager, Settings
-
-from cplus.models.helpers import clone_activity
-
+from cplus.definitions.defaults import (
+    SCENARIO_OUTPUT_FILE_NAME,
+)
 from cplus.models.base import ScenarioResult
+from cplus.models.helpers import clone_activity
 from cplus.utils.helper import (
     align_rasters,
     clean_filename,
     tr,
     log,
-    FileUtils,
+    FileUtils
 )
-from cplus.definitions.defaults import (
-    SCENARIO_OUTPUT_FILE_NAME,
-)
-
-from qgis.core import QgsTask
 
 
 class ScenarioAnalysisTask(QgsTask):
@@ -184,7 +177,6 @@ class ScenarioAnalysisTask(QgsTask):
             Settings.SNAPPING_ENABLED, default=False, setting_type=bool
         )
         reference_layer = self.get_settings_value(Settings.SNAP_LAYER, default="")
-        self.log_message(f"reference_layer: {reference_layer}")
         reference_layer_path = Path(reference_layer)
         if (
             snapping_enabled
@@ -193,7 +185,6 @@ class ScenarioAnalysisTask(QgsTask):
         ):
             self.snap_analysis_data(
                 self.analysis_activities,
-                self.analysis_priority_layers_groups,
                 extent_string,
             )
 
@@ -207,7 +198,6 @@ class ScenarioAnalysisTask(QgsTask):
 
         self.run_pathways_analysis(
             self.analysis_activities,
-            self.analysis_priority_layers_groups,
             extent_string,
             temporary_output=not save_output,
         )
@@ -217,7 +207,6 @@ class ScenarioAnalysisTask(QgsTask):
 
         self.run_pathways_normalization(
             self.analysis_activities,
-            self.analysis_priority_layers_groups,
             extent_string,
         )
 
@@ -229,7 +218,6 @@ class ScenarioAnalysisTask(QgsTask):
 
         self.run_activities_analysis(
             self.analysis_activities,
-            self.analysis_priority_layers_groups,
             extent_string,
             temporary_output=not save_output,
         )
@@ -251,8 +239,6 @@ class ScenarioAnalysisTask(QgsTask):
         if sieve_enabled:
             self.run_activities_sieve(
                 self.analysis_activities,
-                self.analysis_priority_layers_groups,
-                extent_string,
             )
 
         # After creating activities, we normalize them using the same coefficients
@@ -264,7 +250,6 @@ class ScenarioAnalysisTask(QgsTask):
 
         self.run_activities_normalization(
             self.analysis_activities,
-            self.analysis_priority_layers_groups,
             extent_string,
             temporary_output=not save_output,
         )
@@ -392,7 +377,7 @@ class ScenarioAnalysisTask(QgsTask):
         :param nodata_value: Nodata value to be used
         :type output_path: int
 
-        :returns: If the process was successful
+        :returns: Whether the task operations was successful
         :rtype: bool
 
         """
@@ -442,22 +427,17 @@ class ScenarioAnalysisTask(QgsTask):
 
         return outputs is not None
 
-    def run_pathways_analysis(
-        self, activities, priority_layers_groups, extent, temporary_output=False
-    ):
+    def run_pathways_analysis(self, activities, extent, temporary_output=False):
         """Runs the required activity pathways analysis on the passed
          activities. The analysis involves adding the pathways
-         carbon layers into the pathway layer.
+         carbon layers into their respective pathway layers.
 
-         If the pathway layer has more than one carbon layer, the resulting
+         If a pathway layer has more than one carbon layer, the resulting
          weighted pathway will contain the sum of the pathway layer values
          with the average of the pathway carbon layers values.
 
         :param activities: List of the selected activities
         :type activities: typing.List[Activity]
-
-        :param priority_layers_groups: Used priority layers groups and their values
-        :type priority_layers_groups: dict
 
         :param extent: The selected extent from user
         :type extent: SpatialExtent
@@ -465,6 +445,9 @@ class ScenarioAnalysisTask(QgsTask):
         :param temporary_output: Whether to save the processing outputs as temporary
         files
         :type temporary_output: bool
+
+        :returns: Whether the task operations was successful
+        :rtype: bool
         """
         if self.processing_cancelled:
             return False
@@ -496,13 +479,11 @@ class ScenarioAnalysisTask(QgsTask):
                     if not (pathway in pathways):
                         pathways.append(pathway)
 
-                if activity.path is not None and activity.path is not "":
+                if activity.path is not None and activity.path != "":
                     activities_paths.append(activity.path)
 
             if not pathways and len(activities_paths) > 0:
-                self.run_pathways_normalization(
-                    activities, priority_layers_groups, extent
-                )
+                self.run_pathways_normalization(activities, extent)
                 return
 
             suitability_index = float(
@@ -562,9 +543,7 @@ class ScenarioAnalysisTask(QgsTask):
                 expression = " + ".join(basenames)
 
                 if carbon_coefficient <= 0 and suitability_index <= 0:
-                    self.run_pathways_normalization(
-                        activities, priority_layers_groups, extent
-                    )
+                    self.run_pathways_normalization(activities, extent)
                     return
 
                 output = (
@@ -608,16 +587,13 @@ class ScenarioAnalysisTask(QgsTask):
 
         return True
 
-    def snap_analysis_data(self, activities, priority_layers_groups, extent):
+    def snap_analysis_data(self, activities, extent):
         """Snaps the passed activities pathways, carbon layers and priority layers
          to align with the reference layer set on the settings
         manager.
 
         :param activities: List of the selected activities
         :type activities: typing.List[Activity]
-
-        :param priority_layers_groups: Used priority layers groups and their values
-        :type priority_layers_groups: dict
 
         :param extent: The selected extent from user
         :type extent: list
@@ -861,9 +837,7 @@ class ScenarioAnalysisTask(QgsTask):
 
         return output_path
 
-    def run_pathways_normalization(
-        self, activities, priority_layers_groups, extent, temporary_output=False
-    ):
+    def run_pathways_normalization(self, activities, extent, temporary_output=False):
         """Runs the normalization on the activities pathways layers,
         adjusting band values measured on different scale, the resulting scale
         is computed using the below formula
@@ -878,15 +852,15 @@ class ScenarioAnalysisTask(QgsTask):
         :param activities: List of the analyzed activities
         :type activities: typing.List[Activity]
 
-        :param priority_layers_groups: Used priority layers groups and their values
-        :type priority_layers_groups: dict
-
         :param extent: selected extent from user
         :type extent: str
 
         :param temporary_output: Whether to save the processing outputs as temporary
         files
         :type temporary_output: bool
+
+        :returns: Whether the task operations was successful
+        :rtype: bool
         """
         if self.processing_cancelled:
             # Will not proceed if processing has been cancelled by the user
@@ -920,11 +894,11 @@ class ScenarioAnalysisTask(QgsTask):
                     if not (pathway in pathways):
                         pathways.append(pathway)
 
-                if activity.path is not None and activity.path is not "":
+                if activity.path is not None and activity.path != "":
                     activities_paths.append(activity.path)
 
             if not pathways and len(activities_paths) > 0:
-                self.run_activities_analysis(activities, priority_layers_groups, extent)
+                self.run_activities_analysis(activities, extent)
 
                 return
 
@@ -1032,18 +1006,13 @@ class ScenarioAnalysisTask(QgsTask):
 
         return True
 
-    def run_activities_analysis(
-        self, activities, priority_layers_groups, extent, temporary_output=False
-    ):
+    def run_activities_analysis(self, activities, extent, temporary_output=False):
         """Runs the required activity analysis on the passed
-        activities.
+        activities pathways. The analysis is responsible for creating activities
+        layers from their respective pathways layers.
 
         :param activities: List of the selected activities
         :type activities: typing.List[Activity]
-
-        :param priority_layers_groups: Used priority layers
-        groups and their values
-        :type priority_layers_groups: dict
 
         :param extent: selected extent from user
         :type extent: SpatialExtent
@@ -1051,6 +1020,9 @@ class ScenarioAnalysisTask(QgsTask):
         :param temporary_output: Whether to save the processing outputs as temporary
         files
         :type temporary_output: bool
+
+        :returns: Whether the task operations was successful
+        :rtype: bool
         """
         if self.processing_cancelled:
             # Will not proceed if processing has been cancelled by the user
@@ -1093,7 +1065,7 @@ class ScenarioAnalysisTask(QgsTask):
                 # the activity either contain a path or
                 # pathways
 
-                if activity.path is not None and activity.path is not "":
+                if activity.path is not None and activity.path != "":
                     layers = [activity.path]
 
                 for pathway in activity.pathways:
@@ -1157,6 +1129,9 @@ class ScenarioAnalysisTask(QgsTask):
         :param temporary_output: Whether to save the processing outputs as temporary
         files
         :type temporary_output: bool
+
+        :returns: Whether the task operations was successful
+        :rtype: bool
         """
         if self.processing_cancelled:
             # Will not proceed if processing has been cancelled by the user
@@ -1164,100 +1139,103 @@ class ScenarioAnalysisTask(QgsTask):
 
         self.set_status_message(tr("Masking activities using the saved masked layers"))
 
-        self.log_message(f"masking_layers: {json.dumps(masking_layers)}")
         try:
-            for mask_layer_path in masking_layers:
+            if len(masking_layers) < 1:
+                return False
+
+            if len(masking_layers) > 1:
+                mask_layer = self.merge_vector_layers(masking_layers)
+            else:
+                mask_layer_path = masking_layers[0]
                 mask_layer = QgsVectorLayer(mask_layer_path, "mask", "ogr")
 
-                if not mask_layer.isValid():
-                    log(
-                        f"Skipping activities masking "
-                        f"using layer {mask_layer_path}, not a valid layer."
-                    )
-                    continue
+            if not mask_layer.isValid():
+                self.log_message(
+                    f"Skipping activities masking "
+                    f"using layer {mask_layer_path}, not a valid layer."
+                )
+                return False
 
-                if Qgis.versionInt() < 33000:
-                    layer_check = mask_layer.geometryType() == QgsWkbTypes.Polygon
-                else:
-                    layer_check = mask_layer.geometryType() == Qgis.GeometryType.Polygon
+            if Qgis.versionInt() < 33000:
+                layer_check = mask_layer.geometryType() == QgsWkbTypes.Polygon
+            else:
+                layer_check = mask_layer.geometryType() == Qgis.GeometryType.Polygon
 
-                if not layer_check:
-                    self.log_message(
-                        f"Skipping activities masking "
-                        f"using layer {mask_layer_path}, not a polygon layer."
-                    )
-                    continue
+            if not layer_check:
+                self.log_message(
+                    f"Skipping activities masking "
+                    f"using layer {mask_layer_path}, not a polygon layer."
+                )
+                return False
 
-                for activity in activities:
-                    if activity.path is None or activity.path == "":
-                        if not self.processing_cancelled:
-                            self.set_info_message(
-                                tr(
-                                    f"Problem when masking activities, "
-                                    f"there is no map layer for the activity {activity.name}"
-                                ),
-                                level=Qgis.Critical,
-                            )
-                            self.log_message(
+            for activity in activities:
+                if activity.path is None or activity.path == "":
+                    if not self.processing_cancelled:
+                        self.set_info_message(
+                            tr(
                                 f"Problem when masking activities, "
                                 f"there is no map layer for the activity {activity.name}"
-                            )
-                        else:
-                            # If the user cancelled the processing
-                            self.set_info_message(
-                                tr(f"Processing has been cancelled by the user."),
-                                level=Qgis.Critical,
-                            )
-                            self.log_message(f"Processing has been cancelled by the user.")
+                            ),
+                            level=Qgis.Critical,
+                        )
+                        self.log_message(
+                            f"Problem when masking activities, "
+                            f"there is no map layer for the activity {activity.name}"
+                        )
+                    else:
+                        # If the user cancelled the processing
+                        self.set_info_message(
+                            tr(f"Processing has been cancelled by the user."),
+                            level=Qgis.Critical,
+                        )
+                        self.log_message(f"Processing has been cancelled by the user.")
 
-                        return False
+                    return False
 
-                    masked_activities_directory = os.path.join(
-                        self.scenario_directory, "masked_activities"
-                    )
-                    FileUtils.create_new_dir(masked_activities_directory)
-                    file_name = clean_filename(activity.name.replace(" ", "_"))
+                masked_activities_directory = os.path.join(
+                    self.scenario_directory, "masked_activities"
+                )
+                FileUtils.create_new_dir(masked_activities_directory)
+                file_name = clean_filename(activity.name.replace(" ", "_"))
 
-                    output_file = os.path.join(
-                        masked_activities_directory,
-                        f"{file_name}_{str(uuid.uuid4())[:4]}.tif",
-                    )
+                output_file = os.path.join(
+                    masked_activities_directory,
+                    f"{file_name}_{str(uuid.uuid4())[:4]}.tif",
+                )
 
-                    output = (
-                        QgsProcessing.TEMPORARY_OUTPUT
-                        if temporary_output
-                        else output_file
-                    )
+                output = (
+                    QgsProcessing.TEMPORARY_OUTPUT if temporary_output else output_file
+                )
 
-                    activity_layer = QgsRasterLayer(activity.path, "activity_layer")
+                activity_layer = QgsRasterLayer(activity.path, "activity_layer")
 
-                    # Actual processing calculation
-                    alg_params = {
-                        "INPUT": activity.path,
-                        "MASK": mask_layer,
-                        "SOURCE_CRS": activity_layer.crs(),
-                        "DESTINATION_CRS": activity_layer.crs(),
-                        "TARGET_EXTENT": extent,
-                        "OUTPUT": output,
-                        "NO_DATA": -9999,
-                    }
+                # Actual processing calculation
+                alg_params = {
+                    "INPUT": activity.path,
+                    "MASK": mask_layer,
+                    "SOURCE_CRS": activity_layer.crs(),
+                    "DESTINATION_CRS": activity_layer.crs(),
+                    "TARGET_EXTENT": extent,
+                    "OUTPUT": output,
+                    "NO_DATA": -9999,
+                }
 
-                    self.log_message(f"Used parameters for masking the activities: {alg_params} \n")
+                self.log_message(f"Used parameters for masking the activities: {alg_params} \n")
 
-                    feedback = QgsProcessingFeedback()
+                feedback = QgsProcessingFeedback()
 
-                    feedback.progressChanged.connect(self.update_progress)
+                feedback.progressChanged.connect(self.update_progress)
 
-                    if self.processing_cancelled:
-                        return False
+                if self.processing_cancelled:
+                    return False
 
-                    results = processing.run(
-                        "gdal:cliprasterbymasklayer",
-                        alg_params,
-                        context=self.processing_context,
-                        feedback=self.feedback,
-                    )
-                    activity.path = results["OUTPUT"]
+                results = processing.run(
+                    "gdal:cliprasterbymasklayer",
+                    alg_params,
+                    context=self.processing_context,
+                    feedback=self.feedback,
+                )
+                activity.path = results["OUTPUT"]
 
         except Exception as e:
             log(f"Problem masking activities layers, {e} \n")
@@ -1267,9 +1245,50 @@ class ScenarioAnalysisTask(QgsTask):
 
         return True
 
-    def run_activities_sieve(
-        self, models, priority_layers_groups, extent, temporary_output=False
-    ):
+    def merge_vector_layers(self, layers):
+        """Merges the passed vector layers into a single layer
+
+        :param layers: List of the vector layers paths
+        :type layers: typing.List[str]
+
+        :return: Merged vector layer
+        :rtype: QgsMapLayer
+        """
+
+        input_map_layers = []
+
+        for layer_path in layers:
+            layer = QgsVectorLayer(layer_path, "mask", "ogr")
+            if layer.isValid():
+                input_map_layers.append(layer)
+            else:
+                log(f"Skipping invalid mask layer {layer_path} from masking.")
+        if len(input_map_layers) == 0:
+            return None
+        if len(input_map_layers) == 1:
+            return input_map_layers[0].source()
+
+        self.set_status_message(tr("Merging mask layers"))
+
+        # Actual processing calculation
+        alg_params = {
+            "LAYERS": input_map_layers,
+            "CRS": None,
+            "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+        }
+
+        log(f"Used parameters for merging mask layers: {alg_params} \n")
+
+        results = processing.run(
+            "native:mergevectorlayers",
+            alg_params,
+            context=self.processing_context,
+            feedback=self.feedback,
+        )
+
+        return results["OUTPUT"]
+
+    def run_activities_sieve(self, models, temporary_output=False):
         """Runs the sieve functionality analysis on the passed models layers,
         removing the models layer polygons that are smaller than the provided
         threshold size (in pixels) and replaces them with the pixel value of
@@ -1278,15 +1297,15 @@ class ScenarioAnalysisTask(QgsTask):
         :param models: List of the analyzed implementation models
         :type models: typing.List[ImplementationModel]
 
-        :param priority_layers_groups: Used priority layers groups and their values
-        :type priority_layers_groups: dict
-
         :param extent: Selected area of interest extent
         :type extent: str
 
         :param temporary_output: Whether to save the processing outputs as temporary
         files
         :type temporary_output: bool
+
+        :returns: Whether the task operations was successful
+        :rtype: bool
         """
         if self.processing_cancelled:
             # Will not proceed if processing has been cancelled by the user
@@ -1338,7 +1357,6 @@ class ScenarioAnalysisTask(QgsTask):
                 mask_layer = self.get_settings_value(
                     Settings.SIEVE_MASK_PATH, default=""
                 )
-                self.log_message(f"mask_layer: {mask_layer}")
 
                 output = (
                     QgsProcessing.TEMPORARY_OUTPUT if temporary_output else output_file
@@ -1379,9 +1397,7 @@ class ScenarioAnalysisTask(QgsTask):
 
         return True
 
-    def run_activities_normalization(
-        self, activities, priority_layers_groups, extent, temporary_output=False
-    ):
+    def run_activities_normalization(self, activities, extent, temporary_output=False):
         """Runs the normalization analysis on the activities' layers,
         adjusting band values measured on different scale, the resulting scale
         is computed using the below formula
@@ -1396,15 +1412,15 @@ class ScenarioAnalysisTask(QgsTask):
         :param activities: List of the analyzed activities
         :type activities: typing.List[Activity]
 
-        :param priority_layers_groups: Used priority layers groups and their values
-        :type priority_layers_groups: dict
-
         :param extent: Selected area of interest extent
         :type extent: str
 
         :param temporary_output: Whether to save the processing outputs as temporary
         files
         :type temporary_output: bool
+
+        :returns: Whether the task operations was successful
+        :rtype: bool
         """
         if self.processing_cancelled:
             # Will not proceed if processing has been cancelled by the user
@@ -1535,7 +1551,7 @@ class ScenarioAnalysisTask(QgsTask):
         self, activities, priority_layers_groups, extent, temporary_output=False
     ):
         """Runs weighting analysis on the passed activities using
-        the corresponding activities weighting analysis.
+        the corresponding activities weight layers.
 
         :param activities: List of the selected activities
         :type activities: typing.List[Activity]
@@ -1549,6 +1565,10 @@ class ScenarioAnalysisTask(QgsTask):
         :param temporary_output: Whether to save the processing outputs as temporary
         files
         :type temporary_output: bool
+
+        :returns: A tuple with the weighted activities outputs and
+        a value of whether the task operations was successful
+        :rtype: typing.Tuple[typing.List, bool]
         """
 
         if self.processing_cancelled:
@@ -1708,6 +1728,13 @@ class ScenarioAnalysisTask(QgsTask):
 
         :param extent: Selected extent from user
         :type extent: str
+
+        :param temporary_output: Whether to save the processing outputs as temporary
+        files
+        :type temporary_output: bool
+
+        :returns: Whether the task operations was successful
+        :rtype: bool
         """
 
         if self.processing_cancelled:
@@ -1794,10 +1821,17 @@ class ScenarioAnalysisTask(QgsTask):
         in scenario analysis. Uses the activities set by the current ongoing
         analysis.
 
+        :param temporary_output: Whether to save the processing outputs as temporary
+        files
+        :type temporary_output: bool
+
+        :returns: Whether the task operations was successful
+        :rtype: bool
+
         """
         if self.processing_cancelled:
             # Will not proceed if processing has been cancelled by the user
-            return
+            return False
 
         passed_extent_box = self.analysis_extent.bbox
         passed_extent = QgsRectangle(
@@ -1817,7 +1851,7 @@ class ScenarioAnalysisTask(QgsTask):
             self.set_status_message(tr("Calculating the highest position"))
 
             for activity in self.analysis_weighted_activities:
-                if activity.path is not None and activity.path is not "":
+                if activity.path is not None and activity.path != "":
                     raster_layer = QgsRasterLayer(activity.path, activity.name)
                     layers[activity.name] = (
                         raster_layer if raster_layer is not None else None
@@ -1892,8 +1926,6 @@ class ScenarioAnalysisTask(QgsTask):
                 context=self.processing_context,
                 feedback=self.feedback,
             )
-            self.log_message('******************* OUTPUT *******************')
-            self.log_message(json.dumps(self.output))
 
         except Exception as err:
             self.log_message(
