@@ -44,8 +44,8 @@ class TaskConfig(object):
     sieve_enabled = False
     sieve_threshold = 10.0
     sieve_mask_uuid = ''
-    sieve_mask_path = ''
-    mask_paths = []
+    mask_path = ''
+    mask_layers_paths = []
     mask_layer_uuids = []
     scenario: Scenario = None
     pathway_uuid_layers = {}
@@ -442,10 +442,10 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                     None, [layer_uuid], scenario_path
                 )
                 if layer_uuid in layer_paths:
-                    self.task_config.sieve_mask_path = layer_paths[layer_uuid]
+                    self.task_config.mask_path = layer_paths[layer_uuid]
                     self.downloaded_layers.update(layer_paths)
             else:
-                self.task_config.sieve_mask_path = self.downloaded_layers[
+                self.task_config.mask_path = self.downloaded_layers[
                     layer_uuid
                 ]
 
@@ -462,7 +462,7 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                     self.downloaded_layers.update(layer_paths)
             else:
                 new_mask_paths.append(self.downloaded_layers[layer_uuid])
-        self.task_config.mask_paths = new_mask_paths
+        self.task_config.mask_layers_paths = new_mask_paths
 
         self.log_message(
             'Finished copy input layers: '

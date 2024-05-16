@@ -583,7 +583,7 @@ class ScenarioAnalysisTask(QgsTask):
         except Exception as e:
             self.log_message(f"Problem running pathway analysis,  {e}")
             self.error = e
-            self.cancel()
+            self.cancel_task()
 
         return True
 
@@ -734,7 +734,7 @@ class ScenarioAnalysisTask(QgsTask):
                         if priority_layer is None:
                             continue
 
-                        priority_layer_settings = settings_manager.get_priority_layer(
+                        priority_layer_settings = self.get_priority_layer(
                             priority_layer.get("uuid")
                         )
                         if priority_layer_settings is None:
@@ -1238,9 +1238,9 @@ class ScenarioAnalysisTask(QgsTask):
                 activity.path = results["OUTPUT"]
 
         except Exception as e:
-            log(f"Problem masking activities layers, {e} \n")
+            self.log_message(f"Problem masking activities layers, {e} \n")
             self.error = e
-            self.cancel()
+            self.cancel_task()
             return False
 
         return True
@@ -1262,7 +1262,7 @@ class ScenarioAnalysisTask(QgsTask):
             if layer.isValid():
                 input_map_layers.append(layer)
             else:
-                log(f"Skipping invalid mask layer {layer_path} from masking.")
+                self.log_message(f"Skipping invalid mask layer {layer_path} from masking.")
         if len(input_map_layers) == 0:
             return None
         if len(input_map_layers) == 1:
@@ -1277,7 +1277,7 @@ class ScenarioAnalysisTask(QgsTask):
             "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
         }
 
-        log(f"Used parameters for merging mask layers: {alg_params} \n")
+        self.log_message(f"Used parameters for merging mask layers: {alg_params} \n")
 
         results = processing.run(
             "native:mergevectorlayers",
@@ -1645,7 +1645,7 @@ class ScenarioAnalysisTask(QgsTask):
                     pwl_path = Path(pwl)
 
                     if not pwl_path.exists():
-                        log(missing_pwl_message)
+                        self.log_message(missing_pwl_message)
                         continue
 
                     path_basename = pwl_path.stem
