@@ -199,6 +199,12 @@ def abort_multipart_upload(filename, upload_id):
             Key=filename,
             UploadId=upload_id
         )
+    except Exception as exc:
+        logger.error(f'Unexpected exception occured: {type(exc).__name__} '
+                     'in abort_multipart_upload')
+        logger.error(exc)
+        logger.error(traceback.format_exc())
+    try:
         response = upload_client.list_parts(
             Bucket=bucket_name,
             Key=filename,
@@ -207,10 +213,8 @@ def abort_multipart_upload(filename, upload_id):
         part_list = response.get('Parts', [])
         parts = len(part_list)
     except Exception as exc:
-        logger.error(f'Unexpected exception occured: {type(exc).__name__} '
-                     'in abort_multipart_upload')
-        logger.error(exc)
-        logger.error(traceback.format_exc())
+        # ignore if no such upload
+        parts = 0
     return parts
 
 
