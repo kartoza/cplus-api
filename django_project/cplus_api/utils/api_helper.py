@@ -89,12 +89,11 @@ def build_minio_absolute_url(url):
         name__icontains='minio api'
     ).first()
     current_site = minio_site if minio_site else Site.objects.get_current()
-    scheme = 'https://'
+    scheme = 'http://'
     domain = current_site.domain
     if not domain.endswith('/'):
         domain = domain + '/'
-    result = url.replace('http://minio:9000/', f'{scheme}{domain}')
-    return result
+    return url.replace('http://minio:9000/', f'{scheme}{domain}')
 
 
 def get_upload_client():
@@ -134,7 +133,7 @@ def get_presigned_url(filename):
         return None
 
     # The response contains the presigned URL
-    return response
+    return build_minio_absolute_url(response)
 
 
 def get_multipart_presigned_urls(filename, parts):
@@ -154,13 +153,14 @@ def get_multipart_presigned_urls(filename, parts):
             'UploadId': upload_id,
             'PartNumber': part_number
         }
+        single_url = upload_client.generate_presigned_url(
+            ClientMethod='upload_part',
+            Params=method_parameters,
+            ExpiresIn=3600 * 3
+        )
         results.append({
             'part_number': part_number,
-            'url': upload_client.generate_presigned_url(
-                ClientMethod='upload_part',
-                Params=method_parameters,
-                ExpiresIn=3600 * 3
-            )
+            'url': build_minio_absolute_url(single_url)
         })
     return upload_id, results
 
