@@ -781,3 +781,8 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
                 input_layer_uuid=input_layer.uuid
             ).exists()
         )
+        self.assertFalse(
+            InputLayer.objects.filter(
+                uuid=input_layer.uuid
+            ).exists()
+        )
