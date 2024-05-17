@@ -1144,12 +1144,12 @@ class ScenarioAnalysisTask(QgsTask):
                 return False
 
             if len(masking_layers) > 1:
-                mask_layer = self.merge_vector_layers(masking_layers)
+                initial_mask_layer = self.merge_vector_layers(masking_layers)
             else:
                 mask_layer_path = masking_layers[0]
-                mask_layer = QgsVectorLayer(mask_layer_path, "mask", "ogr")
+                initial_mask_layer = QgsVectorLayer(mask_layer_path, "mask", "ogr")
 
-            if not mask_layer.isValid():
+            if not initial_mask_layer.isValid():
                 self.log_message(
                     f"Skipping activities masking "
                     f"using layer {mask_layer_path}, not a valid layer."
@@ -1157,14 +1157,30 @@ class ScenarioAnalysisTask(QgsTask):
                 return False
 
             if Qgis.versionInt() < 33000:
-                layer_check = mask_layer.geometryType() == QgsWkbTypes.Polygon
+                layer_check = initial_mask_layer.geometryType() == QgsWkbTypes.Polygon
             else:
-                layer_check = mask_layer.geometryType() == Qgis.GeometryType.Polygon
+                layer_check = (
+                    initial_mask_layer.geometryType() == Qgis.GeometryType.Polygon
+                )
 
             if not layer_check:
                 self.log_message(
                     f"Skipping activities masking "
                     f"using layer {mask_layer_path}, not a polygon layer."
+                )
+                return False
+
+            extent_layer = self.layer_extent(extent)
+            mask_layer = self.mask_layer_difference(initial_mask_layer, extent_layer)
+
+            if isinstance(mask_layer, str):
+                mask_layer = QgsVectorLayer(mask_layer, "ogr")
+
+            if not mask_layer.isValid():
+                self.log_message(
+                    f"Skipping activities masking "
+                    f"the created difference mask layer {mask_layer.source()},"
+                    f" not a valid layer."
                 )
                 return False
 
@@ -1287,6 +1303,59 @@ class ScenarioAnalysisTask(QgsTask):
         )
 
         return results["OUTPUT"]
+
+    def layer_extent(self, extent):
+        """Creates a new vector layer contains has a
+        feature with geometry matching an extent parameter.
+        :param extent: Extent parameter
+        :type extent: str
+        :returns: Vector layer
+        :rtype: QgsVectorLayer
+        """
+
+        alg_params = {
+            "INPUT": extent,
+            "CRS": None,
+            "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+        }
+
+        results = processing.run(
+            "native:extenttolayer",
+            alg_params,
+            context=self.processing_context,
+            feedback=self.feedback,
+        )
+
+        return results["OUTPUT"]
+
+    def mask_layer_difference(self, input_layer, overlay_layer):
+        """Creates a new vector layer that contains
+         difference of features between the two passed layers.
+        :param input_layer: Input layer
+        :type input_layer: QgsVectorLayer
+        :param overlay_layer: Target overlay layer
+        :type overlay_layer: QgsVectorLayer
+        :returns: Vector layer
+        :rtype: QgsVectorLayer
+        """
+
+        alg_params = {
+            "INPUT": input_layer,
+            "OVERLAY": overlay_layer,
+            "OVERLAY_FIELDS_PREFIX": "",
+            "GRID_SIZE": None,
+            "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+        }
+
+        results = processing.run(
+            "native:symmetricaldifference",
+            alg_params,
+            context=self.processing_context,
+            feedback=self.feedback,
+        )
+
+        return results["OUTPUT"]
+
 
     def run_activities_sieve(self, models, temporary_output=False):
         """Runs the sieve functionality analysis on the passed models layers,
