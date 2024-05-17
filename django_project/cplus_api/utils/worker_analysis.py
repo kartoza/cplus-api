@@ -462,7 +462,7 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                     self.downloaded_layers.update(layer_paths)
             else:
                 new_mask_paths.append(self.downloaded_layers[layer_uuid])
-        self.task_config.mask_layers_paths = new_mask_paths
+        self.task_config.mask_layers_paths = ','.join(new_mask_paths)
 
         self.log_message(
             'Finished copy input layers: '
