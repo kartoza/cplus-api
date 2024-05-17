@@ -45,7 +45,7 @@ class TaskConfig(object):
     sieve_threshold = 10.0
     sieve_mask_uuid = ''
     mask_path = ''
-    mask_layers_paths = []
+    mask_layers_paths = ''
     mask_layer_uuids = []
     scenario: Scenario = None
     pathway_uuid_layers = {}
