@@ -102,7 +102,7 @@ class ScenarioAnalysisTask(QgsTask):
         return settings_manager.get_priority_layers()
 
     def get_masking_layers(self):
-        masking_layers_paths = settings_manager.get_value(
+        masking_layers_paths = self.get_settings_value(
             Settings.MASK_LAYERS_PATHS, default=None
         )
         masking_layers = masking_layers_paths.split(",") if masking_layers_paths else []
@@ -192,7 +192,7 @@ class ScenarioAnalysisTask(QgsTask):
         # their carbon layers before creating
         # their respective activities.
 
-        save_output = settings_manager.get_value(
+        save_output = self.get_settings_value(
             Settings.NCS_WITH_CARBON, default=True, setting_type=bool
         )
 
@@ -212,7 +212,7 @@ class ScenarioAnalysisTask(QgsTask):
 
         # Creating activities from the normalized pathways
 
-        save_output = settings_manager.get_value(
+        save_output = self.get_settings_value(
             Settings.LANDUSE_PROJECT, default=True, setting_type=bool
         )
 
@@ -244,7 +244,7 @@ class ScenarioAnalysisTask(QgsTask):
         # After creating activities, we normalize them using the same coefficients
         # used in normalizing their respective pathways.
 
-        save_output = settings_manager.get_value(
+        save_output = self.get_settings_value(
             Settings.LANDUSE_NORMALIZED, default=True, setting_type=bool
         )
 
@@ -255,7 +255,7 @@ class ScenarioAnalysisTask(QgsTask):
         )
 
         # Weighting the activities with their corresponding priority weighting layers
-        save_output = settings_manager.get_value(
+        save_output = self.get_settings_value(
             Settings.LANDUSE_WEIGHTED, default=True, setting_type=bool
         )
         weighted_activities, result = self.run_activities_weighting(
@@ -274,7 +274,7 @@ class ScenarioAnalysisTask(QgsTask):
         )
 
         # The highest position tool analysis
-        save_output = settings_manager.get_value(
+        save_output = self.get_settings_value(
             Settings.HIGHEST_POSITION, default=True, setting_type=bool
         )
         self.run_highest_position_analysis(temporary_output=not save_output)
