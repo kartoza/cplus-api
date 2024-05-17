@@ -805,7 +805,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         payload = {
             'multipart_upload_id': 'this_is_upload_id'
         }
-        upload_record = MultipartUpload.objects.create(
+        MultipartUpload.objects.create(
             upload_id=payload['multipart_upload_id'],
             input_layer_uuid=input_layer.uuid,
             created_on=timezone.now(),
