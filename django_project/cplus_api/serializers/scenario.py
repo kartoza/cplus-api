@@ -2,6 +2,7 @@ import uuid
 from logging import getLevelName
 from rest_framework import serializers
 from drf_yasg import openapi
+from django.contrib.contenttypes.models import ContentType
 from core.models.base_task_request import TaskStatus
 from core.models.task_log import TaskLog
 from cplus_api.models.layer import BaseLayer, InputLayer
@@ -355,6 +356,7 @@ class ScenarioInputSerializer(serializers.Serializer):
 class ScenarioTaskStatusSerializer(serializers.ModelSerializer):
     scenario_name = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
+    logs = serializers.SerializerMethodField()
 
     def get_created_by(self, obj: ScenarioTask):
         return obj.submitted_by.email
@@ -366,6 +368,14 @@ class ScenarioTaskStatusSerializer(serializers.ModelSerializer):
             obj.detail['scenario_name'] if
             'scenario_name' in obj.detail else ''
         )
+
+    def get_logs(self, obj: ScenarioTask):
+        scenario_task_ct = ContentType.objects.get(
+            app_label="cplus_api", model="scenariotask")
+        return TaskLog.objects.filter(
+            content_type=scenario_task_ct,
+            object_id=obj.pk
+        ).order_by('date_time').values_list('log', flat=True)
 
     class Meta:
         swagger_schema_fields = {
@@ -429,6 +439,11 @@ class ScenarioTaskStatusSerializer(serializers.ModelSerializer):
                     title='Progress Description',
                     type=openapi.TYPE_STRING
                 ),
+                'logs': openapi.Schema(
+                    title='Logs',
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Items(type=openapi.TYPE_STRING),
+                ),
             },
             'example': {
                 'uuid': '8c4582ab-15b1-4ed0-b8e4-00640ec10a65',
@@ -442,7 +457,8 @@ class ScenarioTaskStatusSerializer(serializers.ModelSerializer):
                 'finished_at': '2022-08-15T09:09:15.049806Z',
                 'errors': None,
                 'progress': 70,
-                'progress_text': 'Processing ABC'
+                'progress_text': 'Processing ABC',
+                'logs': []
             }
         }
         model = ScenarioTask
@@ -450,7 +466,8 @@ class ScenarioTaskStatusSerializer(serializers.ModelSerializer):
             'uuid', 'task_id', 'plugin_version',
             'scenario_name', 'status', 'submitted_on',
             'created_by', 'started_at', 'finished_at',
-            'errors', 'progress', 'progress_text'
+            'errors', 'progress', 'progress_text',
+            'logs'
         ]
 
 
