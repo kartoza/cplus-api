@@ -27,7 +27,7 @@ def create_scenario_task_runner(scenario_task: ScenarioTask):
 
 
 @shared_task(name="run_scenario_analysis_task")
-def run_scenario_analysis_task(scenario_task_id):
+def run_scenario_analysis_task(scenario_task_id):  # pragma: no cover
     scenario_task = ScenarioTask.objects.get(id=scenario_task_id)
     scenario_task.task_on_started()
     logger.info(
@@ -44,7 +44,9 @@ def run_scenario_analysis_task(scenario_task_id):
     import processing  # noqa
     from processing.core.Processing import Processing
     Processing.initialize()
+
     analysis_task = create_scenario_task_runner(scenario_task)
+
     start_time = time.time()
     analysis_task.run()
     logger.info(f'execution time: {time.time() - start_time} seconds')

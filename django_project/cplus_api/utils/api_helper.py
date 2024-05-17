@@ -1,17 +1,21 @@
-import os
-import math
-import traceback
+import json
 import logging
+import os
+import traceback
+from datetime import datetime
+from uuid import UUID
+
 import boto3
-from botocore.exceptions import ClientError
+import math
 from botocore.client import Config
-from rest_framework.exceptions import PermissionDenied
-from drf_yasg import openapi
+from botocore.exceptions import ClientError
 from django.conf import settings
 from django.contrib.sites.models import Site
+from drf_yasg import openapi
+from rest_framework.exceptions import PermissionDenied
+
 from core.models.preferences import SitePreferences
 from cplus_api.models.scenario import ScenarioTask
-
 
 logger = logging.getLogger(__name__)
 LAYER_API_TAG = '01-layer'
@@ -85,12 +89,11 @@ def build_minio_absolute_url(url):
         name__icontains='minio api'
     ).first()
     current_site = minio_site if minio_site else Site.objects.get_current()
-    scheme = 'https://'
+    scheme = 'http://'
     domain = current_site.domain
     if not domain.endswith('/'):
         domain = domain + '/'
-    result = url.replace('http://minio:9000/', f'{scheme}{domain}')
-    return result
+    return url.replace('http://minio:9000/', f'{scheme}{domain}')
 
 
 def get_upload_client():
@@ -130,7 +133,7 @@ def get_presigned_url(filename):
         return None
 
     # The response contains the presigned URL
-    return response
+    return build_minio_absolute_url(response)
 
 
 def get_multipart_presigned_urls(filename, parts):
@@ -150,13 +153,14 @@ def get_multipart_presigned_urls(filename, parts):
             'UploadId': upload_id,
             'PartNumber': part_number
         }
+        single_url = upload_client.generate_presigned_url(
+            ClientMethod='upload_part',
+            Params=method_parameters,
+            ExpiresIn=3600 * 3
+        )
         results.append({
             'part_number': part_number,
-            'url': upload_client.generate_presigned_url(
-                ClientMethod='upload_part',
-                Params=method_parameters,
-                ExpiresIn=3600 * 3
-            )
+            'url': build_minio_absolute_url(single_url)
         })
     return upload_id, results
 
@@ -218,3 +222,37 @@ def convert_size(size_bytes):
     p = math.pow(1024, i)
     s = round(size_bytes / p, 2)
     return "%s %s" % (s, size_name[i])
+
+
+class CustomJsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, UUID):
+            # if the obj is uuid, we simply return the value of uuid
+            return obj.hex
+        if isinstance(obj, datetime):
+            # if the obj is uuid, we simply return the value of uuid
+            return obj.isoformat()
+        return json.JSONEncoder.default(self, obj)
+
+
+def todict(obj, classkey=None):
+    if isinstance(obj, dict):
+        data = {}
+        for (k, v) in obj.items():
+            data[k] = todict(v, classkey)
+        return data
+    elif hasattr(obj, "_ast"):
+        return todict(obj._ast())
+    elif hasattr(obj, "__iter__") and not isinstance(obj, str):
+        return [todict(v, classkey) for v in obj]
+    elif hasattr(obj, "__dict__"):
+        data = dict(
+            [(key, todict(value, classkey))
+             for key, value in obj.__dict__.items()
+             if not callable(value) and not key.startswith('_')]
+        )
+        if classkey is not None and hasattr(obj, "__class__"):
+            data[classkey] = obj.__class__.__name__
+        return data
+    else:
+        return obj

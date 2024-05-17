@@ -32,6 +32,13 @@ def select_input_layer_storage():
     return storages['input_layer_storage']
 
 
+def default_output_meta():
+    """
+    Default value for OutputLayer's output_meta.
+    """
+    return {}
+
+
 class BaseLayer(models.Model):
     class LayerTypes(models.IntegerChoices):
         RASTER = 0, _('Raster')
@@ -71,7 +78,9 @@ class InputLayer(BaseLayer):
         NCS_PATHWAY = 'ncs_pathway', _('ncs_pathway')
         NCS_CARBON = 'ncs_carbon', _('ncs_carbon')
         PRIORITY_LAYER = 'priority_layer', _('priority_layer')
-        REFERENCE_LAYER = 'reference_layer', _('reference_layer')
+        SNAP_LAYER = 'snap_layer', _('snap_layer')
+        SIEVE_MASK_LAYER = 'sieve_mask_layer', _('sieve_mask_layer')
+        MASK_LAYER = 'mask_layer', _('mask_layer')
 
     class PrivacyTypes(models.TextChoices):
         PRIVATE = 'private', _('private')
@@ -154,6 +163,11 @@ class OutputLayer(BaseLayer):
 
     is_deleted = models.BooleanField(
         default=False
+    )
+    output_meta = models.JSONField(
+        default=default_output_meta,
+        blank=True,
+        help_text='Output Metadata.'
     )
 
 

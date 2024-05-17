@@ -220,16 +220,27 @@ class ScenarioInputSerializer(serializers.Serializer):
     scenario_name = serializers.CharField(required=True)
     scenario_desc = serializers.CharField(required=True)
     snapping_enabled = serializers.BooleanField(required=False)
-    snap_layer = serializers.CharField(
-        required=False, validators=[validate_layer_uuid])
+    snap_layer = serializers.CharField(required=False, allow_blank=True)
+    snap_layer_uuid = serializers.CharField(
+        required=False, validators=[validate_layer_uuid], allow_blank=True
+    )
     pathway_suitability_index = serializers.IntegerField(required=False)
     carbon_coefficient = serializers.FloatField(required=False)
     snap_rescale = serializers.BooleanField(required=False)
     snap_method = serializers.IntegerField(required=False)
     sieve_enabled = serializers.BooleanField(required=False)
     sieve_threshold = serializers.FloatField(required=False)
-    mask_path = serializers.CharField(
-        required=False, validators=[validate_layer_uuid])
+    sieve_mask_path = serializers.CharField(required=False, allow_blank=True)
+    sieve_mask_uuid = serializers.CharField(
+        required=False, validators=[validate_layer_uuid], allow_blank=True
+    )
+    mask_path = serializers.CharField(required=False, allow_blank=True)
+    mask_layer_uuids = serializers.ListField(
+        required=False,
+        child=serializers.CharField(
+            required=False, validators=[validate_layer_uuid]
+        )
+    )
     extent = serializers.ListField(
         child=serializers.FloatField(),
         allow_empty=False,
@@ -258,6 +269,10 @@ class ScenarioInputSerializer(serializers.Serializer):
                     type=openapi.TYPE_BOOLEAN
                 ),
                 'snap_layer': openapi.Schema(
+                    title='Snap layer Path',
+                    type=openapi.TYPE_STRING
+                ),
+                'snap_layer_uuid': openapi.Schema(
                     title='Snap layer UUID',
                     type=openapi.TYPE_STRING
                 ),
@@ -285,9 +300,22 @@ class ScenarioInputSerializer(serializers.Serializer):
                     title='Sieve function threshold',
                     type=openapi.TYPE_NUMBER
                 ),
-                'mask_path': openapi.Schema(
+                'sieve_mask_path': openapi.Schema(
+                    title='Sieve mask layer path',
+                    type=openapi.TYPE_STRING
+                ),
+                'sieve_mask_uuid': openapi.Schema(
                     title='Sieve mask layer UUID',
                     type=openapi.TYPE_STRING
+                ),
+                'mask_path': openapi.Schema(
+                    title='Mask layer path',
+                    type=openapi.TYPE_STRING
+                ),
+                'mask_layer_uuids': openapi.Schema(
+                    title='Mask layer UUIDs',
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Items(type=openapi.TYPE_STRING),
                 ),
                 'extent': openapi.Schema(
                     title='Analysis extent',
@@ -509,7 +537,7 @@ class ScenarioDetailSerializer(ScenarioTaskStatusSerializer):
             'scenario_name', 'status', 'submitted_on',
             'created_by', 'started_at', 'finished_at',
             'errors', 'progress', 'progress_text',
-            'detail'
+            'detail', 'updated_detail'
         ]
         swagger_schema_fields = {
             'type': openapi.TYPE_OBJECT,

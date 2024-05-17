@@ -50,11 +50,11 @@ app.conf.beat_schedule = {
     'remove-layers': {
         # Use name from @shared_task(name="remove_layers")
         'task': 'remove_layers',
-        'schedule': crontab(hour='1'),  # Run everyday at 1am
+        'schedule': crontab(minute='0', hour='1'),  # Run everyday at 1am
     },
     'clean-multipart-upload': {
         'task': 'clean_multipart_upload',
-        'schedule': crontab(hour='2'),  # Run everyday at 2am
+        'schedule': crontab(minute='0', hour='2'),  # Run everyday at 2am
     }
 }
 

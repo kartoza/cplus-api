@@ -57,12 +57,12 @@ class TestOutputAPIView(BaseAPIViewTransactionTest):
             is_final_output=True
         )
         self.store_layer_file(output_layer_1, file_path)
-        # add weighted_ims
+        # add weighted_activities
         output_layer_2 = OutputLayerF.create(
             scenario=scenario_task,
             owner=scenario_task.submitted_by,
             is_final_output=False,
-            group='weighted_ims'
+            group='weighted_activities'
         )
         self.store_layer_file(output_layer_2, file_path)
         # add activities
@@ -73,19 +73,19 @@ class TestOutputAPIView(BaseAPIViewTransactionTest):
             group='activities'
         )
         self.store_layer_file(output_layer_3, file_path)
-        # add weighted_ims with empty output file
+        # add weighted_activities with empty output file
         OutputLayerF.create(
             scenario=scenario_task,
             owner=scenario_task.submitted_by,
             is_final_output=False,
-            group='weighted_ims'
+            group='weighted_activities'
         )
-        # add weighted_ims with file does not exist
+        # add weighted_activities with file does not exist
         output_layer_5 = OutputLayerF.create(
             scenario=scenario_task,
             owner=scenario_task.submitted_by,
             is_final_output=False,
-            group='weighted_ims'
+            group='weighted_activities'
         )
         output_layer_5.file.name = (
             'common_layers/ncs_pathway/test_model_2_123.tif'

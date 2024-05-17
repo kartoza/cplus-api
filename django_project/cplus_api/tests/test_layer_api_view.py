@@ -368,6 +368,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertTrue(input_layer)
         self.assertFalse(input_layer.file)
         self.assertEqual(input_layer.size, data['size'])
+
         # test with existing file
         storage_backend = select_input_layer_storage()
         dest_file_path = os.path.join(
