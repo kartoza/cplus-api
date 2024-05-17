@@ -212,7 +212,7 @@ def abort_multipart_upload(filename, upload_id):
         )
         part_list = response.get('Parts', [])
         parts = len(part_list)
-    except Exception as exc:
+    except Exception:
         # ignore if no such upload
         parts = 0
     return parts
