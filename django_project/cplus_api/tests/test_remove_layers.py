@@ -182,3 +182,8 @@ class TestRemoveLayers(BaseAPIViewTransactionTest):
         clean_multipart_upload()
         # parts return 0, both should be removed
         self.assertEqual(MultipartUpload.objects.count(), 0)
+        self.assertFalse(
+            InputLayer.objects.filter(
+                uuid=input_layer.uuid
+            ).exists()
+        )

@@ -542,6 +542,7 @@ class LayerUploadAbort(APIView):
             MultipartUpload.objects.filter(
                 upload_id=multipart_upload_id
             ).delete()
+            input_layer.delete()
         else:
             # else cron job will check and do abort
             MultipartUpload.objects.filter(

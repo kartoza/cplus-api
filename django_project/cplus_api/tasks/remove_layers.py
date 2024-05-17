@@ -76,6 +76,7 @@ def clean_multipart_upload():
         )
         if parts == 0:
             upload.delete()
+            input_layer.delete()
         else:
             upload.is_aborted = True
             upload.save()
