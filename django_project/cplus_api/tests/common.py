@@ -25,7 +25,7 @@ class MockS3Client:
         self.raise_exc = False
         self.mock_parts = None
 
-    def generate_presigned_url(self, ClientMethod, Params, ExpiresIn):
+    def check_raise_exc(self):
         if self.raise_exc:
             raise ClientError(
                 {
@@ -36,6 +36,9 @@ class MockS3Client:
                 },
                 'put_object'
             )
+
+    def generate_presigned_url(self, ClientMethod, Params, ExpiresIn):
+        self.check_raise_exc()
         return 'this_is_url'
 
     def create_multipart_upload(self, Bucket, Key):
@@ -48,9 +51,11 @@ class MockS3Client:
         return True
 
     def abort_multipart_upload(self, Bucket, Key, UploadId):
+        self.check_raise_exc()
         return True
 
     def list_parts(self, Bucket, Key, UploadId):
+        self.check_raise_exc()
         if self.mock_parts is not None:
             return self.mock_parts
         return {
