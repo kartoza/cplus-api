@@ -7,6 +7,7 @@ from core.models.base_task_request import TaskStatus
 from core.models.task_log import TaskLog
 from cplus_api.models.layer import BaseLayer, InputLayer
 from cplus_api.models.scenario import ScenarioTask
+from cplus_api.utils.default import DEFAULT_VALUES
 
 
 def validate_layer_uuid(value):
@@ -220,17 +221,24 @@ class ActivitySerializer(BaseLayerSerializer):
 class ScenarioInputSerializer(serializers.Serializer):
     scenario_name = serializers.CharField(required=True)
     scenario_desc = serializers.CharField(required=True)
-    snapping_enabled = serializers.BooleanField(required=False)
+    snapping_enabled = serializers.BooleanField(
+        required=False, default=DEFAULT_VALUES.snapping_enabled)
     snap_layer = serializers.CharField(required=False, allow_blank=True)
     snap_layer_uuid = serializers.CharField(
         required=False, validators=[validate_layer_uuid], allow_blank=True
     )
-    pathway_suitability_index = serializers.IntegerField(required=False)
-    carbon_coefficient = serializers.FloatField(required=False)
-    snap_rescale = serializers.BooleanField(required=False)
-    snap_method = serializers.IntegerField(required=False)
-    sieve_enabled = serializers.BooleanField(required=False)
-    sieve_threshold = serializers.FloatField(required=False)
+    pathway_suitability_index = serializers.IntegerField(
+        required=False, default=DEFAULT_VALUES.pathway_suitability_index)
+    carbon_coefficient = serializers.FloatField(
+        required=False, default=DEFAULT_VALUES.carbon_coefficient)
+    snap_rescale = serializers.BooleanField(
+        required=False, default=DEFAULT_VALUES.snap_rescale)
+    snap_method = serializers.IntegerField(
+        required=False, default=DEFAULT_VALUES.snap_method)
+    sieve_enabled = serializers.BooleanField(
+        required=False, default=DEFAULT_VALUES.sieve_enabled)
+    sieve_threshold = serializers.FloatField(
+        required=False, default=DEFAULT_VALUES.sieve_threshold)
     sieve_mask_path = serializers.CharField(required=False, allow_blank=True)
     sieve_mask_uuid = serializers.CharField(
         required=False, validators=[validate_layer_uuid], allow_blank=True
@@ -251,6 +259,16 @@ class ScenarioInputSerializer(serializers.Serializer):
     priority_layers = PriorityLayerSerializer(many=True)
     priority_layer_groups = PriorityGroupSerializer(many=True)
     activities = ActivitySerializer(many=True)
+    ncs_with_carbon = serializers.BooleanField(
+        required=False, default=DEFAULT_VALUES.ncs_with_carbon)
+    landuse_project = serializers.BooleanField(
+        required=False, default=DEFAULT_VALUES.landuse_project)
+    landuse_normalized = serializers.BooleanField(
+        required=False, default=DEFAULT_VALUES.landuse_normalized)
+    landuse_weighted = serializers.BooleanField(
+        required=False, default=DEFAULT_VALUES.landuse_weighted)
+    highest_position = serializers.BooleanField(
+        required=False, default=DEFAULT_VALUES.highest_position)
 
     class Meta:
         swagger_schema_fields = {
@@ -267,7 +285,8 @@ class ScenarioInputSerializer(serializers.Serializer):
                 ),
                 'snapping_enabled': openapi.Schema(
                     title='Is snapping enabled',
-                    type=openapi.TYPE_BOOLEAN
+                    type=openapi.TYPE_BOOLEAN,
+                    default=DEFAULT_VALUES.snapping_enabled
                 ),
                 'snap_layer': openapi.Schema(
                     title='Snap layer Path',
@@ -279,27 +298,33 @@ class ScenarioInputSerializer(serializers.Serializer):
                 ),
                 'pathway_suitability_index': openapi.Schema(
                     title='Pathway suitability index',
-                    type=openapi.TYPE_INTEGER
+                    type=openapi.TYPE_INTEGER,
+                    default=DEFAULT_VALUES.pathway_suitability_index
                 ),
                 'carbon_coefficient': openapi.Schema(
                     title='Carbon coefficient',
-                    type=openapi.TYPE_NUMBER
+                    type=openapi.TYPE_NUMBER,
+                    default=DEFAULT_VALUES.carbon_coefficient
                 ),
                 'snap_rescale': openapi.Schema(
                     title='Is snap rescale',
-                    type=openapi.TYPE_BOOLEAN
+                    type=openapi.TYPE_BOOLEAN,
+                    default=DEFAULT_VALUES.snap_rescale
                 ),
                 'snap_method': openapi.Schema(
                     title='Snap method',
-                    type=openapi.TYPE_INTEGER
+                    type=openapi.TYPE_INTEGER,
+                    default=DEFAULT_VALUES.snap_method
                 ),
                 'sieve_enabled': openapi.Schema(
                     title='Is sieve function enabled',
-                    type=openapi.TYPE_BOOLEAN
+                    type=openapi.TYPE_BOOLEAN,
+                    default=DEFAULT_VALUES.sieve_enabled
                 ),
                 'sieve_threshold': openapi.Schema(
                     title='Sieve function threshold',
-                    type=openapi.TYPE_NUMBER
+                    type=openapi.TYPE_NUMBER,
+                    default=DEFAULT_VALUES.sieve_threshold
                 ),
                 'sieve_mask_path': openapi.Schema(
                     title='Sieve mask layer path',
@@ -308,6 +333,31 @@ class ScenarioInputSerializer(serializers.Serializer):
                 'sieve_mask_uuid': openapi.Schema(
                     title='Sieve mask layer UUID',
                     type=openapi.TYPE_STRING
+                ),
+                'ncs_with_carbon': openapi.Schema(
+                    title='Enable output NCS with carbon',
+                    type=openapi.TYPE_BOOLEAN,
+                    default=DEFAULT_VALUES.ncs_with_carbon
+                ),
+                'landuse_project': openapi.Schema(
+                    title='Enable output Landuse Activity',
+                    type=openapi.TYPE_BOOLEAN,
+                    default=DEFAULT_VALUES.landuse_project
+                ),
+                'landuse_normalized': openapi.Schema(
+                    title='Enable output Landuse Activity Normalized',
+                    type=openapi.TYPE_BOOLEAN,
+                    default=DEFAULT_VALUES.landuse_normalized
+                ),
+                'landuse_weighted': openapi.Schema(
+                    title='Enable output Landuse Weighted with PWL',
+                    type=openapi.TYPE_BOOLEAN,
+                    default=DEFAULT_VALUES.landuse_weighted
+                ),
+                'highest_position': openapi.Schema(
+                    title='Enable output Scenario Highest Position analysis',
+                    type=openapi.TYPE_BOOLEAN,
+                    default=DEFAULT_VALUES.highest_position
                 ),
                 'mask_path': openapi.Schema(
                     title='Mask layer path',
