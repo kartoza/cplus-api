@@ -1660,7 +1660,7 @@ class ScenarioAnalysisTask(QgsTask):
                         level=Qgis.Critical,
                     )
                     self.log_message(
-                        f"Problem when running activities normalization, "
+                        f"Problem when running activities weighting, "
                         f"there is no map layer for the activity {activity.name}"
                     )
 
