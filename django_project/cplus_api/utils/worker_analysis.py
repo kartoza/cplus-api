@@ -532,7 +532,7 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
             layers = layers.filter(
                 component_type=component_type
             )
-        max_workers = 2 if os.cpu_count() > 2 else 1
+        max_workers = 2 if os.cpu_count() >= 2 else 1
         logger.info(
             f'Downloading {layers.count()} using {max_workers} workers')
         with concurrent.futures.ThreadPoolExecutor(
