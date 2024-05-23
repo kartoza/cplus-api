@@ -5,6 +5,7 @@ import os
 import logging
 import traceback
 import subprocess
+import concurrent.futures
 from django.conf import settings
 from django.utils import timezone
 from django.template.loader import render_to_string
@@ -371,6 +372,13 @@ def create_and_upload_output_layer(
     return output_layer
 
 
+def download_input_layer(input_layer: InputLayer, base_dir):
+    return (
+        str(input_layer.uuid),
+        input_layer.download_to_working_directory(base_dir),
+    )
+
+
 class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
 
     MIN_UPDATE_PROGRESS_IN_SECONDS = 1
@@ -524,13 +532,24 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
             layers = layers.filter(
                 component_type=component_type
             )
-        for layer in layers:
-            file_path = layer.download_to_working_directory(scenario_path)
-            if not file_path:
-                continue
-            if not os.path.exists(file_path):
-                continue
-            results[str(layer.uuid)] = file_path
+        max_workers = 3 if os.cpu_count() > 3 else 1
+        logger.info(
+            f'Downloading {layers.count()} using {max_workers} workers')
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=max_workers
+        ) as executor:
+            futures = []
+            for layer in layers:
+                futures.append(
+                    executor.submit(
+                        download_input_layer, input_layer=layer,
+                        base_dir=scenario_path
+                    )
+                )
+            for future in concurrent.futures.as_completed(futures):
+                layer_uuid, file_path = future.result()
+                if file_path and os.path.exists(file_path):
+                    results[layer_uuid] = file_path
         return results
 
     def patch_layer_path_to_priority_layers(self, priority_layer_paths):
