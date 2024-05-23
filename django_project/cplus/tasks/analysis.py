@@ -1040,7 +1040,7 @@ class ScenarioAnalysisTask(QgsTask):
 
                 layers = []
                 if not activity.pathways and (
-                    activity.path is None and activity.path == ""
+                    activity.path is None or activity.path == ""
                 ):
                     self.set_info_message(
                         tr(
