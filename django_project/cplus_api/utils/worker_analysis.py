@@ -21,6 +21,7 @@ from cplus.utils.conf import Settings
 from cplus_api.models.scenario import ScenarioTask
 from cplus_api.models.layer import BaseLayer, OutputLayer, InputLayer
 from cplus_api.utils.api_helper import convert_size, todict, CustomJsonEncoder
+from cplus_api.utils.default import DEFAULT_VALUES
 
 logger = logging.getLogger(__name__)
 
@@ -34,15 +35,15 @@ class TaskConfig(object):
     priority_layers: typing.List = []
     priority_layer_groups: typing.List = []
     analysis_extent: SpatialExtent = None
-    snapping_enabled: bool = False
+    snapping_enabled: bool = DEFAULT_VALUES.snapping_enabled
     snap_layer = ''
     snap_layer_uuid = ''
-    pathway_suitability_index = 0
-    carbon_coefficient = 0.0
-    snap_rescale = False
-    snap_method = 0
-    sieve_enabled = False
-    sieve_threshold = 10.0
+    pathway_suitability_index = DEFAULT_VALUES.pathway_suitability_index
+    carbon_coefficient = DEFAULT_VALUES.carbon_coefficient
+    snap_rescale = DEFAULT_VALUES.snap_rescale
+    snap_method = DEFAULT_VALUES.snap_method
+    sieve_enabled = DEFAULT_VALUES.sieve_enabled
+    sieve_threshold = DEFAULT_VALUES.sieve_threshold
     sieve_mask_uuid = ''
     mask_path = ''
     mask_layers_paths = ''
@@ -52,16 +53,31 @@ class TaskConfig(object):
     carbon_uuid_layers = {}
     priority_uuid_layers = {}
     total_input_layers = 0
+    # output selections
+    ncs_with_carbon = DEFAULT_VALUES.ncs_with_carbon
+    landuse_project = DEFAULT_VALUES.landuse_project
+    landuse_normalized = DEFAULT_VALUES.landuse_normalized
+    landuse_weighted = DEFAULT_VALUES.landuse_weighted
+    highest_position = DEFAULT_VALUES.highest_position
 
     def __init__(self, scenario_name, scenario_desc, extent,
                  analysis_activities, priority_layers,
                  priority_layer_groups,
                  snapping_enabled=False, snap_layer_uuid='',
-                 pathway_suitability_index=0,
-                 carbon_coefficient=0.0, snap_rescale=False,
-                 snap_method=0, sieve_enabled=False,
-                 sieve_threshold=10.0, sieve_mask_uuid='',
-                 mask_layer_uuids='', scenario_uuid=None) -> None:
+                 pathway_suitability_index=
+                 DEFAULT_VALUES.pathway_suitability_index,
+                 carbon_coefficient=DEFAULT_VALUES.carbon_coefficient,
+                 snap_rescale=DEFAULT_VALUES.snap_rescale,
+                 snap_method=DEFAULT_VALUES.snap_method,
+                 sieve_enabled=DEFAULT_VALUES.sieve_enabled,
+                 sieve_threshold=DEFAULT_VALUES.sieve_threshold,
+                 sieve_mask_uuid='',
+                 mask_layer_uuids='', scenario_uuid=None,
+                 ncs_with_carbon=DEFAULT_VALUES.ncs_with_carbon,
+                 landuse_project=DEFAULT_VALUES.landuse_project,
+                 landuse_normalized=DEFAULT_VALUES.landuse_normalized,
+                 landuse_weighted=DEFAULT_VALUES.landuse_weighted,
+                 highest_position=DEFAULT_VALUES.highest_position) -> None:
         self.scenario_name = scenario_name
         self.scenario_desc = scenario_desc
         if scenario_uuid:
@@ -89,6 +105,12 @@ class TaskConfig(object):
             weighted_activities=[],
             priority_layer_groups=self.priority_layer_groups
         )
+        # output selections
+        self.ncs_with_carbon = ncs_with_carbon
+        self.landuse_project = landuse_project
+        self.landuse_normalized = landuse_normalized
+        self.landuse_weighted = landuse_weighted
+        self.highest_position = highest_position
 
     def get_activity(
         self, activity_uuid: str
@@ -137,7 +159,12 @@ class TaskConfig(object):
             'pathway_uuid_layers': self.pathway_uuid_layers,
             'carbon_uuid_layers': self.carbon_uuid_layers,
             'priority_uuid_layers': self.priority_uuid_layers,
-            'total_input_layers': self.total_input_layers
+            'total_input_layers': self.total_input_layers,
+            'ncs_with_carbon': self.ncs_with_carbon,
+            'landuse_project': self.landuse_project,
+            'landuse_normalized': self.landuse_normalized,
+            'landuse_weighted': self.landuse_weighted,
+            'highest_position': self.highest_position
         }
         for activity in self.analysis_activities:
             activity_dict = {
@@ -171,17 +198,34 @@ class TaskConfig(object):
         )
         config.priority_layers = data.get('priority_layers', [])
         config.priority_layer_groups = data.get('priority_layer_groups', [])
-        config.snapping_enabled = data.get('snapping_enabled', False)
+        config.snapping_enabled = data.get(
+            'snapping_enabled', DEFAULT_VALUES.snapping_enabled)
         config.snap_layer_uuid = data.get('snap_layer_uuid', '')
         config.pathway_suitability_index = data.get(
-            'pathway_suitability_index', 0)
-        config.carbon_coefficient = data.get('carbon_coefficient', 0.0)
-        config.snap_rescale = data.get('snap_rescale', False)
-        config.snap_method = data.get('snap_method', 0)
-        config.sieve_enabled = data.get('sieve_enabled', False)
-        config.sieve_threshold = data.get('sieve_threshold', 10.0)
+            'pathway_suitability_index',
+            DEFAULT_VALUES.pathway_suitability_index)
+        config.carbon_coefficient = data.get(
+            'carbon_coefficient', DEFAULT_VALUES.carbon_coefficient)
+        config.snap_rescale = data.get(
+            'snap_rescale', DEFAULT_VALUES.snap_rescale)
+        config.snap_method = data.get(
+            'snap_method', DEFAULT_VALUES.snap_method)
+        config.sieve_enabled = data.get(
+            'sieve_enabled', DEFAULT_VALUES.sieve_enabled)
+        config.sieve_threshold = data.get(
+            'sieve_threshold', DEFAULT_VALUES.sieve_threshold)
         config.sieve_mask_uuid = data.get('sieve_mask_uuid', '')
         config.mask_layer_uuids = data.get('mask_layer_uuids', '')
+        config.ncs_with_carbon = data.get(
+            'ncs_with_carbon', DEFAULT_VALUES.ncs_with_carbon)
+        config.landuse_project = data.get(
+            'landuse_project', DEFAULT_VALUES.landuse_project)
+        config.landuse_normalized = data.get(
+            'landuse_normalized', DEFAULT_VALUES.landuse_normalized)
+        config.landuse_weighted = data.get(
+            'landuse_weighted', DEFAULT_VALUES.landuse_weighted)
+        config.highest_position = data.get(
+            'highest_position', DEFAULT_VALUES.highest_position)
         # store dict of <layer_uuid, list of obj identifier>
         config.priority_uuid_layers = {}
         config.pathway_uuid_layers = {}

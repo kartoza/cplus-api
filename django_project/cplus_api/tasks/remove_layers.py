@@ -37,7 +37,9 @@ def remove_layers():
 
     # Remove private data that is more 2 weeks
     output_group_to_keep = SitePreferences.preferences().output_group_to_keep
-    output_layers = OutputLayer.objects.exclude(
+    output_layers = OutputLayer.objects.filter(
+        created_on__lt=last_14_days_datetime
+    ).exclude(
         Q(is_final_output=True) | Q(group__in=output_group_to_keep)
     )
     results[OutputLayer] = output_layers.count()
