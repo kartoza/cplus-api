@@ -1,5 +1,6 @@
 import os
 import uuid
+from zipfile import ZipFile
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
@@ -113,16 +114,16 @@ class InputLayer(BaseLayer):
         blank=True
     )
 
-    def download_to_working_directory(self, base_dir):
+    def download_to_working_directory(self, base_dir: str):
         if not self.is_available():
             return None
-        dir_path = os.path.join(
+        dir_path: str = os.path.join(
             base_dir,
             self.component_type
         )
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
-        file_path = os.path.join(
+        file_path: str = os.path.join(
             dir_path,
             os.path.basename(self.file.name)
         )
@@ -131,6 +132,10 @@ class InputLayer(BaseLayer):
                 destination.write(chunk)
         self.last_used_on = timezone.now()
         self.save(update_fields=['last_used_on'])
+        if file_path.endswith('.zip'):
+            with ZipFile(file_path, 'r') as zip_ref:
+                zip_ref.extractall(dir_path)
+            return file_path.replace('.zip', '.shp')
         return file_path
 
     def is_available(self):

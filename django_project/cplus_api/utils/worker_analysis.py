@@ -20,7 +20,12 @@ from cplus.tasks.analysis import ScenarioAnalysisTask
 from cplus.utils.conf import Settings
 from cplus_api.models.scenario import ScenarioTask
 from cplus_api.models.layer import BaseLayer, OutputLayer, InputLayer
-from cplus_api.utils.api_helper import convert_size, todict, CustomJsonEncoder
+from cplus_api.utils.api_helper import (
+    convert_size,
+    todict,
+    CustomJsonEncoder,
+    get_layer_type
+)
 
 logger = logging.getLogger(__name__)
 
@@ -298,31 +303,34 @@ def create_and_upload_output_layer(
         is_final_output: bool, group: str,
         output_meta: dict = None) -> OutputLayer:
     filename = os.path.basename(file_path)
-    cog_name = (
-        f"{os.path.basename(file_path).split('.')[0]}"
-        f"_COG."
-        f"{os.path.basename(file_path).split('.')[1]}"
-    )
-    cog_path = os.path.join(
-        os.path.dirname(file_path),
-        cog_name
-    )
-    subprocess.run(
-        f"gdal_translate -of COG -co COMPRESS=DEFLATE {file_path} {cog_path}",
-        shell=True
-    )
+    if get_layer_type(file_path) == 0:
+        cog_name = (
+            f"{os.path.basename(file_path).split('.')[0]}"
+            f"_COG."
+            f"{os.path.basename(file_path).split('.')[1]}"
+        )
+        final_output_path = os.path.join(
+            os.path.dirname(file_path),
+            cog_name
+        )
+        subprocess.run(
+            f"gdal_translate -of COG -co COMPRESS=DEFLATE {file_path} {final_output_path}",
+            shell=True
+        )
+    else:
+        final_output_path = file_path
     output_layer = OutputLayer.objects.create(
         name=filename,
         created_on=timezone.now(),
         owner=scenario_task.submitted_by,
         layer_type=BaseLayer.LayerTypes.RASTER,
-        size=os.stat(cog_path).st_size,
+        size=os.stat(final_output_path).st_size,
         is_final_output=is_final_output,
         scenario=scenario_task,
         group=group,
         output_meta={} if not output_meta else output_meta
     )
-    with open(cog_path, 'rb') as output_file:
+    with open(final_output_path, 'rb') as output_file:
         output_layer.file.save(filename, output_file)
     return output_layer
 
