@@ -2,7 +2,11 @@ import uuid
 import json
 import datetime
 from django.test import TestCase
-from cplus_api.utils.api_helper import todict, CustomJsonEncoder
+from cplus_api.utils.api_helper import (
+    todict,
+    CustomJsonEncoder,
+    get_layer_type
+)
 
 
 class SampleObj:
@@ -41,6 +45,19 @@ class TestUtils(TestCase):
             }
         ]
         self.assertEqual(todict(test_obj, SampleObj), expected_value)
+
+    def test_get_layer_type(self):
+        filepath = '/tmp/test/file.tif'
+        self.assertEqual(get_layer_type(filepath), 0)
+
+        filepath = '/tmp/test/file.zip'
+        self.assertEqual(get_layer_type(filepath), 1)
+
+        filepath = '/tmp/test/file.shp'
+        self.assertEqual(get_layer_type(filepath), 1)
+
+        filepath = '/tmp/test/file.netcdf'
+        self.assertEqual(get_layer_type(filepath), -1)
 
 
 class TestCustomJSONEncoder(TestCase):

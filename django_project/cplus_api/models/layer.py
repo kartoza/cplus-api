@@ -135,7 +135,13 @@ class InputLayer(BaseLayer):
         if file_path.endswith('.zip'):
             with ZipFile(file_path, 'r') as zip_ref:
                 zip_ref.extractall(dir_path)
-            return file_path.replace('.zip', '.shp')
+            shapefile = [
+                file for file in os.listdir(dir_path) if file.endswith('.shp')
+            ]
+            if shapefile:
+                return os.path.join(dir_path, shapefile[0])
+            else:
+                return None
         return file_path
 
     def is_available(self):
