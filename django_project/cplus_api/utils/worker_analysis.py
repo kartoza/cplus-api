@@ -69,8 +69,7 @@ class TaskConfig(object):
                  analysis_activities, priority_layers,
                  priority_layer_groups,
                  snapping_enabled=False, snap_layer_uuid='',
-                 pathway_suitability_index=
-                 DEFAULT_VALUES.pathway_suitability_index,
+                 pathway_suitability_index=DEFAULT_VALUES.pathway_suitability_index,  # noqa
                  carbon_coefficient=DEFAULT_VALUES.carbon_coefficient,
                  snap_rescale=DEFAULT_VALUES.snap_rescale,
                  snap_method=DEFAULT_VALUES.snap_method,
@@ -358,7 +357,10 @@ def create_and_upload_output_layer(
             cog_name
         )
         subprocess.run(
-            f"gdal_translate -of COG -co COMPRESS=DEFLATE {file_path} {final_output_path}",
+            (
+                f"gdal_translate -of COG -co COMPRESS=DEFLATE"
+                f" {file_path} {final_output_path}"
+            ),
             shell=True
         )
     else:
