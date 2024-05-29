@@ -369,7 +369,7 @@ def create_and_upload_output_layer(
         name=filename,
         created_on=timezone.now(),
         owner=scenario_task.submitted_by,
-        layer_type=BaseLayer.LayerTypes.RASTER,
+        layer_type=get_layer_type(file_path),
         size=os.stat(final_output_path).st_size,
         is_final_output=is_final_output,
         scenario=scenario_task,

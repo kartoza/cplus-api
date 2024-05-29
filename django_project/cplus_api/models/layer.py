@@ -133,13 +133,17 @@ class InputLayer(BaseLayer):
         self.last_used_on = timezone.now()
         self.save(update_fields=['last_used_on'])
         if file_path.endswith('.zip'):
+            extract_path = os.path.join(
+                dir_path,
+                os.path.basename(file_path).replace('.zip', '_zip')
+            )
             with ZipFile(file_path, 'r') as zip_ref:
-                zip_ref.extractall(dir_path)
+                zip_ref.extractall(extract_path)
             shapefile = [
-                file for file in os.listdir(dir_path) if file.endswith('.shp')
+                file for file in os.listdir(extract_path) if file.endswith('.shp')
             ]
             if shapefile:
-                return os.path.join(dir_path, shapefile[0])
+                return os.path.join(extract_path, shapefile[0])
             else:
                 return None
         return file_path
