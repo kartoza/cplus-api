@@ -140,7 +140,8 @@ class InputLayer(BaseLayer):
             with ZipFile(file_path, 'r') as zip_ref:
                 zip_ref.extractall(extract_path)
             shapefile = [
-                file for file in os.listdir(extract_path) if file.endswith('.shp')
+                file for file in os.listdir(extract_path)
+                if file.endswith('.shp')
             ]
             if shapefile:
                 return os.path.join(extract_path, shapefile[0])

@@ -19,7 +19,7 @@ from cplus.models.base import (
 from cplus.tasks.analysis import ScenarioAnalysisTask
 from cplus.utils.conf import Settings
 from cplus_api.models.scenario import ScenarioTask
-from cplus_api.models.layer import BaseLayer, OutputLayer, InputLayer
+from cplus_api.models.layer import OutputLayer, InputLayer
 from cplus_api.utils.api_helper import (
     convert_size,
     todict,
