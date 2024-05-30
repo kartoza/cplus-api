@@ -6,7 +6,7 @@ from django.utils import timezone
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from django.shortcuts import get_object_or_404
-from django.core.exceptions import ValidationError
+from rest_framework.exceptions import ValidationError
 from django.contrib.contenttypes.models import ContentType
 from django.core.paginator import Paginator
 from core.celery import cancel_task
