@@ -95,6 +95,9 @@ class TestModelLayer(BaseInitData):
             os.path.join(
                 tmp_dir,
                 input_layer_2.get_component_type_display(),
+                os.path.basename(
+                    input_layer_2.file.name.replace('.zip', '_zip')
+                ),
                 'shops_poly'
             )
         ))
