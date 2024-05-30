@@ -76,8 +76,6 @@ class ScenarioTask(BaseTaskRequest):
         if not os.path.exists(directory_path):
             return results, total_files
         for path, dirs, files in os.walk(directory_path):
-            if path.endswith('_zip'):
-                continue
             for file in files:
                 if file.endswith('.xml'):
                     continue
