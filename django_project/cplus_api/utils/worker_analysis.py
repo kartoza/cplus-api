@@ -399,6 +399,7 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
         self.scenario_task = scenario_task
         self.last_update_progress = None
         self.downloaded_layers = {}
+        self.downloaded_layer_count = 0
 
     def prepare_run(self):
         # clear existing scenario directory if exists
@@ -416,6 +417,8 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
     def initialize_input_layers(self, scenario_path: str):
         self.log_message(
             f'Initialize input layers: {self.task_config.total_input_layers}')
+        self.set_custom_progress(0)
+        self.set_status_message('Preparing input layers')
 
         # init priority layers
         priority_layer_paths = {}
@@ -522,6 +525,7 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
             'Finished copy input layers: '
             f'{self.task_config.total_input_layers}'
         )
+        self.set_custom_progress(100)
 
     def copy_input_layers_by_uuids(
             self, component_type: InputLayer.ComponentTypes,
@@ -534,8 +538,19 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
             layers = layers.filter(
                 component_type=component_type
             )
+        total_input_layers = (
+            self.task_config.total_input_layers if
+            self.task_config.total_input_layers > 0 else 1
+        )
         for layer in layers:
             file_path = layer.download_to_working_directory(scenario_path)
+            self.downloaded_layer_count += 1
+            self.set_custom_progress(
+                100 * (
+                    self.downloaded_layer_count /
+                    total_input_layers
+                )
+            )
             if not file_path:
                 continue
             if not os.path.exists(file_path):
