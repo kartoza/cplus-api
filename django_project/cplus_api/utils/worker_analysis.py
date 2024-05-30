@@ -761,7 +761,6 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
 
     def finished(self, result: bool):
         if result:
-            self.log_message("Finished from the main task \n")
             self.upload_scenario_outputs()
         else:
             self.log_message(
