@@ -50,7 +50,10 @@ class TrendsEarthAuthentication(authentication.BaseAuthentication):
                 # as username in CPLUS API user table
                 user, created = get_user_model().objects.update_or_create(
                     email=user_profile['email'],
-                    defaults={"first_name": user_profile["name"], "username": user_profile['id']},
+                    defaults={
+                        "first_name": user_profile["name"],
+                        "username": user_profile['id']
+                    },
                 )
                 expiry = (
                     datetime.fromtimestamp(
