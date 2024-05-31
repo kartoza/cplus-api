@@ -100,29 +100,7 @@ class TestOutputAPIView(BaseAPIViewTransactionTest):
         response = view(request, **kwargs)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data['results']), 5)
-        # 2 items should have url, 3 items should not have
-        filtered_layers = self.filter_layers_having_urls(
-            response.data['results'])
-        self.assertEqual(len(filtered_layers), 2)
-        find_layer = self.find_layer_from_response(
-            filtered_layers, output_layer_1.uuid)
-        self.assertTrue(find_layer)
-        find_layer = self.find_layer_from_response(
-            filtered_layers, output_layer_2.uuid)
-        self.assertTrue(find_layer)
-        # test with download_all, should return 5 items
         # 3 items should have url
-        request = self.factory.get(
-            reverse(
-                'v1:scenario-output-list',
-                kwargs=kwargs
-            ) + '?download_all=true'
-        )
-        request.resolver_match = FakeResolverMatchV1
-        request.user = self.superuser
-        response = view(request, **kwargs)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data['results']), 5)
         filtered_layers = self.filter_layers_having_urls(
             response.data['results'])
         self.assertEqual(len(filtered_layers), 3)
@@ -140,7 +118,7 @@ class TestOutputAPIView(BaseAPIViewTransactionTest):
             reverse(
                 'v1:scenario-output-list',
                 kwargs=kwargs
-            ) + '?download_all=true&group=activities'
+            ) + '?group=activities'
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser

@@ -20,6 +20,11 @@ class SitePreferencesAdmin(admin.ModelAdmin):
                 'output_group_to_keep',
             )
         }),
+        ('Remove Layers Job', {
+            'fields': (
+                'layer_days_to_keep',
+            )
+        }),
     )
 
 
