@@ -31,8 +31,8 @@ class CustomSchemaGenerator(OpenAPISchemaGenerator):
     def get_schema(self, request=None, public=False):
         schema = super().get_schema(request, public)
         schema.schemes = ['https']
-        # if settings.DEBUG:
-        schema.schemes = ['http'] + schema.schemes
+        if settings.DEBUG:
+            schema.schemes = ['http'] + schema.schemes
         return schema
 
 
