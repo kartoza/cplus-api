@@ -47,6 +47,10 @@ class SitePreferences(SingletonModel):
         blank=True,
         help_text='Output group to keep from automatic removal.'
     )
+    layer_days_to_keep = models.IntegerField(
+        default=14,
+        help_text='Keep input/output layers until X days.'
+    )
 
     class Meta:  # noqa: D106
         verbose_name_plural = "site preferences"

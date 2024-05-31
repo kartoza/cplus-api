@@ -27,10 +27,18 @@ def remove_layers():
     }
 
     # Remove private Input Layer that is more 2 weeks
-    last_14_days_datetime = timezone.now() - timedelta(days=14)
+    last_x_days_datetime = (
+        timezone.now() -
+        timedelta(days=SitePreferences.preferences().layer_days_to_keep)
+    )
     input_layers = InputLayer.objects.filter(
         privacy_type=InputLayer.PrivacyTypes.PRIVATE,
-        created_on__lt=last_14_days_datetime
+    ).filter(
+        (
+            Q(created_on__lt=last_x_days_datetime) &
+            Q(last_used_on__isnull=True)
+        ) |
+        Q(last_used_on__lt=last_x_days_datetime)
     )
     results[InputLayer] = input_layers.count()
     input_layers.delete()
@@ -38,7 +46,7 @@ def remove_layers():
     # Remove private data that is more 2 weeks
     output_group_to_keep = SitePreferences.preferences().output_group_to_keep
     output_layers = OutputLayer.objects.filter(
-        created_on__lt=last_14_days_datetime
+        created_on__lt=last_x_days_datetime
     ).exclude(
         Q(is_final_output=True) | Q(group__in=output_group_to_keep)
     )
