@@ -341,28 +341,14 @@ class FinishUploadLayerSerializer(serializers.Serializer):
 
 
 class OutputLayerSerializer(serializers.ModelSerializer):
-    DEFAULT_GROUP_IN_OUTPUT_URL = ['weighted_activities']
     filename = serializers.CharField(source='name')
     created_by = serializers.SerializerMethodField()
     url = serializers.SerializerMethodField()
-
-    def check_generate_all_outputs(self, obj: OutputLayer):
-        is_fetch_all = self.context.get('is_fetch_all', False)
-        if is_fetch_all:
-            return True
-        if (
-            not obj.is_final_output and
-            obj.group not in self.DEFAULT_GROUP_IN_OUTPUT_URL
-        ):
-            return False
-        return True
 
     def get_created_by(self, obj: OutputLayer):
         return obj.owner.email
 
     def get_url(self, obj: OutputLayer):
-        if not self.check_generate_all_outputs(obj):
-            return None
         if not obj.file.name:
             return None
         if not obj.file.storage.exists(obj.file.name):
