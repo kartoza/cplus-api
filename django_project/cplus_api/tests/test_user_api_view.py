@@ -139,3 +139,76 @@ class TestTrendsEarthAuth(BaseAPIViewTest):
             self.assertEqual(created_user.user_profile.role.name, 'External')
         mocked_cache.assert_called_once()
         mocked_set_cache.assert_called_once()
+
+    @mock.patch('django.core.cache.cache.set')
+    @mock.patch('django.core.cache.cache.get')
+    def test_prevent_duplicate_account(self, mocked_cache,
+                                       mocked_set_cache):
+        """
+        Test case when users deleted their Trends.Earth account.
+        When they create a new Trends.Earth account and use it in
+        CPLUS API, CPLUS API should update their old account instead
+        of creating a new one.
+        """
+        old_user = UserF.create(
+            username="df34cc5e-3772-4e42-8289-cb6d9abbe093",
+            first_name="Test",
+            email="test@kartoza.com"
+        )
+
+        mocked_cache.return_value = None
+        jwt_token = (
+            "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9."
+            "eyJleHAiOjE3MTcyMjQyNzksImlhdCI6MTcxNz"
+            "EzNzg3OSwibmJmIjoxNzE3MTM3ODc5LCJpZGVu"
+            "dGl0eSI6IjljNTE0NjI4M2ZlZDQzMDViM2Y2MTE"
+            "3YThkMzA4ZTlkIn0.NAzCE32QgjR4CS0bhjFW0z5"
+            "Eo2En8BA9uFXFzb9IPGI"
+        )
+        request = self.factory.get(
+            reverse('v1:user-info'),
+            **{'HTTP_AUTHORIZATION': f'Bearer {jwt_token}'}
+        )
+        request.resolver_match = FakeResolverMatchV1
+        view = UserInfo.as_view()
+
+        with requests_mock.Mocker() as rm:
+            return_value = {
+                "data": {
+                    "country": "Indonesia",
+                    "created_at": "2024-03-12T04:33:54.029058",
+                    "email": "test@kartoza.com",
+                    "id": "2610fb8f-3a02-416c-89e7-6f096fff1d3a",
+                    "institution": "Kartoza",
+                    "name": "New Test User",
+                    "role": "USER",
+                    "updated_at": "2024-03-12T04:33:54.029065"
+                }
+            }
+            rm.get(TRENDS_EARTH_PROFILE_URL, json=return_value)
+            response = view(request)
+            self.assertEqual(response.status_code, 200)
+
+            old_user.refresh_from_db()
+
+            # Test that username and first name are updated
+            self.assertEqual(
+                old_user.username,
+                "2610fb8f-3a02-416c-89e7-6f096fff1d3a"
+            )
+            self.assertEqual(
+                old_user.first_name,
+                "New Test User"
+            )
+
+            # Test that email is not updated
+            self.assertEqual(
+                old_user.email,
+                "test@kartoza.com"
+            )
+            self.assertEqual(
+                old_user.user_profile.role.name,
+                "External"
+            )
+        mocked_cache.assert_called_once()
+        mocked_set_cache.assert_called_once()

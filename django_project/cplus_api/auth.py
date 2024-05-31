@@ -48,10 +48,12 @@ class TrendsEarthAuthentication(authentication.BaseAuthentication):
                 # create user based on the user profile
                 # We use Trends.Earth id, which is a UUID Field,
                 # as username in CPLUS API user table
-                user, created = get_user_model().objects.get_or_create(
-                    username=user_profile['id'],
+                user, created = get_user_model().objects.update_or_create(
                     email=user_profile['email'],
-                    first_name=user_profile['name']
+                    defaults={
+                        "first_name": user_profile["name"],
+                        "username": user_profile['id']
+                    },
                 )
                 expiry = (
                     datetime.fromtimestamp(
