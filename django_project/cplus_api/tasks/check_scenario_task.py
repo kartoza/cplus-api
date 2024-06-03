@@ -41,11 +41,17 @@ def check_scenario_task():
             ).total_seconds()
         except TaskLog.DoesNotExist:
             # check started_at if the task does not have log
+            # Task without log, that has been running for more
+            # than task_runtime_threshold, could indicate
+            # issues during execution.
             if scenario.started_at:
                 elapsed_seconds = (
                         timezone.now() - scenario.started_at
                 ).total_seconds()
             # check submitted_on if the task does not have start_at value
+            # If a task status is running, but it does not have any log
+            # and start_at value, there must something wrong and the
+            # task needs to be marked as error
             elif scenario.submitted_on:
                 elapsed_seconds = (
                         timezone.now() - scenario.submitted_on
@@ -53,6 +59,13 @@ def check_scenario_task():
             else:
                 continue
 
-        # if elapsed seconds is more than threshold in seconds
+        # if elapsed seconds is more than threshold in seconds,
+        # mark as having errors.
         if elapsed_seconds > (elapsed_time_threshold * 60):
-            scenario.task_on_errors()
+            err_msg = (
+                f"Timeout error: Task execution time ({elapsed_seconds}s) "
+                f"exceeded {elapsed_time_threshold * 60}s."
+            )
+            scenario.task_on_errors(
+                exception=err_msg
+            )
