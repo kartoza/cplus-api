@@ -47,6 +47,13 @@ class SitePreferences(SingletonModel):
         blank=True,
         help_text='Output group to keep from automatic removal.'
     )
+    task_runtime_threshold = models.PositiveIntegerField(
+        default=120,
+        help_text=(
+            "Max minutes to pass before a task "
+            "is marked 'Stopped with error'"
+        )
+    )
     layer_days_to_keep = models.IntegerField(
         default=14,
         help_text='Keep input/output layers until X days.'

@@ -52,6 +52,10 @@ app.conf.beat_schedule = {
         'task': 'remove_layers',
         'schedule': crontab(minute='0', hour='1'),  # Run everyday at 1am
     },
+    'check-scenario-task': {
+        'task': 'check_scenario_task',
+        'schedule': crontab(hour='*'),  # Run every hour
+    },
     'clean-multipart-upload': {
         'task': 'clean_multipart_upload',
         'schedule': crontab(minute='0', hour='2'),  # Run everyday at 2am
