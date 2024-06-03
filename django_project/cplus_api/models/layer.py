@@ -1,5 +1,6 @@
 import os
 import uuid
+from zipfile import ZipFile
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
@@ -28,8 +29,15 @@ def output_layer_dir_path(instance, filename):
 
 
 def select_input_layer_storage():
-    """Return minio storage for input layer."""
-    return storages['minio']
+    """Return storage for input layer."""
+    return storages['input_layer_storage']
+
+
+def default_output_meta():
+    """
+    Default value for OutputLayer's output_meta.
+    """
+    return {}
 
 
 class BaseLayer(models.Model):
@@ -71,7 +79,9 @@ class InputLayer(BaseLayer):
         NCS_PATHWAY = 'ncs_pathway', _('ncs_pathway')
         NCS_CARBON = 'ncs_carbon', _('ncs_carbon')
         PRIORITY_LAYER = 'priority_layer', _('priority_layer')
-        REFERENCE_LAYER = 'reference_layer', _('reference_layer')
+        SNAP_LAYER = 'snap_layer', _('snap_layer')
+        SIEVE_MASK_LAYER = 'sieve_mask_layer', _('sieve_mask_layer')
+        MASK_LAYER = 'mask_layer', _('mask_layer')
 
     class PrivacyTypes(models.TextChoices):
         PRIVATE = 'private', _('private')
@@ -104,16 +114,16 @@ class InputLayer(BaseLayer):
         blank=True
     )
 
-    def download_to_working_directory(self, base_dir):
+    def download_to_working_directory(self, base_dir: str):
         if not self.is_available():
             return None
-        dir_path = os.path.join(
+        dir_path: str = os.path.join(
             base_dir,
             self.component_type
         )
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
-        file_path = os.path.join(
+        file_path: str = os.path.join(
             dir_path,
             os.path.basename(self.file.name)
         )
@@ -122,6 +132,21 @@ class InputLayer(BaseLayer):
                 destination.write(chunk)
         self.last_used_on = timezone.now()
         self.save(update_fields=['last_used_on'])
+        if file_path.endswith('.zip'):
+            extract_path = os.path.join(
+                dir_path,
+                os.path.basename(file_path).replace('.zip', '_zip')
+            )
+            with ZipFile(file_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_path)
+            shapefile = [
+                file for file in os.listdir(extract_path)
+                if file.endswith('.shp')
+            ]
+            if shapefile:
+                return os.path.join(extract_path, shapefile[0])
+            else:
+                return None
         return file_path
 
     def is_available(self):
@@ -154,4 +179,39 @@ class OutputLayer(BaseLayer):
 
     is_deleted = models.BooleanField(
         default=False
+    )
+    output_meta = models.JSONField(
+        default=default_output_meta,
+        blank=True,
+        help_text='Output Metadata.'
+    )
+
+
+class MultipartUpload(models.Model):
+    """Model to store id of multipart upload."""
+
+    upload_id = models.CharField(
+        max_length=512
+    )
+
+    input_layer_uuid = models.UUIDField()
+
+    created_on = models.DateTimeField()
+
+    uploader = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    parts = models.IntegerField()
+
+    is_aborted = models.BooleanField(
+        default=False
+    )
+
+    aborted_on = models.DateTimeField(
+        null=True,
+        blank=True
     )

@@ -15,6 +15,16 @@ class SitePreferencesAdmin(admin.ModelAdmin):
                 'api_config',
             )
         }),
+        ('Output Group to Keep', {
+            'fields': (
+                'output_group_to_keep',
+            )
+        }),
+        ('Remove Layers Job', {
+            'fields': (
+                'layer_days_to_keep',
+            )
+        }),
     )
 
 

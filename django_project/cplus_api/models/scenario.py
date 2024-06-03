@@ -9,7 +9,9 @@ from core.models.task_log import TaskLog
 DEFAULT_BASE_DIR = '/home/web/media'
 EXCLUDED_OUTPUT_DIR_NAMES = [
     'ncs_carbon', 'ncs_pathway', 'priority_layer',
-    'ncs_carbons', 'ncs_pathways', 'priority_layers'
+    'ncs_carbons', 'ncs_pathways', 'priority_layers',
+    'mask_layer', 'sieve_mask_layer', 'snap_layer',
+    'mask_layers', 'sieve_mask_layers', 'snap_layers'
 ]
 
 
@@ -24,6 +26,9 @@ class ScenarioTask(BaseTaskRequest):
     )
 
     detail = models.JSONField(
+        default=dict
+    )
+    updated_detail = models.JSONField(
         default=dict
     )
 

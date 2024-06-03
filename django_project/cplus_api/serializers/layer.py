@@ -135,6 +135,10 @@ OUTPUT_LAYER_SCHEMA_FIELDS = {
                 "weighted_ims"
             ],
         ),
+        'output_meta': openapi.Schema(
+            title='Output Metadata',
+            type=openapi.TYPE_OBJECT,
+        ),
     },
     'required': [
         'filename', 'size', 'uuid', 'layer_type'
@@ -219,6 +223,7 @@ class UploadLayerSerializer(serializers.Serializer):
     uuid = serializers.CharField(required=False)
     name = serializers.CharField(required=True)
     size = serializers.IntegerField(required=True, min_value=1)
+    number_of_parts = serializers.IntegerField(required=False, default=0)
 
     class Meta:
         swagger_schema_fields = {
@@ -271,6 +276,11 @@ class UploadLayerSerializer(serializers.Serializer):
                 'size': openapi.Schema(
                     title='Layer file size',
                     type=openapi.TYPE_INTEGER
+                ),
+                'number_of_parts': openapi.Schema(
+                    title='Number of parts for multipart upload.',
+                    type=openapi.TYPE_INTEGER,
+                    default=0
                 )
             },
             'required': [
@@ -280,29 +290,65 @@ class UploadLayerSerializer(serializers.Serializer):
         }
 
 
+class UploadMetadataItem(serializers.Serializer):
+    etag = serializers.CharField()
+    part_number = serializers.IntegerField()
+
+    class Meta:
+        swagger_schema_fields = {
+            'type': openapi.TYPE_OBJECT,
+            'title': 'Upload metadata item',
+            'properties': {
+                'etag': openapi.Schema(
+                    title='Etag value from S3 Upload Response',
+                    type=openapi.TYPE_STRING
+                ),
+                'part_number': openapi.Schema(
+                    title='Part number',
+                    type=openapi.TYPE_INTEGER
+                )
+            },
+            'required': ['etag', 'part_number'],
+            'example': {
+                'etag': '8d242daa57a3ea8d439a71c68038b373',
+                'part_number': 1
+            }
+        }
+
+
+class FinishUploadLayerSerializer(serializers.Serializer):
+    multipart_upload_id = serializers.CharField(required=False)
+    items = UploadMetadataItem(many=True, required=False)
+
+    class Meta:
+        swagger_schema_fields = {
+            'type': openapi.TYPE_OBJECT,
+            'title': 'Upload Layer Item',
+            'properties': {
+                'multipart_upload_id': openapi.Schema(
+                    title='Upload Id for multipart upload',
+                    type=openapi.TYPE_STRING
+                ),
+                'items': openapi.Schema(
+                    title='List of upload metadata item',
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Items(
+                        **UploadMetadataItem.Meta.swagger_schema_fields
+                    )
+                ),
+            }
+        }
+
+
 class OutputLayerSerializer(serializers.ModelSerializer):
-    DEFAULT_GROUP_IN_OUTPUT_URL = ['weighted_ims']
     filename = serializers.CharField(source='name')
     created_by = serializers.SerializerMethodField()
     url = serializers.SerializerMethodField()
-
-    def check_generate_all_outputs(self, obj: OutputLayer):
-        is_fetch_all = self.context.get('is_fetch_all', False)
-        if is_fetch_all:
-            return True
-        if (
-            not obj.is_final_output and
-            obj.group not in self.DEFAULT_GROUP_IN_OUTPUT_URL
-        ):
-            return False
-        return True
 
     def get_created_by(self, obj: OutputLayer):
         return obj.owner.email
 
     def get_url(self, obj: OutputLayer):
-        if not self.check_generate_all_outputs(obj):
-            return None
         if not obj.file.name:
             return None
         if not obj.file.storage.exists(obj.file.name):
@@ -317,7 +363,8 @@ class OutputLayerSerializer(serializers.ModelSerializer):
         fields = [
             'uuid', 'filename', 'created_on',
             'created_by', 'layer_type', 'size',
-            'url', 'is_final_output', 'group'
+            'url', 'is_final_output', 'group',
+            'output_meta'
         ]
 
 

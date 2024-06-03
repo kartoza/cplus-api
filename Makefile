@@ -74,3 +74,10 @@ scale-worker:
 	@echo "scale-worker"
 	@echo "------------------------------------------------------------------"
 	@docker-compose up -d worker --no-deps --no-recreate --scale worker=$(COUNT)
+
+init-bucket:
+	@echo
+	@echo "------------------------------------------------------------------"
+	@echo "Init createbuckets Minio"
+	@echo "------------------------------------------------------------------"
+	@docker-compose ${ARGS} up -d createbuckets

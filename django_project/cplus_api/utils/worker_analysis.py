@@ -19,8 +19,14 @@ from cplus.models.base import (
 from cplus.tasks.analysis import ScenarioAnalysisTask
 from cplus.utils.conf import Settings
 from cplus_api.models.scenario import ScenarioTask
-from cplus_api.models.layer import BaseLayer, OutputLayer, InputLayer
-from cplus_api.utils.api_helper import convert_size
+from cplus_api.models.layer import OutputLayer, InputLayer
+from cplus_api.utils.api_helper import (
+    convert_size,
+    todict,
+    CustomJsonEncoder,
+    get_layer_type
+)
+from cplus_api.utils.default import DEFAULT_VALUES
 
 logger = logging.getLogger(__name__)
 
@@ -34,30 +40,48 @@ class TaskConfig(object):
     priority_layers: typing.List = []
     priority_layer_groups: typing.List = []
     analysis_extent: SpatialExtent = None
-    snapping_enabled: bool = False
+    snapping_enabled: bool = DEFAULT_VALUES.snapping_enabled
     snap_layer = ''
-    pathway_suitability_index = 0
-    carbon_coefficient = 0.0
-    snap_rescale = False
-    snap_method = 0
-    sieve_enabled = False
-    sieve_threshold = 10.0
+    snap_layer_uuid = ''
+    pathway_suitability_index = DEFAULT_VALUES.pathway_suitability_index
+    carbon_coefficient = DEFAULT_VALUES.carbon_coefficient
+    snap_rescale = DEFAULT_VALUES.snap_rescale
+    snap_method = DEFAULT_VALUES.snap_method
+    sieve_enabled = DEFAULT_VALUES.sieve_enabled
+    sieve_threshold = DEFAULT_VALUES.sieve_threshold
+    sieve_mask_uuid = ''
     mask_path = ''
+    mask_layers_paths = ''
+    mask_layer_uuids = []
     scenario: Scenario = None
     pathway_uuid_layers = {}
     carbon_uuid_layers = {}
     priority_uuid_layers = {}
     total_input_layers = 0
+    # output selections
+    ncs_with_carbon = DEFAULT_VALUES.ncs_with_carbon
+    landuse_project = DEFAULT_VALUES.landuse_project
+    landuse_normalized = DEFAULT_VALUES.landuse_normalized
+    landuse_weighted = DEFAULT_VALUES.landuse_weighted
+    highest_position = DEFAULT_VALUES.highest_position
 
     def __init__(self, scenario_name, scenario_desc, extent,
                  analysis_activities, priority_layers,
                  priority_layer_groups,
-                 snapping_enabled=False, snap_layer='',
-                 pathway_suitability_index=0,
-                 carbon_coefficient=0.0, snap_rescale=False,
-                 snap_method=0, sieve_enabled=False,
-                 sieve_threshold=10.0, mask_path='',
-                 scenario_uuid=None) -> None:
+                 snapping_enabled=False, snap_layer_uuid='',
+                 pathway_suitability_index=DEFAULT_VALUES.pathway_suitability_index,  # noqa
+                 carbon_coefficient=DEFAULT_VALUES.carbon_coefficient,
+                 snap_rescale=DEFAULT_VALUES.snap_rescale,
+                 snap_method=DEFAULT_VALUES.snap_method,
+                 sieve_enabled=DEFAULT_VALUES.sieve_enabled,
+                 sieve_threshold=DEFAULT_VALUES.sieve_threshold,
+                 sieve_mask_uuid='',
+                 mask_layer_uuids='', scenario_uuid=None,
+                 ncs_with_carbon=DEFAULT_VALUES.ncs_with_carbon,
+                 landuse_project=DEFAULT_VALUES.landuse_project,
+                 landuse_normalized=DEFAULT_VALUES.landuse_normalized,
+                 landuse_weighted=DEFAULT_VALUES.landuse_weighted,
+                 highest_position=DEFAULT_VALUES.highest_position) -> None:
         self.scenario_name = scenario_name
         self.scenario_desc = scenario_desc
         if scenario_uuid:
@@ -67,14 +91,15 @@ class TaskConfig(object):
         self.priority_layers = priority_layers
         self.priority_layer_groups = priority_layer_groups
         self.snapping_enabled = snapping_enabled
-        self.snap_layer = snap_layer
+        self.snap_layer_uuid = snap_layer_uuid
         self.pathway_suitability_index = pathway_suitability_index
         self.carbon_coefficient = carbon_coefficient
         self.snap_rescale = snap_rescale
         self.snap_method = snap_method
         self.sieve_enabled = sieve_enabled
         self.sieve_threshold = sieve_threshold
-        self.mask_path = mask_path
+        self.sieve_mask_uuid = sieve_mask_uuid
+        self.mask_layer_uuids = mask_layer_uuids
         self.scenario = Scenario(
             uuid=self.scenario_uuid,
             name=self.scenario_name,
@@ -84,6 +109,12 @@ class TaskConfig(object):
             weighted_activities=[],
             priority_layer_groups=self.priority_layer_groups
         )
+        # output selections
+        self.ncs_with_carbon = ncs_with_carbon
+        self.landuse_project = landuse_project
+        self.landuse_normalized = landuse_normalized
+        self.landuse_weighted = landuse_weighted
+        self.highest_position = highest_position
 
     def get_activity(
         self, activity_uuid: str
@@ -117,21 +148,27 @@ class TaskConfig(object):
             'scenario_desc': self.scenario.description,
             'extent': self.analysis_extent.bbox,
             'snapping_enabled': self.snapping_enabled,
-            'snap_layer': self.snap_layer,
+            'snap_layer': self.snap_layer_uuid,
             'pathway_suitability_index': self.pathway_suitability_index,
             'carbon_coefficient': self.carbon_coefficient,
             'snap_rescale': self.snap_rescale,
             'snap_method': self.snap_method,
             'sieve_enabled': self.sieve_enabled,
             'sieve_threshold': self.sieve_threshold,
-            'mask_path': self.mask_path,
+            'sieve_mask_uuid': self.sieve_mask_uuid,
+            'mask_layer_uuids': self.mask_layer_uuids,
             'priority_layers': self.priority_layers,
             'priority_layer_groups': self.priority_layer_groups,
             'activities': [],
             'pathway_uuid_layers': self.pathway_uuid_layers,
             'carbon_uuid_layers': self.carbon_uuid_layers,
             'priority_uuid_layers': self.priority_uuid_layers,
-            'total_input_layers': self.total_input_layers
+            'total_input_layers': self.total_input_layers,
+            'ncs_with_carbon': self.ncs_with_carbon,
+            'landuse_project': self.landuse_project,
+            'landuse_normalized': self.landuse_normalized,
+            'landuse_weighted': self.landuse_weighted,
+            'highest_position': self.highest_position
         }
         for activity in self.analysis_activities:
             activity_dict = {
@@ -165,16 +202,34 @@ class TaskConfig(object):
         )
         config.priority_layers = data.get('priority_layers', [])
         config.priority_layer_groups = data.get('priority_layer_groups', [])
-        config.snapping_enabled = data.get('snapping_enabled', False)
-        config.snap_layer = data.get('snap_layer', '')
+        config.snapping_enabled = data.get(
+            'snapping_enabled', DEFAULT_VALUES.snapping_enabled)
+        config.snap_layer_uuid = data.get('snap_layer_uuid', '')
         config.pathway_suitability_index = data.get(
-            'pathway_suitability_index', 0)
-        config.carbon_coefficient = data.get('carbon_coefficient', 0.0)
-        config.snap_rescale = data.get('snap_rescale', False)
-        config.snap_method = data.get('snap_method', 0)
-        config.sieve_enabled = data.get('sieve_enabled', False)
-        config.sieve_threshold = data.get('sieve_threshold', 10.0)
-        config.mask_path = data.get('mask_path', '')
+            'pathway_suitability_index',
+            DEFAULT_VALUES.pathway_suitability_index)
+        config.carbon_coefficient = data.get(
+            'carbon_coefficient', DEFAULT_VALUES.carbon_coefficient)
+        config.snap_rescale = data.get(
+            'snap_rescale', DEFAULT_VALUES.snap_rescale)
+        config.snap_method = data.get(
+            'snap_method', DEFAULT_VALUES.snap_method)
+        config.sieve_enabled = data.get(
+            'sieve_enabled', DEFAULT_VALUES.sieve_enabled)
+        config.sieve_threshold = data.get(
+            'sieve_threshold', DEFAULT_VALUES.sieve_threshold)
+        config.sieve_mask_uuid = data.get('sieve_mask_uuid', '')
+        config.mask_layer_uuids = data.get('mask_layer_uuids', '')
+        config.ncs_with_carbon = data.get(
+            'ncs_with_carbon', DEFAULT_VALUES.ncs_with_carbon)
+        config.landuse_project = data.get(
+            'landuse_project', DEFAULT_VALUES.landuse_project)
+        config.landuse_normalized = data.get(
+            'landuse_normalized', DEFAULT_VALUES.landuse_normalized)
+        config.landuse_weighted = data.get(
+            'landuse_weighted', DEFAULT_VALUES.landuse_weighted)
+        config.highest_position = data.get(
+            'highest_position', DEFAULT_VALUES.highest_position)
         # store dict of <layer_uuid, list of obj identifier>
         config.priority_uuid_layers = {}
         config.pathway_uuid_layers = {}
@@ -278,41 +333,50 @@ class TaskConfig(object):
             len(config.priority_uuid_layers) +
             len(config.carbon_uuid_layers)
         )
-        if config.snap_layer:
+        if config.snap_layer_uuid:
             config.total_input_layers += 1
-        if config.mask_path:
+        if config.sieve_mask_uuid:
             config.total_input_layers += 1
+        config.total_input_layers += len(config.mask_layer_uuids)
         return config
 
 
 def create_and_upload_output_layer(
         file_path: str, scenario_task: ScenarioTask,
-        is_final_output: bool, group: str) -> OutputLayer:
+        is_final_output: bool, group: str,
+        output_meta: dict = None) -> OutputLayer:
     filename = os.path.basename(file_path)
-    cog_name = (
-        f"{os.path.basename(file_path).split('.')[0]}"
-        f"_COG."
-        f"{os.path.basename(file_path).split('.')[1]}"
-    )
-    cog_path = os.path.join(
-        os.path.dirname(file_path),
-        cog_name
-    )
-    subprocess.run(
-        f"gdal_translate -of COG -co COMPRESS=DEFLATE {file_path} {cog_path}",
-        shell=True
-    )
+    if get_layer_type(file_path) == 0:
+        cog_name = (
+            f"{os.path.basename(file_path).split('.')[0]}"
+            f"_COG."
+            f"{os.path.basename(file_path).split('.')[1]}"
+        )
+        final_output_path = os.path.join(
+            os.path.dirname(file_path),
+            cog_name
+        )
+        subprocess.run(
+            (
+                f"gdal_translate -of COG -co COMPRESS=DEFLATE"
+                f" {file_path} {final_output_path}"
+            ),
+            shell=True
+        )
+    else:
+        final_output_path = file_path
     output_layer = OutputLayer.objects.create(
         name=filename,
         created_on=timezone.now(),
         owner=scenario_task.submitted_by,
-        layer_type=BaseLayer.LayerTypes.RASTER,
-        size=os.stat(cog_path).st_size,
+        layer_type=get_layer_type(file_path),
+        size=os.stat(final_output_path).st_size,
         is_final_output=is_final_output,
         scenario=scenario_task,
-        group=group
+        group=group,
+        output_meta={} if not output_meta else output_meta
     )
-    with open(cog_path, 'rb') as output_file:
+    with open(final_output_path, 'rb') as output_file:
         output_layer.file.save(filename, output_file)
     return output_layer
 
@@ -334,6 +398,8 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
         self.task_config = task_config
         self.scenario_task = scenario_task
         self.last_update_progress = None
+        self.downloaded_layers = {}
+        self.downloaded_layer_count = 0
 
     def prepare_run(self):
         # clear existing scenario directory if exists
@@ -351,6 +417,9 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
     def initialize_input_layers(self, scenario_path: str):
         self.log_message(
             f'Initialize input layers: {self.task_config.total_input_layers}')
+        self.set_custom_progress(0)
+        self.set_status_message('Preparing input layers')
+
         # init priority layers
         priority_layer_paths = {}
         priority_uuids = self.task_config.priority_uuid_layers.keys()
@@ -360,24 +429,45 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                 priority_uuids,
                 scenario_path
             )
+            self.downloaded_layers.update(priority_layer_paths)
         # init pathway layers
         pathway_layer_paths = {}
         pathway_uuids = self.task_config.pathway_uuid_layers.keys()
         if pathway_uuids:
+            pathway_uuids_to_download = [
+                p_uuid for p_uuid in pathway_uuids if
+                str(p_uuid) not in self.downloaded_layers
+            ]
             pathway_layer_paths = self.copy_input_layers_by_uuids(
                 InputLayer.ComponentTypes.NCS_PATHWAY,
-                pathway_uuids,
+                pathway_uuids_to_download,
                 scenario_path
             )
+            self.downloaded_layers.update(pathway_layer_paths)
+            pathway_layer_paths.update({
+                key: val for key, val in self.downloaded_layers.items()
+                if key in pathway_uuids
+            })
+
         # init carbon layers
         carbon_layer_paths = {}
         carbon_uuids = self.task_config.carbon_uuid_layers.keys()
         if carbon_uuids:
+            carbon_uuids_to_download = [
+                c_uuid for c_uuid in carbon_uuids if
+                str(c_uuid) not in self.downloaded_layers
+            ]
             carbon_layer_paths = self.copy_input_layers_by_uuids(
                 InputLayer.ComponentTypes.NCS_CARBON,
-                carbon_uuids,
+                carbon_uuids_to_download,
                 scenario_path
             )
+            self.downloaded_layers.update(carbon_layer_paths)
+            carbon_layer_paths.update({
+                key: val for key, val in self.downloaded_layers.items()
+                if key in carbon_uuids
+            })
+
         if priority_layer_paths:
             self.patch_layer_path_to_priority_layers(priority_layer_paths)
         self.patch_layer_path_to_activities(
@@ -385,26 +475,57 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
             pathway_layer_paths,
             carbon_layer_paths
         )
+
         # init snap layer
-        if self.task_config.snap_layer:
-            layer_uuid = self.task_config.snap_layer
-            layer_paths = self.copy_input_layers_by_uuids(
-                None, [layer_uuid], scenario_path
-            )
-            if layer_uuid in layer_paths:
-                self.task_config.snap_layer = layer_paths[layer_uuid]
+        if self.task_config.snap_layer_uuid:
+            layer_uuid = self.task_config.snap_layer_uuid
+            if layer_uuid not in self.downloaded_layers:
+                layer_paths = self.copy_input_layers_by_uuids(
+                    None, [layer_uuid], scenario_path
+                )
+                if layer_uuid in layer_paths:
+                    self.task_config.snap_layer = layer_paths[layer_uuid]
+                    self.downloaded_layers.update(layer_paths)
+            else:
+                self.task_config.snap_layer = self.downloaded_layers[
+                    layer_uuid
+                ]
+
         # init sieve mask path
-        if self.task_config.mask_path:
-            layer_uuid = self.task_config.mask_path
-            layer_paths = self.copy_input_layers_by_uuids(
-                None, [layer_uuid], scenario_path
-            )
-            if layer_uuid in layer_paths:
-                self.task_config.mask_path = layer_paths[layer_uuid]
+        if self.task_config.sieve_mask_uuid:
+            layer_uuid = self.task_config.sieve_mask_uuid
+            if layer_uuid not in self.downloaded_layers:
+                layer_paths = self.copy_input_layers_by_uuids(
+                    None, [layer_uuid], scenario_path
+                )
+                if layer_uuid in layer_paths:
+                    self.task_config.mask_path = layer_paths[layer_uuid]
+                    self.downloaded_layers.update(layer_paths)
+            else:
+                self.task_config.mask_path = self.downloaded_layers[
+                    layer_uuid
+                ]
+
+        # init mask layers
+        new_mask_paths = []
+        for mask_layer in self.task_config.mask_layer_uuids:
+            layer_uuid = mask_layer
+            if layer_uuid not in self.downloaded_layers:
+                layer_paths = self.copy_input_layers_by_uuids(
+                    None, [layer_uuid], scenario_path
+                )
+                if layer_uuid in layer_paths:
+                    new_mask_paths.append(layer_paths[layer_uuid])
+                    self.downloaded_layers.update(layer_paths)
+            else:
+                new_mask_paths.append(self.downloaded_layers[layer_uuid])
+        self.task_config.mask_layers_paths = ','.join(new_mask_paths)
+
         self.log_message(
             'Finished copy input layers: '
             f'{self.task_config.total_input_layers}'
         )
+        self.set_custom_progress(100)
 
     def copy_input_layers_by_uuids(
             self, component_type: InputLayer.ComponentTypes,
@@ -417,8 +538,19 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
             layers = layers.filter(
                 component_type=component_type
             )
+        total_input_layers = (
+            self.task_config.total_input_layers if
+            self.task_config.total_input_layers > 0 else 1
+        )
         for layer in layers:
             file_path = layer.download_to_working_directory(scenario_path)
+            self.downloaded_layer_count += 1
+            self.set_custom_progress(
+                100 * (
+                    self.downloaded_layer_count /
+                    total_input_layers
+                )
+            )
             if not file_path:
                 continue
             if not os.path.exists(file_path):
@@ -520,16 +652,17 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
         self.scenario_task.progress = value
         # check how to control the frequency of updating progress
         # if too frequent, then the process becomes slower
-        if self.should_update_progress():
-            self.last_update_progress = timezone.now().second
+        should_update_progress = self.should_update_progress()
+        if should_update_progress:
+            self.last_update_progress = timezone.now()
             self.scenario_task.save(update_fields=['progress'])
 
     def should_update_progress(self):
         if self.last_update_progress is None:
             return True
-        ct = timezone.now().second
+        ct = timezone.now()
         return (
-            ct - self.last_update_progress >=
+            (ct - self.last_update_progress).total_seconds() >=
             self.MIN_UPDATE_PROGRESS_IN_SECONDS
         )
 
@@ -546,8 +679,13 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
         for group, files in scenario_output_files.items():
             is_final_output = group == 'final_output'
             if is_final_output:
+                output_meta = self.output
+                if 'OUTPUT' in output_meta:
+                    del output_meta['OUTPUT']
                 create_and_upload_output_layer(
-                    files[0], self.scenario_task, True, None)
+                    files[0], self.scenario_task,
+                    True, None, self.output
+                )
                 total_uploaded_files += 1
                 self.set_custom_progress(
                     100 * (total_uploaded_files / total_files))
@@ -648,7 +786,6 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
 
     def finished(self, result: bool):
         if result:
-            self.log_message("Finished from the main task \n")
             self.upload_scenario_outputs()
         else:
             self.log_message(
@@ -656,5 +793,9 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
         # clean directory
         self.scenario_task.clear_resources()
         self.scenario_task.task_on_completed()
+        self.scenario_task.updated_detail = json.loads(
+            json.dumps(todict(self.scenario), cls=CustomJsonEncoder)
+        )
+        self.scenario_task.save()
         # send email to the submitter
         self.notify_user(result)

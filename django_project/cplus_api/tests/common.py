@@ -2,6 +2,8 @@
 import os
 import shutil
 import unittest
+from datetime import datetime
+from botocore.exceptions import ClientError
 from collections import OrderedDict
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase, TransactionTestCase
@@ -16,6 +18,65 @@ from cplus_api.models.layer import InputLayer, OutputLayer
 class DummyTask:
     def __init__(self, id):
         self.id = id
+
+
+class MockS3Client:
+    def __init__(self) -> None:
+        self.raise_exc = False
+        self.mock_parts = None
+
+    def check_raise_exc(self):
+        if self.raise_exc:
+            raise ClientError(
+                {
+                    'Error': {
+                        'Code': '123',
+                        'Message': 'this_is_error'
+                    }
+                },
+                'put_object'
+            )
+
+    def generate_presigned_url(self, ClientMethod, Params, ExpiresIn):
+        self.check_raise_exc()
+        return 'this_is_url'
+
+    def create_multipart_upload(self, Bucket, Key):
+        return {
+            'UploadId': 'this_is_upload_id'
+        }
+
+    def complete_multipart_upload(self, Bucket, Key,
+                                  MultipartUpload, UploadId):
+        return True
+
+    def abort_multipart_upload(self, Bucket, Key, UploadId):
+        self.check_raise_exc()
+        return True
+
+    def list_parts(self, Bucket, Key, UploadId):
+        self.check_raise_exc()
+        if self.mock_parts is not None:
+            return self.mock_parts
+        return {
+            'AbortDate': datetime(2015, 1, 1),
+            'AbortRuleId': 'test',
+            'Bucket': Bucket,
+            'Key': Key,
+            'UploadId': UploadId,
+            'PartNumberMarker': 123,
+            'NextPartNumberMarker': 123,
+            'MaxParts': 123,
+            'IsTruncated': False,
+            'Parts': [
+                {
+                    'PartNumber': 123,
+                    'LastModified': datetime(2015, 1, 1),
+                    'ETag': 'string',
+                    'Size': 123
+                },
+            ]
+        }
 
 
 def mocked_process(*args, **kwargs):
@@ -62,7 +123,7 @@ class BaseInitData(unittest.TestCase):
         """Delete storage used in default and minio."""
         default_storage = storages['default']
         clear_test_dir(default_storage.location)
-        minio_storage = storages['minio']
+        minio_storage = storages['input_layer_storage']
         clear_test_dir(minio_storage.location)
 
     def store_layer_file(self, layer: InputLayer | OutputLayer,

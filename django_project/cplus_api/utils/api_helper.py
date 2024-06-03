@@ -1,16 +1,23 @@
+import json
+import logging
 import os
+import traceback
+from datetime import datetime
+from uuid import UUID
+
+import boto3
 import math
-from datetime import timedelta
-from rest_framework.exceptions import PermissionDenied
-from drf_yasg import openapi
-from minio import Minio
-from minio.error import S3Error
+from botocore.client import Config
+from botocore.exceptions import ClientError
 from django.conf import settings
 from django.contrib.sites.models import Site
+from drf_yasg import openapi
+from rest_framework.exceptions import PermissionDenied
+
 from core.models.preferences import SitePreferences
 from cplus_api.models.scenario import ScenarioTask
 
-
+logger = logging.getLogger(__name__)
 LAYER_API_TAG = '01-layer'
 SCENARIO_API_TAG = '02-scenario-analysis'
 SCENARIO_OUTPUT_API_TAG = '03-scenario-outputs'
@@ -76,42 +83,139 @@ def get_page_size(request):
 
 
 def build_minio_absolute_url(url):
+    if not settings.DEBUG:
+        return url
     minio_site = Site.objects.filter(
         name__icontains='minio api'
     ).first()
     current_site = minio_site if minio_site else Site.objects.get_current()
-    scheme = 'https://'
-    if settings.DEBUG:
-        scheme = 'http://'
+    scheme = 'http://'
     domain = current_site.domain
     if not domain.endswith('/'):
         domain = domain + '/'
-    result = url.replace('http://minio:9000/', f'{scheme}{domain}')
-    return result
+    return url.replace('http://minio:9000/', f'{scheme}{domain}')
 
 
-def get_minio_client():
-    # Initialize MinIO client
-    minio_client = Minio(
-        os.environ.get("MINIO_ENDPOINT", "").replace(
-            "https://", "").replace("http://", ""),
-        access_key=os.environ.get("MINIO_ACCESS_KEY_ID"),
-        secret_key=os.environ.get("MINIO_SECRET_ACCESS_KEY"),
-        secure=False  # Set to True if using HTTPS
-    )
-    return minio_client
+def get_upload_client():
+    # Initialize upload client
+    if settings.DEBUG:
+        upload_client = boto3.client(
+            's3',
+            endpoint_url=os.environ.get("MINIO_ENDPOINT", ""),
+            aws_access_key_id=os.environ.get("MINIO_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.environ.get("MINIO_SECRET_ACCESS_KEY"),
+            config=Config(signature_version='s3v4'),
+            verify=False
+        )
+    else:
+        upload_client = boto3.client(
+            's3', config=Config(signature_version='s3v4'))
+    return upload_client
 
 
 def get_presigned_url(filename):
+    upload_client = get_upload_client()
+    bucket_name = os.environ.get("MINIO_BUCKET_NAME")
     try:
-        minio_client = get_minio_client()
-        # Generate pre-signed URL for uploading an object
-        upload_url = minio_client.presigned_put_object(
-            os.environ.get("MINIO_BUCKET_NAME"), filename,
-            expires=timedelta(hours=3))
-        return build_minio_absolute_url(upload_url)
-    except S3Error:
+        method_parameters = {
+            'Bucket': bucket_name,
+            'Key': filename
+        }
+        response = upload_client.generate_presigned_url(
+            ClientMethod='put_object',
+            Params=method_parameters,
+            ExpiresIn=3600 * 3)
+    except ClientError as exc:
+        logger.error(f'Unexpected exception occured: {type(exc).__name__} '
+                     'in get_presigned_url')
+        logger.error(exc)
+        logger.error(traceback.format_exc())
         return None
+
+    # The response contains the presigned URL
+    return build_minio_absolute_url(response)
+
+
+def get_multipart_presigned_urls(filename, parts):
+    upload_client = get_upload_client()
+    bucket_name = os.environ.get("MINIO_BUCKET_NAME")
+    response = upload_client.create_multipart_upload(
+        Bucket=bucket_name,
+        Key=filename
+    )
+    upload_id = response['UploadId']
+    results = []
+    for i in range(0, parts):
+        part_number = i + 1
+        method_parameters = {
+            'Bucket': bucket_name,
+            'Key': filename,
+            'UploadId': upload_id,
+            'PartNumber': part_number
+        }
+        single_url = upload_client.generate_presigned_url(
+            ClientMethod='upload_part',
+            Params=method_parameters,
+            ExpiresIn=3600 * 3
+        )
+        results.append({
+            'part_number': part_number,
+            'url': build_minio_absolute_url(single_url)
+        })
+    return upload_id, results
+
+
+def complete_multipart_upload(filename, upload_id, parts):
+    """
+    Mark multipart upload as completed.
+    """
+    upload_client = get_upload_client()
+    bucket_name = os.environ.get("MINIO_BUCKET_NAME")
+    # sort parts by part_number
+    sorted_parts = sorted(parts, key=lambda d: d['part_number'])
+    payloads = [{
+        'ETag': p['etag'],
+        'PartNumber': p['part_number']
+    } for p in sorted_parts]
+    upload_client.complete_multipart_upload(
+        Bucket=bucket_name,
+        Key=filename,
+        MultipartUpload={
+            'Parts': payloads
+        },
+        UploadId=upload_id
+    )
+    return True
+
+
+def abort_multipart_upload(filename, upload_id):
+    """Abort multipart upload and return the part list."""
+    upload_client = get_upload_client()
+    bucket_name = os.environ.get("MINIO_BUCKET_NAME")
+    parts = 0
+    try:
+        upload_client.abort_multipart_upload(
+            Bucket=bucket_name,
+            Key=filename,
+            UploadId=upload_id
+        )
+    except Exception as exc:
+        logger.error(f'Unexpected exception occured: {type(exc).__name__} '
+                     'in abort_multipart_upload')
+        logger.error(exc)
+        logger.error(traceback.format_exc())
+    try:
+        response = upload_client.list_parts(
+            Bucket=bucket_name,
+            Key=filename,
+            UploadId=upload_id
+        )
+        part_list = response.get('Parts', [])
+        parts = len(part_list)
+    except Exception:
+        # ignore if no such upload
+        parts = 0
+    return parts
 
 
 def convert_size(size_bytes):
@@ -122,3 +226,50 @@ def convert_size(size_bytes):
     p = math.pow(1024, i)
     s = round(size_bytes / p, 2)
     return "%s %s" % (s, size_name[i])
+
+
+class CustomJsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, UUID):
+            # if the obj is uuid, we simply return the value of uuid
+            return obj.hex
+        if isinstance(obj, datetime):
+            # if the obj is uuid, we simply return the value of uuid
+            return obj.isoformat()
+        return json.JSONEncoder.default(self, obj)
+
+
+def todict(obj, classkey=None):
+    if isinstance(obj, dict):
+        data = {}
+        for (k, v) in obj.items():
+            data[k] = todict(v, classkey)
+        return data
+    elif hasattr(obj, "_ast"):
+        return todict(obj._ast())
+    elif hasattr(obj, "__iter__") and not isinstance(obj, str):
+        return [todict(v, classkey) for v in obj]
+    elif hasattr(obj, "__dict__"):
+        data = dict(
+            [(key, todict(value, classkey))
+             for key, value in obj.__dict__.items()
+             if not callable(value) and not key.startswith('_')]
+        )
+        if classkey is not None and hasattr(obj, "__class__"):
+            data[classkey] = obj.__class__.__name__
+        return data
+    else:
+        return obj
+
+
+def get_layer_type(file_path: str):
+    """
+    Get layer type code from file path
+    """
+    file_name, file_extension = os.path.splitext(file_path)
+    if file_extension.lower() in ['.tif', '.tiff']:
+        return 0
+    elif file_extension.lower() in ['.geojson', '.zip', '.shp']:
+        return 1
+    else:
+        return -1

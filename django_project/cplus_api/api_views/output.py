@@ -28,13 +28,6 @@ from cplus_api.utils.api_helper import (
 class UserScenarioAnalysisOutput(BaseScenarioReadAccess, APIView):
     """API to fetch output list of ScenarioAnalysis"""
     permission_classes = [IsAuthenticated]
-    param_all_outputs = openapi.Parameter(
-        'download_all', openapi.IN_QUERY,
-        description='Whether to generate download URL for all outputs',
-        type=openapi.TYPE_BOOLEAN,
-        default=False,
-        required=False
-    )
     param_group = openapi.Parameter(
         'group', openapi.IN_QUERY,
         description='Filter the outputs by group',
@@ -47,7 +40,7 @@ class UserScenarioAnalysisOutput(BaseScenarioReadAccess, APIView):
         tags=[SCENARIO_OUTPUT_API_TAG],
         manual_parameters=[
             PARAM_SCENARIO_UUID_IN_PATH,
-            param_all_outputs
+            param_group
         ] + PARAMS_PAGINATION,
         responses={
             200: PaginatedOutputLayerSerializer,
@@ -59,9 +52,6 @@ class UserScenarioAnalysisOutput(BaseScenarioReadAccess, APIView):
     def get(self, request, *args, **kwargs):
         page = int(request.GET.get('page', '1'))
         page_size = get_page_size(request)
-        is_fetch_all = request.GET.get('download_all', None)
-        if is_fetch_all is not None:
-            is_fetch_all = is_fetch_all.lower() == 'true'
         group_filter = request.GET.get('group', None)
         scenario_uuid = kwargs.get('scenario_uuid')
         scenario_task = get_object_or_404(
@@ -82,10 +72,7 @@ class UserScenarioAnalysisOutput(BaseScenarioReadAccess, APIView):
             output = (
                 OutputLayerSerializer(
                     paginated_entities,
-                    many=True,
-                    context={
-                        'is_fetch_all': is_fetch_all
-                    }
+                    many=True
                 ).data
             )
         return Response(status=200, data={
@@ -131,9 +118,6 @@ class FetchScenarioAnalysisOutput(BaseScenarioReadAccess, APIView):
         ).order_by('id')
         return Response(status=200, data=(
             OutputLayerSerializer(
-                layers, many=True,
-                context={
-                    'is_fetch_all': True
-                }
+                layers, many=True
             ).data
         ))

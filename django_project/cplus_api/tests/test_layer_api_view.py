@@ -1,8 +1,17 @@
 import os
 import uuid
+import mock
+from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
 from core.settings.utils import absolute_path
+from cplus_api.models.layer import (
+    InputLayer,
+    input_layer_dir_path,
+    select_input_layer_storage,
+    MultipartUpload
+)
 from cplus_api.api_views.layer import (
     LayerList,
     LayerDetail,
@@ -11,17 +20,15 @@ from cplus_api.api_views.layer import (
     LayerUploadFinish,
     CheckLayer,
     is_internal_user,
-    validate_layer_access
-)
-from cplus_api.models.layer import (
-    InputLayer,
-    input_layer_dir_path,
-    select_input_layer_storage
+    validate_layer_access,
+    LayerUploadAbort
 )
 from cplus_api.models.profile import UserProfile
+from cplus_api.utils.api_helper import convert_size
 from cplus_api.tests.common import (
     FakeResolverMatchV1,
-    BaseAPIViewTransactionTest
+    BaseAPIViewTransactionTest,
+    MockS3Client
 )
 from cplus_api.tests.factories import InputLayerF, UserF
 
@@ -175,6 +182,30 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         response = view(request, **kwargs)
         self.assertEqual(response.status_code, 403)
 
+    @override_settings(DEBUG=True)
+    def test_layer_detail_from_dev(self):
+        view = LayerDetail.as_view()
+        input_layer = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE
+        )
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'models', 'test_model_1.tif'
+        )
+        self.store_layer_file(input_layer, file_path)
+        kwargs = {
+            'layer_uuid': str(input_layer.uuid)
+        }
+        request = self.factory.get(
+            reverse('v1:layer-detail', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data['url'])
+        self.assertEqual(response.data['uuid'], str(input_layer.uuid))
+
     def test_layer_delete(self):
         view = LayerDetail.as_view()
         input_layer = InputLayerF.create(
@@ -301,7 +332,11 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         input_layer.refresh_from_db()
         self.assertEqual(input_layer.privacy_type, data['privacy_type'])
 
-    def test_layer_upload_start(self):
+    @override_settings(DEBUG=True)
+    @mock.patch('boto3.client')
+    def test_layer_upload_start(self, mocked_s3):
+        s3_client = MockS3Client()
+        mocked_s3.return_value = s3_client
         file_path = absolute_path(
             'cplus_api', 'tests', 'data',
             'models', 'test_model_1.tif'
@@ -325,7 +360,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertEqual(response.status_code, 201)
         self.assertIn('uuid', response.data)
         self.assertIn('name', response.data)
-        self.assertIn('upload_url', response.data)
+        self.assertIn('upload_urls', response.data)
         self.assertEqual(response.data['name'], data['name'])
         input_layer = InputLayer.objects.filter(
             uuid=response.data['uuid']
@@ -333,6 +368,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertTrue(input_layer)
         self.assertFalse(input_layer.file)
         self.assertEqual(input_layer.size, data['size'])
+
         # test with existing file
         storage_backend = select_input_layer_storage()
         dest_file_path = os.path.join(
@@ -381,6 +417,107 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertFalse(storage_backend.exists(old_filename))
         self.assertFalse(os.path.exists(old_file_path))
 
+    @mock.patch('boto3.client')
+    def test_layer_upload_start_with_s3(self, mocked_s3):
+        s3_client = MockS3Client()
+        mocked_s3.return_value = s3_client
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'models', 'test_model_1.tif'
+        )
+        base_filename = 'test_model_1_start2.tif'
+        view = LayerUploadStart.as_view()
+        data = {
+            'layer_type': 0,
+            'component_type': 'ncs_carbon',
+            'privacy_type': 'common',
+            'client_id': 'client-test-123',
+            'name': base_filename,
+            'size': os.stat(file_path).st_size
+        }
+        request = self.factory.post(
+            reverse('v1:layer-upload-start'), data
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request)
+        self.assertEqual(response.status_code, 201)
+        self.assertIn('uuid', response.data)
+        self.assertIn('name', response.data)
+        self.assertIn('upload_urls', response.data)
+        self.assertEqual(response.data['name'], data['name'])
+        self.assertEqual(
+            response.data['upload_urls'],
+            [{
+                'part_number': 1,
+                'url': 'this_is_url'
+            }]
+        )
+        # test failed generate url
+        s3_client.raise_exc = True
+        data = {
+            'layer_type': 0,
+            'component_type': 'ncs_carbon',
+            'privacy_type': 'common',
+            'client_id': 'client-test-123',
+            'name': base_filename,
+            'size': os.stat(file_path).st_size
+        }
+        request = self.factory.post(
+            reverse('v1:layer-upload-start'), data
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request)
+        self.assertEqual(response.status_code, 400)
+
+    @mock.patch('boto3.client')
+    def test_layer_upload_start_with_s3_multipart(self, mocked_s3):
+        s3_client = MockS3Client()
+        mocked_s3.return_value = s3_client
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'models', 'test_model_1.tif'
+        )
+        base_filename = 'test_model_1_start2.tif'
+        view = LayerUploadStart.as_view()
+        data = {
+            'layer_type': 0,
+            'component_type': 'ncs_carbon',
+            'privacy_type': 'common',
+            'client_id': 'client-test-123',
+            'name': base_filename,
+            'size': os.stat(file_path).st_size,
+            'number_of_parts': 2
+        }
+        request = self.factory.post(
+            reverse('v1:layer-upload-start'), data
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request)
+        self.assertEqual(response.status_code, 201)
+        self.assertIn('uuid', response.data)
+        self.assertIn('name', response.data)
+        self.assertIn('upload_urls', response.data)
+        self.assertEqual(response.data['name'], data['name'])
+        self.assertEqual(
+            response.data['upload_urls'],
+            [{
+                'part_number': 1,
+                'url': 'this_is_url'
+            }, {
+                'part_number': 2,
+                'url': 'this_is_url'
+            }]
+        )
+        multipart_upload_id = response.data.get('multipart_upload_id', '')
+        self.assertTrue(multipart_upload_id)
+        self.assertTrue(MultipartUpload.objects.filter(
+            upload_id=multipart_upload_id,
+            input_layer_uuid=response.data['uuid']
+        ).exists())
+
     def test_layer_upload_finish(self):
         view = LayerUploadFinish.as_view()
         file_path = absolute_path(
@@ -396,9 +533,11 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         kwargs = {
             'layer_uuid': str(input_layer.uuid)
         }
+        payload = {}
         # file not exist
-        request = self.factory.get(
-            reverse('v1:layer-upload-finish', kwargs=kwargs)
+        request = self.factory.post(
+            reverse('v1:layer-upload-finish', kwargs=kwargs),
+            data=payload, format='json'
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
@@ -414,8 +553,9 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
             input_layer_dir_path(input_layer, base_filename)
         )
         self.direct_upload_layer_file(file_path, dest_file_path)
-        request = self.factory.get(
-            reverse('v1:layer-upload-finish', kwargs=kwargs)
+        request = self.factory.post(
+            reverse('v1:layer-upload-finish', kwargs=kwargs),
+            data=payload, format='json'
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
@@ -428,8 +568,9 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         # succcess
         input_layer.size = os.stat(file_path).st_size
         input_layer.save(update_fields=['size'])
-        request = self.factory.get(
-            reverse('v1:layer-upload-finish', kwargs=kwargs)
+        request = self.factory.post(
+            reverse('v1:layer-upload-finish', kwargs=kwargs),
+            data=payload, format='json'
         )
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
@@ -438,6 +579,60 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         input_layer.refresh_from_db()
         self.assertTrue(input_layer.file.name)
         self.assertTrue(input_layer.is_available())
+
+    @mock.patch('boto3.client')
+    def test_layer_upload_finish_with_multipart(self, mocked_s3):
+        s3_client = MockS3Client()
+        mocked_s3.return_value = s3_client
+        view = LayerUploadFinish.as_view()
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'models', 'test_model_1.tif'
+        )
+        base_filename = 'test_model_1_finish2.tif'
+        input_layer = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE,
+            name=base_filename,
+            size=10
+        )
+        kwargs = {
+            'layer_uuid': str(input_layer.uuid)
+        }
+        payload = {
+            'multipart_upload_id': 'this_is_upload_id',
+            'items': [{
+                'part_number': 1,
+                'etag': 'etag-1'
+            }, {
+                'part_number': 2,
+                'etag': 'etag-2'
+            }]
+        }
+        MultipartUpload.objects.create(
+            upload_id=payload['multipart_upload_id'],
+            input_layer_uuid=input_layer.uuid,
+            created_on=timezone.now(),
+            uploader=input_layer.owner,
+            parts=10
+        )
+        input_layer.size = os.stat(file_path).st_size
+        input_layer.save(update_fields=['size'])
+        self.store_layer_file(input_layer, file_path, base_filename)
+        request = self.factory.post(
+            reverse('v1:layer-upload-finish', kwargs=kwargs),
+            data=payload, format='json'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        input_layer.refresh_from_db()
+        self.assertTrue(input_layer.file.name)
+        self.assertTrue(input_layer.is_available())
+        self.assertFalse(MultipartUpload.objects.filter(
+            upload_id=payload['multipart_upload_id'],
+            input_layer_uuid=str(input_layer.uuid)
+        ).exists())
 
     def test_check_layer(self):
         view = CheckLayer.as_view()
@@ -511,3 +706,134 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertIn(layer_1.client_id, response.data['invalid'])
         self.assertIn(layer_2.client_id, response.data['unavailable'])
         self.assertIn(layer_3.client_id, response.data['available'])
+
+    def test_convert_size(self):
+        self.assertEqual(convert_size(0), '0B')
+        self.assertEqual(convert_size(1024), '1.0 KB')
+        self.assertEqual(convert_size(1024 * 1024), '1.0 MB')
+
+    @mock.patch('boto3.client')
+    def test_abort_multipart_upload(self, mocked_s3):
+        s3_client = MockS3Client()
+        mocked_s3.return_value = s3_client
+        view = LayerUploadAbort.as_view()
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'models', 'test_model_1.tif'
+        )
+        base_filename = 'test_model_1_finish3.tif'
+        input_layer = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE,
+            name=base_filename,
+            size=10
+        )
+        kwargs = {
+            'layer_uuid': str(input_layer.uuid)
+        }
+        # test invalid payload
+        payload = {}
+        request = self.factory.post(
+            reverse('v1:layer-upload-abort', kwargs=kwargs),
+            data=payload, format='json'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 400)
+        # test success abort with returned parts = 1
+        payload = {
+            'multipart_upload_id': 'this_is_upload_id'
+        }
+        upload_record = MultipartUpload.objects.create(
+            upload_id=payload['multipart_upload_id'],
+            input_layer_uuid=input_layer.uuid,
+            created_on=timezone.now(),
+            uploader=input_layer.owner,
+            parts=10
+        )
+        input_layer.size = os.stat(file_path).st_size
+        input_layer.save(update_fields=['size'])
+        request = self.factory.post(
+            reverse('v1:layer-upload-abort', kwargs=kwargs),
+            data=payload, format='json'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 204)
+        upload_record.refresh_from_db()
+        self.assertTrue(upload_record.is_aborted)
+        # test success abort with returned parts = 0
+        s3_client.mock_parts = {
+            'Parts': []
+        }
+        request = self.factory.post(
+            reverse('v1:layer-upload-abort', kwargs=kwargs),
+            data=payload, format='json'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(
+            MultipartUpload.objects.filter(
+                upload_id=payload['multipart_upload_id'],
+                input_layer_uuid=input_layer.uuid
+            ).exists()
+        )
+        self.assertFalse(
+            InputLayer.objects.filter(
+                uuid=input_layer.uuid
+            ).exists()
+        )
+
+    @mock.patch('boto3.client')
+    def test_abort_multipart_upload_with_exc(self, mocked_s3):
+        s3_client = MockS3Client()
+        mocked_s3.return_value = s3_client
+        view = LayerUploadAbort.as_view()
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'models', 'test_model_1.tif'
+        )
+        base_filename = 'test_model_1_finish3.tif'
+        input_layer = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE,
+            name=base_filename,
+            size=10
+        )
+        payload = {
+            'multipart_upload_id': 'this_is_upload_id'
+        }
+        MultipartUpload.objects.create(
+            upload_id=payload['multipart_upload_id'],
+            input_layer_uuid=input_layer.uuid,
+            created_on=timezone.now(),
+            uploader=input_layer.owner,
+            parts=10
+        )
+        input_layer.size = os.stat(file_path).st_size
+        input_layer.save(update_fields=['size'])
+        kwargs = {
+            'layer_uuid': str(input_layer.uuid)
+        }
+        s3_client.raise_exc = True
+        request = self.factory.post(
+            reverse('v1:layer-upload-abort', kwargs=kwargs),
+            data=payload, format='json'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(
+            MultipartUpload.objects.filter(
+                upload_id=payload['multipart_upload_id'],
+                input_layer_uuid=input_layer.uuid
+            ).exists()
+        )
+        self.assertFalse(
+            InputLayer.objects.filter(
+                uuid=input_layer.uuid
+            ).exists()
+        )

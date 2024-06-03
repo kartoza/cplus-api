@@ -1,10 +1,14 @@
 """Model factories."""
 import factory
+import uuid
 from typing import Generic, TypeVar
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from cplus_api.models.scenario import ScenarioTask
-from cplus_api.models.layer import BaseLayer, InputLayer, OutputLayer
+from cplus_api.models.layer import (
+    BaseLayer, InputLayer,
+    OutputLayer, MultipartUpload
+)
 
 
 T = TypeVar('T')
@@ -52,6 +56,17 @@ class ScenarioTaskF(BaseFactory[ScenarioTask],
             7216308.751738624,
             7279753.465204147
         ],
+        "snap_layer": "",
+        "snap_layer_uuid": "",
+        "pathway_suitability_index": 0,
+        "snap_rescale": False,
+        "snap_method": "0",
+        "sieve_enabled": False,
+        "sieve_threshold": 10,
+        "sieve_mask_path": "",
+        "sieve_mask_uuid": "",
+        "mask_path": "",
+        "mask_layer_uuids": [],
         "priority_layers": [
             {
                 "uuid": "3e0c7dff-51f2-48c5-a316-15d9ca2407cb",
@@ -278,3 +293,18 @@ class OutputLayerF(BaseFactory[OutputLayer],
     owner = factory.SubFactory(UserF)
     layer_type = BaseLayer.LayerTypes.RASTER
     scenario = factory.SubFactory(ScenarioTaskF)
+
+
+class MultipartUploadF(BaseFactory[MultipartUpload],
+                       metaclass=BaseMetaFactory[MultipartUpload]):
+    class Meta:
+        model = MultipartUpload
+
+    upload_id = factory.Sequence(
+        lambda n: u'upload_id_ %s' % n
+    )
+    input_layer_uuid = uuid.uuid4()
+    created_on = timezone.now()
+    uploader = factory.SubFactory(UserF)
+    parts = 10
+    is_aborted = False
