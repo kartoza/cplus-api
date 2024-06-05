@@ -9,15 +9,15 @@ from django.conf import settings
 from django.utils import timezone
 from django.template.loader import render_to_string
 from django.core.mail import send_mail
-from cplus.models.base import (
+from cplus_core.models.base import (
     Activity,
     NcsPathway,
     Scenario,
     SpatialExtent,
     LayerType
 )
-from cplus.tasks.analysis import ScenarioAnalysisTask
-from cplus.utils.conf import Settings
+from cplus_core.analysis import ScenarioAnalysisTask
+from cplus_core.utils.conf import Settings
 from cplus_api.models.scenario import ScenarioTask
 from cplus_api.models.layer import OutputLayer, InputLayer
 from cplus_api.utils.api_helper import (
