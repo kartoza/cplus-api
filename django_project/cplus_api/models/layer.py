@@ -139,7 +139,7 @@ class InputLayer(BaseLayer):
                 self.file.name,
                 file_path,
                 Config=settings.AWS_TRANSFER_CONFIG
-            )        
+            )
         self.last_used_on = timezone.now()
         self.save(update_fields=['last_used_on'])
         if file_path.endswith('.zip'):
