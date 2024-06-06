@@ -8,10 +8,10 @@ from cplus_api.models.layer import (
     output_layer_dir_path,
     InputLayer,
 )
-from cplus_api.tests.common import BaseInitData
+from cplus_api.tests.common import BaseAPIViewTransactionTest
 
 
-class TestModelLayer(BaseInitData):
+class TestModelLayer(BaseAPIViewTransactionTest):
 
     def test_input_layer_dir_path(self):
         # private layer

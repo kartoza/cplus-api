@@ -5,7 +5,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from django.utils import timezone
-from django.core.files.storage import storages
+from django.core.files.storage import storages, FileSystemStorage
 
 
 def input_layer_dir_path(instance, filename):
@@ -127,9 +127,19 @@ class InputLayer(BaseLayer):
             dir_path,
             os.path.basename(self.file.name)
         )
-        with open(file_path, 'wb+') as destination:
-            for chunk in self.file.chunks():
-                destination.write(chunk)
+        storage = select_input_layer_storage()
+        if isinstance(storage, FileSystemStorage):
+            with open(file_path, 'wb+') as destination:
+                for chunk in self.file.chunks():
+                    destination.write(chunk)
+        else:
+            boto3_client = storage.connection.meta.client
+            boto3_client.download_file(
+                storage.bucket_name,
+                self.file.name,
+                file_path,
+                Config=settings.AWS_TRANSFER_CONFIG
+            )
         self.last_used_on = timezone.now()
         self.save(update_fields=['last_used_on'])
         if file_path.endswith('.zip'):
