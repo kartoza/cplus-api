@@ -4,6 +4,7 @@ from celery import shared_task
 import logging
 import time
 import json
+from django.conf import settings
 from core.settings.utils import UUIDEncoder
 from cplus_api.models.scenario import ScenarioTask
 
@@ -30,6 +31,10 @@ def create_scenario_task_runner(scenario_task: ScenarioTask):
 def run_scenario_analysis_task(scenario_task_id):  # pragma: no cover
     scenario_task = ScenarioTask.objects.get(id=scenario_task_id)
     scenario_task.task_on_started()
+    scenario_task.code_version = (
+        f"{settings.CODE_RELEASE_VERSION}-{settings.CODE_COMMIT_HASH}"
+    )
+    scenario_task.save(update_fields=['code_version'])
     logger.info(
         f'Triggered run_scenario_analysis_task {str(scenario_task.uuid)}')
     from qgis.core import QgsApplication

@@ -10,7 +10,7 @@ import os  # noqa
 from django.db import connection
 from boto3.s3.transfer import TransferConfig
 from .contrib import *  # noqa
-from .utils import code_release_version
+from .utils import code_release_version, code_commit_release_version
 
 ALLOWED_HOSTS = ['*']
 ADMINS = (
@@ -44,6 +44,7 @@ DEFAULT_EXCEPTION_REPORTER_FILTER = (
 )
 
 CODE_RELEASE_VERSION = code_release_version()
+CODE_COMMIT_HASH = code_commit_release_version()
 
 # s3
 # TODO: set CacheControl in object_parameters+endpoint_url
