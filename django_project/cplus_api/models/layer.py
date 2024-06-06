@@ -127,9 +127,17 @@ class InputLayer(BaseLayer):
             dir_path,
             os.path.basename(self.file.name)
         )
-        with open(file_path, 'wb+') as destination:
-            for chunk in self.file.chunks():
-                destination.write(chunk)
+        storage = select_input_layer_storage()
+        boto3_client = storage.connection.meta.client
+        boto3_client.download_file(
+            storage.bucket_name,
+            self.file.name,
+            file_path,
+            Config=settings.AWS_TRANSFER_CONFIG
+        )
+        # with open(file_path, 'wb+') as destination:
+        #     for chunk in self.file.chunks():
+        #         destination.write(chunk)
         self.last_used_on = timezone.now()
         self.save(update_fields=['last_used_on'])
         if file_path.endswith('.zip'):

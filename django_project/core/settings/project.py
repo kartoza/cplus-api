@@ -48,8 +48,8 @@ CODE_RELEASE_VERSION = code_release_version()
 # s3
 # TODO: set CacheControl in object_parameters+endpoint_url
 MB = 1024 ** 2
-transfer_config = TransferConfig(
-    multipart_chunksize=300 * MB,
+AWS_TRANSFER_CONFIG = TransferConfig(
+    multipart_chunksize=512 * MB,
     use_threads=True,
     max_concurrency=10
 )
@@ -60,7 +60,7 @@ STORAGES = {
           "bucket_name": os.environ.get("AWS_S3_BUCKET_NAME"),
           "file_overwrite": False,
           "max_memory_size": 300 * MB,  # 300MB
-          "transfer_config": transfer_config
+          "transfer_config": AWS_TRANSFER_CONFIG
         },
     },
     "staticfiles": {
@@ -72,7 +72,7 @@ STORAGES = {
           "bucket_name": os.environ.get("MINIO_BUCKET_NAME"),
           "file_overwrite": False,
           "max_memory_size": 300 * MB,  # 300MB,
-          "transfer_config": transfer_config
+          "transfer_config": AWS_TRANSFER_CONFIG
         },
     },
 }
