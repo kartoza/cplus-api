@@ -5,6 +5,7 @@
 
 import contextlib
 import dataclasses
+import datetime
 import enum
 import json
 import os.path
@@ -21,6 +22,7 @@ from cplus.definitions.constants import (
     STYLE_ATTRIBUTE,
     NCS_CARBON_SEGMENT,
     NCS_PATHWAY_SEGMENT,
+    NPV_COLLECTION_PROPERTY,
     PATH_ATTRIBUTE,
     PATHWAYS_ATTRIBUTE,
     PIXEL_VALUE_ATTRIBUTE,
@@ -32,16 +34,20 @@ from cplus.models.base import (
     Activity,
     NcsPathway,
     Scenario,
+    ScenarioResult,
     SpatialExtent,
 )
+from cplus.models.financial import ActivityNpvCollection
 from cplus.models.helpers import (
+    activity_npv_collection_to_dict,
     create_activity,
+    create_activity_npv_collection,
     create_ncs_pathway,
     layer_component_to_dict,
     ncs_pathway_to_dict,
 )
 
-from cplus.utils.helper import log
+from cplus.utils.helper import log, todict, CustomJsonEncoder
 
 
 @contextlib.contextmanager
@@ -85,14 +91,30 @@ class ScenarioSettings(Scenario):
         :rtype: ScenarioSettings
         """
 
+        activities_list = settings.value("activities", [])
+        weighted_activities_list = settings.value("activities", [])
+
+        activities = [
+            settings_manager.get_activity(activity_uuid)
+            for activity_uuid in activities_list
+        ]
+        weighted_activities = [
+            settings_manager.get_activity(activity_uuid)
+            for activity_uuid in weighted_activities_list
+        ]
+
         return cls(
             uuid=uuid.UUID(identifier),
             name=settings.value("name", None),
             description=settings.value("description", None),
+            extent=[],
+            activities=activities,
+            weighted_activities=weighted_activities,
+            priority_layer_groups=[],
         )
 
     @classmethod
-    def get_scenario_extent(cls):
+    def get_scenario_extent(cls, identifier):
         """Fetches Scenario extent from
          the passed scenario settings.
 
@@ -100,9 +122,11 @@ class ScenarioSettings(Scenario):
         :returns: Spatial extent instance extent
         :rtype: SpatialExtent
         """
-        spatial_key = "extent/spatial"
+        spatial_key = (
+            f"{settings_manager._get_scenario_settings_base(identifier)}/extent/spatial"
+        )
 
-        with qgis_settings(spatial_key, cls) as settings:
+        with qgis_settings(spatial_key) as settings:
             bbox = settings.value("bbox", None)
             spatial_extent = SpatialExtent(bbox=bbox)
 
@@ -135,6 +159,7 @@ class Settings(enum.Enum):
 
     # Last selected data directory
     LAST_DATA_DIR = "last_data_dir"
+    LAST_MASK_DIR = "last_mask_dir"
 
     # Advanced settings
     BASE_DIR = "advanced/base_dir"
@@ -173,15 +198,25 @@ class Settings(enum.Enum):
     LANDUSE_WEIGHTED = "landuse_weighted"
     HIGHEST_POSITION = "highest_position"
 
+    # Processing option
+    PROCESSING_TYPE = "processing_type"
+
+    # DEBUG
+    DEBUG = "debug"
+    DEV_MODE = "dev_mode"
+    BASE_API_URL = "base_api_url"
+
 
 class SettingsManager(QtCore.QObject):
     """Manages saving/loading settings for the plugin in QgsSettings."""
 
     BASE_GROUP_NAME: str = "cplus_plugin"
     SCENARIO_GROUP_NAME: str = "scenarios"
+    SCENARIO_RESULTS_GROUP_NAME: str = "scenarios_results"
     PRIORITY_GROUP_NAME: str = "priority_groups"
     PRIORITY_LAYERS_GROUP_NAME: str = "priority_layers"
     NCS_PATHWAY_BASE: str = "ncs_pathways"
+    LAYER_MAPPING_BASE: str = "layer_mapping"
 
     ACTIVITY_BASE: str = "activities"
 
@@ -272,6 +307,21 @@ class SettingsManager(QtCore.QObject):
             f"{str(identifier)}"
         )
 
+    def _get_scenario_results_settings_base(self, identifier):
+        """Gets the scenario results settings base url.
+
+        :param identifier: Scenario identifier
+        :type identifier: uuid.UUID
+
+        :returns: Scenario settings base group
+        :rtype: str
+        """
+        return (
+            f"{self.BASE_GROUP_NAME}/"
+            f"{self.SCENARIO_RESULTS_GROUP_NAME}/"
+            f"{str(identifier)}"
+        )
+
     def save_scenario(self, scenario_settings):
         """Save the passed scenario settings into the plugin settings
 
@@ -282,10 +332,19 @@ class SettingsManager(QtCore.QObject):
 
         self.save_scenario_extent(settings_key, scenario_settings.extent)
 
+        scenario_activities_ids = [
+            str(activity.uuid) for activity in scenario_settings.activities
+        ]
+        weighted_activities_ids = [
+            str(activity.uuid) for activity in scenario_settings.weighted_activities
+        ]
+
         with qgis_settings(settings_key) as settings:
+            settings.setValue("uuid", scenario_settings.uuid)
             settings.setValue("name", scenario_settings.name)
             settings.setValue("description", scenario_settings.description)
-            settings.setValue("uuid", scenario_settings.uuid)
+            settings.setValue("activities", scenario_activities_ids)
+            settings.setValue("weighted_activities", weighted_activities_ids)
 
     def save_scenario_extent(self, key, extent):
         """Saves the scenario extent into plugin settings
@@ -301,28 +360,28 @@ class SettingsManager(QtCore.QObject):
             extent (SpatialExtent): Scenario extent
             key (str): QgsSettings group key
         """
-        spatial_extent = extent.spatial.bbox
+        spatial_extent = extent.bbox
 
         spatial_key = f"{key}/extent/spatial/"
         with qgis_settings(spatial_key) as settings:
             settings.setValue("bbox", spatial_extent)
 
-    def get_scenario(self, identifier):
-        """Retrieves the scenario that matches the passed identifier.
-
-        :param identifier: Scenario identifier
-        :type identifier: str
-
-        :returns: Scenario settings instance
-        :rtype: ScenarioSettings
-        """
-
-        settings_key = self._get_scenario_settings_base(identifier)
-        with qgis_settings(settings_key) as settings:
-            scenario_settings = ScenarioSettings.from_qgs_settings(
-                str(identifier), settings
-            )
-        return scenario_settings
+    # def get_scenario(self, identifier):
+    #     """Retrieves the scenario that matches the passed identifier.
+    #
+    #     :param identifier: Scenario identifier
+    #     :type identifier: str
+    #
+    #     :returns: Scenario settings instance
+    #     :rtype: ScenarioSettings
+    #     """
+    #
+    #     settings_key = self._get_scenario_settings_base(identifier)
+    #     with qgis_settings(settings_key) as settings:
+    #         scenario_settings = ScenarioSettings.from_qgs_settings(
+    #             str(identifier), settings
+    #         )
+    #     return scenario_settings
 
     def get_scenario(self, scenario_id):
         """Retrieves the first scenario that matched the passed scenario id.
@@ -334,17 +393,18 @@ class SettingsManager(QtCore.QObject):
         :rtype: ScenarioSettings
         """
 
-        result = []
         with qgis_settings(
             f"{self.BASE_GROUP_NAME}/" f"{self.SCENARIO_GROUP_NAME}"
         ) as settings:
-            for uuid in settings.childGroups():
-                scenario_settings_key = self._get_scenario_settings_base(uuid)
+            for scenario_uuid in settings.childGroups():
+                scenario_settings_key = self._get_scenario_settings_base(scenario_uuid)
                 with qgis_settings(scenario_settings_key) as scenario_settings:
-                    scenario = ScenarioSettings.from_qgs_settings(
-                        uuid, scenario_settings
-                    )
-                    if scenario.id == scenario_id:
+                    if scenario_uuid == scenario_id:
+                        scenario = ScenarioSettings.from_qgs_settings(
+                            scenario_uuid, scenario_settings
+                        )
+
+                        scenario.extent = scenario.get_scenario_extent(scenario_uuid)
                         return scenario
         return None
 
@@ -358,17 +418,29 @@ class SettingsManager(QtCore.QObject):
         with qgis_settings(
             f"{self.BASE_GROUP_NAME}/" f"{self.SCENARIO_GROUP_NAME}"
         ) as settings:
-            for uuid in settings.childGroups():
-                scenario_settings_key = self._get_scenario_settings_base(uuid)
+            for scenario_uuid in settings.childGroups():
+                scenario_settings_key = self._get_scenario_settings_base(scenario_uuid)
                 with qgis_settings(scenario_settings_key) as scenario_settings:
                     scenario = ScenarioSettings.from_qgs_settings(
-                        uuid, scenario_settings
+                        scenario_uuid, scenario_settings
                     )
-                    scenario.extent = self.get_scenario_
-                    result.append(
-                        ScenarioSettings.from_qgs_settings(uuid, scenario_settings)
-                    )
+                    scenario.extent = scenario.get_scenario_extent(scenario_uuid)
+                    result.append(scenario)
         return result
+
+    def delete_scenario(self, scenario_id):
+        """Delete the scenario with the passed scenarion id.
+
+        :param scenario_id: Scenario identifier
+        :type scenario_id: str
+        """
+
+        with qgis_settings(
+            f"{self.BASE_GROUP_NAME}/" f"{self.SCENARIO_GROUP_NAME}"
+        ) as settings:
+            for scenario_identifier in settings.childGroups():
+                if str(scenario_identifier) == str(scenario_id):
+                    settings.remove(scenario_identifier)
 
     def delete_all_scenarios(self):
         """Deletes all the plugin scenarios settings."""
@@ -377,6 +449,122 @@ class SettingsManager(QtCore.QObject):
         ) as settings:
             for scenario_name in settings.childGroups():
                 settings.remove(scenario_name)
+
+    def save_scenario_result(self, scenario_result, scenario_id):
+        """Save the scenario results plugin settings
+
+        :param scenario_settings: Scenario settings
+        :type scenario_settings: ScenarioSettings
+        """
+        settings_key = self._get_scenario_results_settings_base(scenario_id)
+
+        analysis_output = json.dumps(scenario_result.analysis_output)
+
+        with qgis_settings(settings_key) as settings:
+            settings.setValue("scenario_id", scenario_id)
+            settings.setValue(
+                "created_date",
+                scenario_result.created_date.strftime("%Y_%m_%d_%H_%M_%S"),
+            )
+            settings.setValue("analysis_output", analysis_output)
+            settings.setValue("output_layer_name", scenario_result.output_layer_name)
+            settings.setValue("scenario_directory", scenario_result.scenario_directory)
+
+    def get_scenario_result(self, scenario_id):
+        """Retrieves the scenario result that matched the passed scenario id.
+
+        :param scenario_id: Scenario id
+        :type scenario_id: str
+
+        :returns: Scenario result
+        :rtype: ScenarioSettings
+        """
+
+        scenario_settings_key = self._get_scenario_results_settings_base(scenario_id)
+        with qgis_settings(scenario_settings_key) as scenario_settings:
+            created_date = scenario_settings.value("created_date")
+            analysis_output = scenario_settings.value("analysis_output")
+            output_layer_name = scenario_settings.value("output_layer_name")
+            scenario_directory = scenario_settings.value("scenario_directory")
+
+            try:
+                created_date = datetime.datetime.strptime(
+                    created_date, "%Y_%m_%d_%H_%M_%S"
+                )
+                analysis_output = json.loads(analysis_output)
+            except Exception as e:
+                log(f"Problem fetching scenario result, {e}")
+                return None
+
+            return ScenarioResult(
+                scenario=None,
+                created_date=created_date,
+                analysis_output=analysis_output,
+                output_layer_name=output_layer_name,
+                scenario_directory=scenario_directory,
+            )
+        return None
+
+    def get_scenarios_results(self):
+        """Gets all the saved scenarios results.
+
+        :returns: List of the scenario results
+        :rtype: list
+        """
+        result = []
+        with qgis_settings(
+            f"{self.BASE_GROUP_NAME}/{self.SCENARIO_RESULTS_GROUP_NAME}"
+        ) as settings:
+            for uuid in settings.childGroups():
+                scenario_settings_key = self._get_scenario_results_settings_base(uuid)
+                with qgis_settings(scenario_settings_key) as scenario_settings:
+                    created_date = scenario_settings.value("created_date")
+                    analysis_output = scenario_settings.value("analysis_output")
+                    output_layer_name = scenario_settings.value("output_layer_name")
+                    scenario_directory = scenario_settings.value("scenario_directory")
+
+                    try:
+                        created_date = datetime.datetime.strptime(
+                            created_date, "%Y_%m_%d_%H_%M_%S"
+                        )
+                        analysis_output = json.loads(analysis_output)
+                    except Exception as e:
+                        log(f"Problem fetching scenario result, {e}")
+                        return None
+
+                    result.append(
+                        ScenarioResult(
+                            scenario=None,
+                            created_date=created_date,
+                            analysis_output=analysis_output,
+                            output_layer_name=output_layer_name,
+                            scenario_directory=scenario_directory,
+                        )
+                    )
+        return result
+
+    def delete_scenario_result(self, scenario_id):
+        """Delete the scenario result that contains the scenario id.
+
+        :param scenario_id: Scenario identifier
+        :type scenario_id: str
+        """
+
+        with qgis_settings(
+            f"{self.BASE_GROUP_NAME}/" f"{self.SCENARIO_RESULTS_GROUP_NAME}"
+        ) as settings:
+            for scenario_identifier in settings.childGroups():
+                if str(scenario_identifier) == str(scenario_id):
+                    settings.remove(scenario_identifier)
+
+    def delete_all_scenarios_results(self):
+        """Deletes all the plugin scenarios results settings."""
+        with qgis_settings(
+            f"{self.BASE_GROUP_NAME}/{self.SCENARIO_GROUP_NAME}/"
+            f"{self.SCENARIO_RESULTS_GROUP_NAME}"
+        ) as settings:
+            for scenario_result in settings.childGroups():
+                settings.remove(scenario_result)
 
     def _get_priority_layers_settings_base(self, identifier) -> str:
         """Gets the priority layers settings base url.
@@ -430,6 +618,7 @@ class SettingsManager(QtCore.QObject):
             priority_layer["user_defined"] = settings.value(
                 "user_defined", defaultValue=True, type=bool
             )
+            priority_layer["type"] = settings.value("type", defaultValue=0, type=int)
             priority_layer["groups"] = groups
         return priority_layer
 
@@ -466,6 +655,9 @@ class SettingsManager(QtCore.QObject):
                         "selected": priority_settings.value("selected", type=bool),
                         "user_defined": priority_settings.value(
                             "user_defined", defaultValue=True, type=bool
+                        ),
+                        "type": priority_settings.value(
+                            "type", defaultValue=0, type=int
                         ),
                         "groups": groups,
                     }
@@ -543,6 +735,7 @@ class SettingsManager(QtCore.QObject):
             settings.setValue("path", priority_layer["path"])
             settings.setValue("selected", priority_layer.get("selected", False))
             settings.setValue("user_defined", priority_layer.get("user_defined", True))
+            settings.setValue("type", priority_layer.get("type", 0))
             groups_key = f"{settings_key}/groups"
             with qgis_settings(groups_key) as groups_settings:
                 for group_id in groups_settings.childGroups():
@@ -550,7 +743,7 @@ class SettingsManager(QtCore.QObject):
             for group in groups:
                 group_key = f"{groups_key}/{group['name']}"
                 with qgis_settings(group_key) as group_settings:
-                    group_settings.setValue("uuid", group.get("uuid"))
+                    group_settings.setValue("uuid", str(group.get("uuid")))
                     group_settings.setValue("name", group["name"])
                     group_settings.setValue("value", group["value"])
 
@@ -711,6 +904,74 @@ class SettingsManager(QtCore.QObject):
         ) as settings:
             for priority_group in settings.childGroups():
                 settings.remove(priority_group)
+
+    def _get_layer_mappings_settings_base(self) -> str:
+        """Returns the path for Layer Mapping settings.
+
+        :returns: Base path to Layer Mapping group.
+        :rtype: str
+        """
+        return f"{self.BASE_GROUP_NAME}/{self.LAYER_MAPPING_BASE}"
+
+    def get_all_layer_mapping(self) -> typing.Dict:
+        """Return all layer mapping."""
+        layer_mapping = {}
+
+        layer_mapping_root = self._get_layer_mappings_settings_base()
+        with qgis_settings(layer_mapping_root) as settings:
+            keys = settings.childKeys()
+            for k in keys:
+                layer_raw = settings.value(k, dict())
+                if len(layer_raw) > 0:
+                    try:
+                        layer = json.loads(layer_raw)
+                        layer_mapping[k] = layer
+                    except json.JSONDecodeError:
+                        log("Layer Mapping JSON is invalid")
+        return layer_mapping
+
+    def get_layer_mapping(self, identifier) -> typing.Dict:
+        """Retrieves the layer mapping that matches the passed identifier.
+
+        :param identifier: Layer mapping identifier
+        :type identifier: str path
+
+        :returns: Layer mapping
+        :rtype: typing.Dict
+        """
+
+        layer_mapping = {}
+
+        layer_mapping_root = self._get_layer_mappings_settings_base()
+
+        with qgis_settings(layer_mapping_root) as settings:
+            layer = settings.value(identifier, dict())
+            if len(layer) > 0:
+                try:
+                    layer_mapping = json.loads(layer)
+                except json.JSONDecodeError:
+                    log("Layer Mapping JSON is invalid")
+        return layer_mapping
+
+    def save_layer_mapping(self, input_layer, identifier=None):
+        """Save the layer mapping into the plugin settings
+
+        :param input_layer: Layer mapping
+        :type input_layer: dict
+        :param identifier: file identifier using path
+        :type identifier: str
+        """
+
+        if not identifier:
+            identifier = input_layer["path"].replace(os.sep, "--")
+        settings_key = self._get_layer_mappings_settings_base()
+
+        with qgis_settings(settings_key) as settings:
+            settings.setValue(identifier, json.dumps(input_layer))
+
+    def remove_layer_mapping(self, identifier):
+        """Remove layer mapping from settings."""
+        self.remove(f"{self.LAYER_MAPPING_BASE}/{identifier}")
 
     def _get_ncs_pathway_settings_base(self) -> str:
         """Returns the path for NCS pathway settings.
@@ -907,7 +1168,7 @@ class SettingsManager(QtCore.QObject):
                 if len(priority_layers) > 0:
                     activity[PRIORITY_LAYERS_SEGMENT] = priority_layers
 
-        activity_str = json.dumps(activity)
+        activity_str = json.dumps(todict(activity), cls=CustomJsonEncoder)
 
         activity_uuid = activity[UUID_ATTRIBUTE]
         activity_root = self._get_activity_settings_base()
@@ -1035,6 +1296,38 @@ class SettingsManager(QtCore.QObject):
         """
         if self.get_activity(activity_uuid) is not None:
             self.remove(f"{self.ACTIVITY_BASE}/{activity_uuid}")
+
+    def get_npv_collection(self) -> typing.Optional[ActivityNpvCollection]:
+        """Gets the collection of NPV mappings of activities.
+
+        :returns: The collection of activity NPV mappings or None
+        if not defined.
+        :rtype: ActivityNpvCollection
+        """
+        npv_collection_str = self.get_value(NPV_COLLECTION_PROPERTY, None)
+        if not npv_collection_str:
+            return None
+
+        npv_collection_dict = {}
+        try:
+            npv_collection_dict = json.loads(npv_collection_str)
+        except json.JSONDecodeError:
+            log("ActivityNPVCollection JSON is invalid.")
+
+        return create_activity_npv_collection(
+            npv_collection_dict, self.get_all_activities()
+        )
+
+    def save_npv_collection(self, npv_collection: ActivityNpvCollection):
+        """Saves the activity NPV collection in the settings as a serialized
+        JSON string.
+
+        :param npv_collection: Activity NPV collection serialized to a JSON string.
+        :type npv_collection: ActivityNpvCollection
+        """
+        npv_collection_dict = activity_npv_collection_to_dict(npv_collection)
+        npv_collection_str = json.dumps(npv_collection_dict)
+        self.set_value(NPV_COLLECTION_PROPERTY, npv_collection_str)
 
 
 settings_manager = SettingsManager()

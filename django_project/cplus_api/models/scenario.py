@@ -31,6 +31,10 @@ class ScenarioTask(BaseTaskRequest):
     updated_detail = models.JSONField(
         default=dict
     )
+    code_version = models.TextField(
+        default='',
+        blank=True
+    )
 
     def task_on_sent(self, task_id, task_name, parameters):
         super().task_on_sent(task_id, task_name, parameters)
