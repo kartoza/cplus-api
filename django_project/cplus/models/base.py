@@ -205,6 +205,12 @@ LayerModelComponentType = typing.TypeVar(
     "LayerModelComponentType", bound=LayerModelComponent
 )
 
+class PriorityLayerType(IntEnum):
+    """Type of priority weighting layer."""
+
+    DEFAULT = 0
+    NPV = 1
+
 
 @dataclasses.dataclass
 class PriorityLayer(BaseModelComponent):
@@ -213,6 +219,7 @@ class PriorityLayer(BaseModelComponent):
     groups: list
     selected: bool = False
     path: str = ""
+    type: PriorityLayerType = PriorityLayerType.DEFAULT
 
 
 @dataclasses.dataclass
