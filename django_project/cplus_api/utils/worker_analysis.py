@@ -644,7 +644,7 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
             result = subprocess.run(
                 (
                     f'gdal_translate -of COG -co COMPRESS=DEFLATE'
-                    f' "{file_path}" {final_output_path}'
+                    f' "{file_path}" "{final_output_path}"'
                 ),
                 shell=True,
                 capture_output=True
