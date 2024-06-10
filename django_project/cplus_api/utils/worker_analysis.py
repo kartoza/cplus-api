@@ -341,53 +341,6 @@ class TaskConfig(object):
         return config
 
 
-def create_and_upload_output_layer(
-        file_path: str, scenario_task: ScenarioTask,
-        is_final_output: bool, group: str,
-        output_meta: dict = None) -> OutputLayer:
-    filename = os.path.basename(file_path)
-    if get_layer_type(file_path) == 0:
-        cog_name = (
-            f"{os.path.basename(file_path).split('.')[0]}"
-            f"_COG."
-            f"{os.path.basename(file_path).split('.')[1]}"
-        )
-        final_output_path = os.path.join(
-            os.path.dirname(file_path),
-            cog_name
-        )
-        result = subprocess.run(
-            (
-                f"gdal_translate -of COG -co COMPRESS=DEFLATE"
-                f" {file_path} {final_output_path}"
-            ),
-            shell=True,
-            capture_output=True
-        )
-        if result.returncode != 0:
-            logger.error(result.stderr)
-            logger.error(f"Failed coverting raster to COG: {file_path}")
-        if not os.path.exists(final_output_path):
-            # fallback to original file
-            final_output_path = file_path
-    else:
-        final_output_path = file_path
-    output_layer = OutputLayer.objects.create(
-        name=filename,
-        created_on=timezone.now(),
-        owner=scenario_task.submitted_by,
-        layer_type=get_layer_type(file_path),
-        size=os.stat(final_output_path).st_size,
-        is_final_output=is_final_output,
-        scenario=scenario_task,
-        group=group,
-        output_meta={} if not output_meta else output_meta
-    )
-    with open(final_output_path, 'rb') as output_file:
-        output_layer.file.save(filename, output_file)
-    return output_layer
-
-
 class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
 
     MIN_UPDATE_PROGRESS_IN_SECONDS = 1
@@ -672,6 +625,55 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
             (ct - self.last_update_progress).total_seconds() >=
             self.MIN_UPDATE_PROGRESS_IN_SECONDS
         )
+
+    def create_and_upload_output_layer(
+            self, file_path: str, scenario_task: ScenarioTask,
+            is_final_output: bool, group: str,
+            output_meta: dict = None) -> OutputLayer:
+        filename = os.path.basename(file_path)
+        if get_layer_type(file_path) == 0:
+            cog_name = (
+                f"{os.path.basename(file_path).split('.')[0]}"
+                f"_COG."
+                f"{os.path.basename(file_path).split('.')[1]}"
+            )
+            final_output_path = os.path.join(
+                os.path.dirname(file_path),
+                cog_name
+            )
+            result = subprocess.run(
+                (
+                    f"gdal_translate -of COG -co COMPRESS=DEFLATE"
+                    f" {file_path} {final_output_path}"
+                ),
+                shell=True,
+                capture_output=True
+            )
+            if result.returncode != 0:
+                self.log_message(result.stderr.decode(), info=False)
+                self.log_message(
+                    f"Failed coverting raster to COG: {file_path}",
+                    info=False
+                )
+            if not os.path.exists(final_output_path):
+                # fallback to original file
+                final_output_path = file_path
+        else:
+            final_output_path = file_path
+        output_layer = OutputLayer.objects.create(
+            name=filename,
+            created_on=timezone.now(),
+            owner=scenario_task.submitted_by,
+            layer_type=get_layer_type(file_path),
+            size=os.stat(final_output_path).st_size,
+            is_final_output=is_final_output,
+            scenario=scenario_task,
+            group=group,
+            output_meta={} if not output_meta else output_meta
+        )
+        with open(final_output_path, 'rb') as output_file:
+            output_layer.file.save(filename, output_file)
+        return output_layer
 
     def upload_scenario_outputs(self):
         scenario_output_files, total_files = (
