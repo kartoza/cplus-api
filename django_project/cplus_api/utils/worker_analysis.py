@@ -356,13 +356,20 @@ def create_and_upload_output_layer(
             os.path.dirname(file_path),
             cog_name
         )
-        subprocess.run(
+        result = subprocess.run(
             (
                 f"gdal_translate -of COG -co COMPRESS=DEFLATE"
                 f" {file_path} {final_output_path}"
             ),
-            shell=True
+            shell=True,
+            capture_output=True
         )
+        if result.returncode != 0:
+            logger.error(result.stderr)
+            logger.error(f"Failed coverting raster to COG: {file_path}")
+        if not os.path.exists(final_output_path):
+            # fallback to original file
+            final_output_path = file_path
     else:
         final_output_path = file_path
     output_layer = OutputLayer.objects.create(
