@@ -872,3 +872,27 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertTrue(find_layer)
         self.assertFalse(find_layer['url'])
         self.assertFalse(input_layer.file)
+        input_layer_2 = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.COMMON,
+            client_id=payload[0]
+        )
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'models', 'test_model_1.tif'
+        )
+        self.store_layer_file(
+            input_layer_2, file_path, input_layer_2.name)
+        request = self.factory.post(
+            reverse('v1:fetch-layer-by-client-id'),
+            data=payload, format='json'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
+        response = view(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        find_layer = self.find_layer_from_response(
+            response.data, input_layer_2.uuid)
+        self.assertTrue(find_layer)
+        self.assertTrue(find_layer['url'])
+        self.assertEqual(find_layer['uuid'], str(input_layer_2.uuid))
