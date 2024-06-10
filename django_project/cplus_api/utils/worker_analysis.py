@@ -643,8 +643,8 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
             )
             result = subprocess.run(
                 (
-                    f"gdal_translate -of COG -co COMPRESS=DEFLATE"
-                    f" {file_path} {final_output_path}"
+                    f'gdal_translate -of COG -co COMPRESS=DEFLATE'
+                    f' "{file_path}" {final_output_path}'
                 ),
                 shell=True,
                 capture_output=True
@@ -691,7 +691,7 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                 output_meta = self.output
                 if 'OUTPUT' in output_meta:
                     del output_meta['OUTPUT']
-                create_and_upload_output_layer(
+                self.create_and_upload_output_layer(
                     files[0], self.scenario_task,
                     True, None, self.output
                 )
@@ -700,7 +700,7 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                     100 * (total_uploaded_files / total_files))
             else:
                 for file in files:
-                    create_and_upload_output_layer(
+                    self.create_and_upload_output_layer(
                         file, self.scenario_task, False, group)
                     total_uploaded_files += 1
                     self.set_custom_progress(
