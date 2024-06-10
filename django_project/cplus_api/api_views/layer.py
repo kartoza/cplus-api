@@ -733,12 +733,15 @@ class FetchLayerByClientId(APIView):
         layers = InputLayer.objects.filter(
             client_id__in=request.data
         ).order_by('name')
-        results = []
+        results = {}
         for layer in layers:
             if not validate_layer_access(layer, request.user):
                 continue
-            results.append(layer)
+            if layer.client_id not in results:
+                results[layer.client_id] = layer
+            elif not results[layer.client_id].is_available():
+                results[layer.client_id] = layer
         return Response(status=200, data=InputLayerSerializer(
-            results,
+            list(results.values()),
             many=True
         ).data)
