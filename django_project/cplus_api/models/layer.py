@@ -7,8 +7,6 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from django.utils import timezone
 from django.core.files.storage import storages, FileSystemStorage
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 
 
 COMMON_LAYERS_DIR = 'common_layers'
@@ -209,14 +207,6 @@ class InputLayer(BaseLayer):
                 Bucket=storage.bucket_name, Key=old_path)
         self.file.name = correct_path
         self.save(update_fields=['file'])
-
-
-@receiver(post_save, sender=InputLayer)
-def input_layer_post_save(sender, instance: InputLayer,
-                          created, *args, **kwargs):
-    from cplus_api.tasks.verify_input_layer import verify_input_layer
-    if not created:
-        verify_input_layer.delay(instance.id)
 
 
 class OutputLayer(BaseLayer):
