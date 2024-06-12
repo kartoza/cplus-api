@@ -1,20 +1,27 @@
 import os
 import uuid
+import shutil
 from zipfile import ZipFile
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from django.utils import timezone
 from django.core.files.storage import storages, FileSystemStorage
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+
+COMMON_LAYERS_DIR = 'common_layers'
+INTERNAL_LAYERS_DIR = 'internal_layers'
 
 
 def input_layer_dir_path(instance, filename):
     """Return upload directory path for Input Layer."""
     file_path = f'{str(instance.owner.pk)}/'
     if instance.privacy_type == InputLayer.PrivacyTypes.COMMON:
-        file_path = 'common_layers/'
+        file_path = f'{COMMON_LAYERS_DIR}/'
     if instance.privacy_type == InputLayer.PrivacyTypes.INTERNAL:
-        file_path = 'internal_layers/'
+        file_path = f'{INTERNAL_LAYERS_DIR}/'
     file_path = file_path + f'{instance.component_type}/' + filename
     return file_path
 
@@ -163,6 +170,53 @@ class InputLayer(BaseLayer):
         if not self.file.name:
             return False
         return self.file.storage.exists(self.file.name)
+
+    def is_in_correct_directory(self):
+        layer_path = self.file.name
+        prefix_path = f'{str(self.owner.pk)}/'
+        if self.privacy_type == InputLayer.PrivacyTypes.COMMON:
+            prefix_path = f'{COMMON_LAYERS_DIR}/'
+        elif self.privacy_type == InputLayer.PrivacyTypes.INTERNAL:
+            prefix_path = f'{INTERNAL_LAYERS_DIR}/'
+        return layer_path.startswith(prefix_path)
+
+    def fix_layer_metadata(self):
+        if not self.is_available():
+            return
+        self.size = self.file.size
+        self.save(update_fields=['size'])
+        if self.is_in_correct_directory():
+            return
+        old_path = self.file.name
+        correct_path = input_layer_dir_path(self, self.name)
+        storage = select_input_layer_storage()
+        if isinstance(storage, FileSystemStorage):
+            full_correct_path = os.path.join(storage.location, correct_path)
+            dirname = os.path.split(full_correct_path)[0]
+            os.makedirs(dirname, exist_ok=True)
+            shutil.move(
+                os.path.join(storage.location, old_path),
+                full_correct_path,
+            )
+        else:
+            boto3_client = storage.connection.meta.client
+            copy_source = {
+                'Bucket': storage.bucket_name,
+                'Key': old_path
+            }
+            boto3_client.copy(copy_source, storage.bucket_name, correct_path)
+            boto3_client.delete_object(
+                Bucket=storage.bucket_name, Key=old_path)
+        self.file.name = correct_path
+        self.save(update_fields=['file'])
+
+
+@receiver(post_save, sender=InputLayer)
+def input_layer_post_save(sender, instance: InputLayer,
+                          created, *args, **kwargs):
+    from cplus_api.tasks.verify_input_layer import verify_input_layer
+    if not created:
+        verify_input_layer.delay(instance.id)
 
 
 class OutputLayer(BaseLayer):

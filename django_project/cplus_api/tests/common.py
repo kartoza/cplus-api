@@ -6,13 +6,18 @@ from datetime import datetime
 from botocore.exceptions import ClientError
 from collections import OrderedDict
 from django.contrib.contenttypes.models import ContentType
+from django.db.models.signals import post_save
 from django.test import TestCase, TransactionTestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIRequestFactory
 from cplus_api.models.profile import UserRoleType
 from cplus_api.tests.factories import UserF
 from django.core.files.storage import storages
-from cplus_api.models.layer import InputLayer, OutputLayer
+from cplus_api.models.layer import (
+    InputLayer,
+    OutputLayer,
+    input_layer_post_save
+)
 
 
 class DummyTask:
@@ -118,6 +123,8 @@ class BaseInitData(unittest.TestCase):
         )
         self.scenario_task_ct = ContentType.objects.get(
             app_label="cplus_api", model="scenariotask")
+        # disable input layer post save
+        post_save.disconnect(input_layer_post_save, sender=InputLayer)
 
     def cleanup(self):
         """Delete storage used in default and minio."""
