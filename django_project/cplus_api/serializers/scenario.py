@@ -147,7 +147,7 @@ class PriorityGroupSerializer(serializers.Serializer):
 
 
 class PriorityLayerSerializer(BaseLayerSerializer):
-    selected = serializers.BooleanField()
+    selected = serializers.BooleanField(required=False)
     groups = GroupSerializer(many=True)
 
     class Meta:
