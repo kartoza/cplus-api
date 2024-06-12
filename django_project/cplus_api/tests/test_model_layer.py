@@ -1,5 +1,9 @@
 import os
 import tempfile
+import mock
+from django.test import Client
+from rest_framework import status
+from django.urls import reverse
 from django.contrib.auth.models import User
 from core.settings.utils import absolute_path
 from cplus_api.tests.factories import InputLayerF, OutputLayerF
@@ -9,7 +13,7 @@ from cplus_api.models.layer import (
     InputLayer
 )
 from cplus_api.tasks.verify_input_layer import verify_input_layer
-from cplus_api.tests.common import BaseAPIViewTransactionTest
+from cplus_api.tests.common import BaseAPIViewTransactionTest, mocked_process
 
 
 class TestModelLayer(BaseAPIViewTransactionTest):
@@ -151,6 +155,9 @@ class TestModelLayer(BaseAPIViewTransactionTest):
         input_layer = InputLayerF.create(
             name='test_model_fix_1.tif'
         )
+        input_layer.fix_layer_metadata()
+        self.assertFalse(input_layer.is_available())
+        self.assertEqual(input_layer.size, 0)
         file_path = absolute_path(
             'cplus_api', 'tests', 'data',
             'models', 'test_model_1.tif'
@@ -187,3 +194,28 @@ class TestModelLayer(BaseAPIViewTransactionTest):
         input_layer.refresh_from_db()
         self.assertTrue(input_layer.is_in_correct_directory())
         self.assertEqual(input_layer.size, file_size)
+
+    @mock.patch('cplus_api.admin.verify_input_layer.delay')
+    def test_trigger_verify_input_layer(self, mocked_process_param):
+        mocked_process_param.side_effect = mocked_process
+        input_layer = InputLayerF.create(
+            name='test_model_verify_1.tif',
+            privacy_type=InputLayer.PrivacyTypes.COMMON
+        )
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'models', 'test_model_1.tif'
+        )
+        self.store_layer_file(input_layer, file_path, input_layer.name)
+        client = Client()
+        client.force_login(self.superuser)
+        response = client.post(
+            reverse('admin:cplus_api_inputlayer_changelist'),
+            {
+                'action': 'trigger_verify_input_layer',
+                '_selected_action': [input_layer.id]
+            },
+            follow=True
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mocked_process_param.assert_called_once()
