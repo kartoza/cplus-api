@@ -73,6 +73,11 @@ class BaseTaskRequest(models.Model):
         blank=True
     )
 
+    stack_trace_errors = models.TextField(
+        null=True,
+        blank=True
+    )
+
     progress = models.FloatField(
         null=True,
         blank=True
@@ -212,11 +217,13 @@ class BaseTaskRequest(models.Model):
             except Exception:
                 if isinstance(traceback, str):
                     ex_msg += str(traceback) + '\n'
-        self.errors = ex_msg
+        self.errors = str(exception) + '\n'
+        self.stack_trace_errors = ex_msg
         self.add_log('Task is stopped with errors.', logging.ERROR)
         self.add_log(str(exception), logging.ERROR)
         self.save(
-            update_fields=['last_update', 'status', 'errors']
+            update_fields=['last_update', 'status',
+                           'errors', 'stack_trace_errors']
         )
 
     def task_on_retried(self, reason):

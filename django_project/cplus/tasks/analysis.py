@@ -127,9 +127,7 @@ class ScenarioAnalysisTask(QgsTask):
         """Called when the task is terminated."""
         message = "Processing has been cancelled by the user."
         if self.error:
-            message = (
-                f"Problem in running scenario analysis: {str(self.error)}"
-            )
+            message = f"Problem in running scenario analysis: {self.error}"
         self.set_status_message(tr(message))
         self.log_message(message)
 
