@@ -956,7 +956,7 @@ class ScenarioAnalysisTask(QgsTask):
                     raise Exception(
                         tr(
                             f"Pathway contains "
-                            f"invalid minimum and maxmum band values"
+                            f"invalid minimum and maximum band values"
                         )
                     )
 

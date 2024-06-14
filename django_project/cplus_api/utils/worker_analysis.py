@@ -585,11 +585,12 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
         return self.task_config.get_priority_layers()
 
     def cancel_task(self, exception=None):
+        self.error = exception
         # raise exception to stop the task
         if exception:
             raise exception
         else:
-            raise Exception('Task stopped with errors!')
+            raise Exception('Task is stopped with errors!')
 
     def log_message(self, message: str, name: str = "qgis_cplus",
                     info: bool = True, notify: bool = True):
