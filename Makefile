@@ -6,17 +6,17 @@ build:
 	@echo "------------------------------------------------------------------"
 	@echo "Building in production mode"
 	@echo "------------------------------------------------------------------"
-	@docker-compose build
+	@docker compose build
 
 build-dev:
 	@echo
 	@echo "------------------------------------------------------------------"
 	@echo "Building in dev mode"
 	@echo "------------------------------------------------------------------"
-	@docker-compose build dev
+	@docker compose build dev
 
 wait-db:
-	@docker-compose ${ARGS} exec -T db su - postgres -c "until pg_isready; do sleep 5; done"
+	@docker compose ${ARGS} exec -T db su - postgres -c "until pg_isready; do sleep 5; done"
 
 sleep:
 	@echo
@@ -31,53 +31,53 @@ up:
 	@echo "------------------------------------------------------------------"
 	@echo "Running in production mode"
 	@echo "------------------------------------------------------------------"
-	@docker-compose ${ARGS} up -d nginx django worker celery_beat
+	@docker compose ${ARGS} up -d nginx django worker celery_beat
 
 dev:
 	@echo
 	@echo "------------------------------------------------------------------"
 	@echo "Running in dev mode"
 	@echo "------------------------------------------------------------------"
-	@docker-compose ${ARGS} up -d dev worker
+	@docker compose ${ARGS} up -d dev worker
 
 down:
 	@echo
 	@echo "------------------------------------------------------------------"
 	@echo "Running in dev mode"
 	@echo "------------------------------------------------------------------"
-	@docker-compose ${ARGS} down
+	@docker compose ${ARGS} down
 
 migrate:
 	@echo
 	@echo "------------------------------------------------------------------"
 	@echo "Running migration"
 	@echo "------------------------------------------------------------------"
-	@docker-compose ${ARGS} exec -T dev python manage.py migrate
+	@docker compose ${ARGS} exec -T dev python manage.py migrate
 
 dev-runserver:
 	@echo
 	@echo "------------------------------------------------------------------"
 	@echo "Start django runserver in dev container"
 	@echo "------------------------------------------------------------------"
-	@docker-compose $(ARGS) exec -T dev bash -c "nohup python manage.py runserver 0.0.0.0:8080 &"
+	@docker compose $(ARGS) exec -T dev bash -c "nohup python manage.py runserver 0.0.0.0:8080 &"
 
 dev-shell:
 	@echo
 	@echo "------------------------------------------------------------------"
 	@echo "Start django runserver in dev container"
 	@echo "------------------------------------------------------------------"
-	@docker-compose $(ARGS) exec dev bash
+	@docker compose $(ARGS) exec dev bash
 
 scale-worker:
 	@echo
 	@echo "------------------------------------------------------------------"
 	@echo "scale-worker"
 	@echo "------------------------------------------------------------------"
-	@docker-compose up -d worker --no-deps --no-recreate --scale worker=$(COUNT)
+	@docker compose up -d worker --no-deps --no-recreate --scale worker=$(COUNT)
 
 init-bucket:
 	@echo
 	@echo "------------------------------------------------------------------"
 	@echo "Init createbuckets Minio"
 	@echo "------------------------------------------------------------------"
-	@docker-compose ${ARGS} up -d createbuckets
+	@docker compose ${ARGS} up -d createbuckets
