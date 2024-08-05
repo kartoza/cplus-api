@@ -268,7 +268,16 @@ class ScenarioAnalysisHistory(APIView):
     @swagger_auto_schema(
         operation_id='scenario-analysis-history',
         tags=[SCENARIO_API_TAG],
-        manual_parameters=PARAMS_PAGINATION,
+        manual_parameters=[
+            openapi.Parameter(
+                'status', openapi.IN_QUERY,
+                description=(
+                    'Scenario status filter'
+                ),
+                type=openapi.TYPE_STRING,
+                required=False
+            )
+        ] + PARAMS_PAGINATION,
         responses={
             200: PaginatedScenarioTaskItemSerializer,
             400: APIErrorSerializer,
@@ -281,6 +290,11 @@ class ScenarioAnalysisHistory(APIView):
         scenarios = ScenarioTask.objects.filter(
             submitted_by=request.user
         ).order_by('-submitted_on')
+        status = request.GET.get('status', '')
+        if status:
+            scenarios = scenarios.filter(
+                status__in=status.split(',')
+            )
         # set pagination
         paginator = Paginator(scenarios, page_size)
         total_page = math.ceil(paginator.count / page_size)

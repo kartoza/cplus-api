@@ -563,7 +563,10 @@ class ScenarioTaskLogListSerializer(serializers.ListSerializer):
 
 class ScenarioTaskItemSerializer(ScenarioTaskStatusSerializer):
     class Meta:
-        props = ScenarioTaskStatusSerializer.Meta.swagger_schema_fields['properties']
+        props = (
+            ScenarioTaskStatusSerializer.Meta.
+            swagger_schema_fields['properties']
+        )
         del props['logs']
         swagger_schema_fields = {
             'type': openapi.TYPE_OBJECT,
