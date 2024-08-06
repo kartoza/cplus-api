@@ -425,7 +425,7 @@ class ScenarioTaskStatusSerializer(serializers.ModelSerializer):
         return TaskLog.objects.filter(
             content_type=scenario_task_ct,
             object_id=obj.pk
-        ).order_by('date_time').values_list('log', flat=True)
+        ).order_by('date_time').values('log', 'date_time')
 
     class Meta:
         swagger_schema_fields = {
