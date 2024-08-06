@@ -18,11 +18,13 @@ from cplus_api.serializers.scenario import (
     ScenarioTaskStatusSerializer,
     ScenarioTaskLogListSerializer,
     ScenarioTaskLogSerializer,
-    PaginatedScenarioTaskStatusSerializer,
-    ScenarioDetailSerializer
+    PaginatedScenarioTaskItemSerializer,
+    ScenarioDetailSerializer,
+    ScenarioTaskItemSerializer
 )
 from cplus_api.serializers.common import (
-    APIErrorSerializer
+    APIErrorSerializer,
+    NoContentSerializer
 )
 from cplus_api.utils.api_helper import (
     SCENARIO_API_TAG,
@@ -266,9 +268,18 @@ class ScenarioAnalysisHistory(APIView):
     @swagger_auto_schema(
         operation_id='scenario-analysis-history',
         tags=[SCENARIO_API_TAG],
-        manual_parameters=PARAMS_PAGINATION,
+        manual_parameters=[
+            openapi.Parameter(
+                'status', openapi.IN_QUERY,
+                description=(
+                    'Scenario status filter'
+                ),
+                type=openapi.TYPE_STRING,
+                required=False
+            )
+        ] + PARAMS_PAGINATION,
         responses={
-            200: PaginatedScenarioTaskStatusSerializer,
+            200: PaginatedScenarioTaskItemSerializer,
             400: APIErrorSerializer,
             404: APIErrorSerializer
         }
@@ -278,7 +289,12 @@ class ScenarioAnalysisHistory(APIView):
         page_size = get_page_size(request)
         scenarios = ScenarioTask.objects.filter(
             submitted_by=request.user
-        ).order_by('submitted_on')
+        ).order_by('-submitted_on')
+        status = request.GET.get('status', '')
+        if status:
+            scenarios = scenarios.filter(
+                status__in=status.split(',')
+            )
         # set pagination
         paginator = Paginator(scenarios, page_size)
         total_page = math.ceil(paginator.count / page_size)
@@ -287,7 +303,7 @@ class ScenarioAnalysisHistory(APIView):
         else:
             paginated_entities = paginator.get_page(page)
             output = (
-                ScenarioTaskStatusSerializer(
+                ScenarioTaskItemSerializer(
                     paginated_entities,
                     many=True
                 ).data
@@ -322,3 +338,23 @@ class ScenarioAnalysisTaskDetail(BaseScenarioReadAccess, APIView):
         self.validate_user_access(request.user, scenario_task)
         return Response(
             status=200, data=ScenarioDetailSerializer(scenario_task).data)
+
+    @swagger_auto_schema(
+        operation_id='scenario-analysis-remove',
+        operation_description='API to remove scenario analysis.',
+        tags=[SCENARIO_API_TAG],
+        manual_parameters=[PARAM_SCENARIO_UUID_IN_PATH],
+        responses={
+            204: NoContentSerializer,
+            400: APIErrorSerializer,
+            403: APIErrorSerializer,
+            404: APIErrorSerializer
+        }
+    )
+    def delete(self, request, *args, **kwargs):
+        scenario_uuid = kwargs.get('scenario_uuid')
+        scenario_task = get_object_or_404(
+            ScenarioTask, uuid=scenario_uuid)
+        self.validate_user_access(request.user, scenario_task, 'delete')
+        scenario_task.delete()
+        return Response(status=204)

@@ -4,6 +4,7 @@ import os
 import traceback
 from datetime import datetime
 from uuid import UUID
+from enum import Enum
 
 import boto3
 import math
@@ -232,7 +233,7 @@ class CustomJsonEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, UUID):
             # if the obj is uuid, we simply return the value of uuid
-            return obj.hex
+            return str(obj)
         if isinstance(obj, datetime):
             # if the obj is uuid, we simply return the value of uuid
             return obj.isoformat()
@@ -240,7 +241,9 @@ class CustomJsonEncoder(json.JSONEncoder):
 
 
 def todict(obj, classkey=None):
-    if isinstance(obj, dict):
+    if isinstance(obj, Enum):
+        return obj.value
+    elif isinstance(obj, dict):
         data = {}
         for (k, v) in obj.items():
             data[k] = todict(v, classkey)
