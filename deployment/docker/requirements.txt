@@ -60,4 +60,6 @@ flower==1.2.0
 django-revproxy @ https://github.com/jazzband/django-revproxy/archive/refs/tags/0.11.0.zip
 
 # cplus-core
-git+https://github.com/kartoza/cplus-core.git@v0.0.3
+# git+https://github.com/kartoza/cplus-core.git@v0.0.3
+
+git+https://github.com/kartoza/cplus-core.git@feat-refactor-conf
