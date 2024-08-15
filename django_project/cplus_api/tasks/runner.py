@@ -23,7 +23,7 @@ def create_scenario_task_runner(scenario_task: ScenarioTask):
     analysis_task.prepare_run()
     logger.info('Finished prepare_run')
     logger.info(
-        json.dumps(analysis_task.task_config.to_dict(), cls=UUIDEncoder))
+        json.dumps(analysis_task.task.task_config.to_dict(), cls=UUIDEncoder))
     return analysis_task
 
 
