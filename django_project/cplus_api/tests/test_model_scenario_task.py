@@ -121,7 +121,8 @@ class TestModelScenarioTask(TestCase):
         scenario_task.task_on_errors(Exception('test'), 'new-line')
         scenario_task.refresh_from_db()
         self.assertEqual(scenario_task.status, TaskStatus.STOPPED)
-        self.assertEqual(scenario_task.errors, 'test\nnew-line\n')
+        self.assertEqual(scenario_task.stack_trace_errors, 'test\nnew-line\n')
+        self.assertEqual(scenario_task.errors, 'test\n')
         self.check_log_exists(scenario_task, 'Task is stopped with errors.')
 
     def test_task_on_retried(self):

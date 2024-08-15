@@ -19,7 +19,8 @@ from cplus_api.serializers.layer import (
     InputLayerSerializer,
     PaginatedInputLayerSerializer,
     UploadLayerSerializer,
-    FinishUploadLayerSerializer
+    FinishUploadLayerSerializer,
+    LAYER_SCHEMA_FIELDS
 )
 from cplus_api.serializers.common import (
     APIErrorSerializer,
@@ -698,3 +699,49 @@ class CheckLayer(APIView):
             'unavailable': list(ids_not_available),
             'invalid': list(input_ids - ids_found)
         })
+
+
+class FetchLayerByClientId(APIView):
+    """API to fetch input layer by client id."""
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_id='fetch-layer-by-client-id',
+        operation_description='API to fetch input layer by client id.',
+        tags=[LAYER_API_TAG],
+        request_body=openapi.Schema(
+            title='List of client id',
+            type=openapi.TYPE_ARRAY,
+            items=openapi.Items(
+                type=openapi.TYPE_STRING
+            )
+        ),
+        responses={
+            200: openapi.Schema(
+                description=(
+                    'Layer List'
+                ),
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Items(**LAYER_SCHEMA_FIELDS),
+            ),
+            400: APIErrorSerializer,
+            403: APIErrorSerializer,
+            404: APIErrorSerializer
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        layers = InputLayer.objects.filter(
+            client_id__in=request.data
+        ).order_by('name')
+        results = {}
+        for layer in layers:
+            if not validate_layer_access(layer, request.user):
+                continue
+            if layer.client_id not in results:
+                results[layer.client_id] = layer
+            elif not results[layer.client_id].is_available():
+                results[layer.client_id] = layer
+        return Response(status=200, data=InputLayerSerializer(
+            list(results.values()),
+            many=True
+        ).data)

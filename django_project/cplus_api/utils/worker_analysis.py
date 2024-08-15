@@ -341,46 +341,6 @@ class TaskConfig(object):
         return config
 
 
-def create_and_upload_output_layer(
-        file_path: str, scenario_task: ScenarioTask,
-        is_final_output: bool, group: str,
-        output_meta: dict = None) -> OutputLayer:
-    filename = os.path.basename(file_path)
-    if get_layer_type(file_path) == 0:
-        cog_name = (
-            f"{os.path.basename(file_path).split('.')[0]}"
-            f"_COG."
-            f"{os.path.basename(file_path).split('.')[1]}"
-        )
-        final_output_path = os.path.join(
-            os.path.dirname(file_path),
-            cog_name
-        )
-        subprocess.run(
-            (
-                f"gdal_translate -of COG -co COMPRESS=DEFLATE"
-                f" {file_path} {final_output_path}"
-            ),
-            shell=True
-        )
-    else:
-        final_output_path = file_path
-    output_layer = OutputLayer.objects.create(
-        name=filename,
-        created_on=timezone.now(),
-        owner=scenario_task.submitted_by,
-        layer_type=get_layer_type(file_path),
-        size=os.stat(final_output_path).st_size,
-        is_final_output=is_final_output,
-        scenario=scenario_task,
-        group=group,
-        output_meta={} if not output_meta else output_meta
-    )
-    with open(final_output_path, 'rb') as output_file:
-        output_layer.file.save(filename, output_file)
-    return output_layer
-
-
 class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
 
     MIN_UPDATE_PROGRESS_IN_SECONDS = 1
@@ -625,11 +585,12 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
         return self.task_config.get_priority_layers()
 
     def cancel_task(self, exception=None):
+        self.error = exception
         # raise exception to stop the task
         if exception:
             raise exception
         else:
-            raise Exception('Task stopped with errors!')
+            raise Exception('Task is stopped with errors!')
 
     def log_message(self, message: str, name: str = "qgis_cplus",
                     info: bool = True, notify: bool = True):
@@ -666,6 +627,55 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
             self.MIN_UPDATE_PROGRESS_IN_SECONDS
         )
 
+    def create_and_upload_output_layer(
+            self, file_path: str, scenario_task: ScenarioTask,
+            is_final_output: bool, group: str,
+            output_meta: dict = None) -> OutputLayer:
+        filename = os.path.basename(file_path)
+        if get_layer_type(file_path) == 0:
+            cog_name = (
+                f"{os.path.basename(file_path).split('.')[0]}"
+                f"_COG."
+                f"{os.path.basename(file_path).split('.')[1]}"
+            )
+            final_output_path = os.path.join(
+                os.path.dirname(file_path),
+                cog_name
+            )
+            result = subprocess.run(
+                (
+                    f'gdal_translate -of COG -co COMPRESS=DEFLATE'
+                    f' "{file_path}" "{final_output_path}"'
+                ),
+                shell=True,
+                capture_output=True
+            )
+            if result.returncode != 0:
+                self.log_message(result.stderr.decode(), info=False)
+                self.log_message(
+                    f"Failed coverting raster to COG: {file_path}",
+                    info=False
+                )
+            if not os.path.exists(final_output_path):
+                # fallback to original file
+                final_output_path = file_path
+        else:
+            final_output_path = file_path
+        output_layer = OutputLayer.objects.create(
+            name=filename,
+            created_on=timezone.now(),
+            owner=scenario_task.submitted_by,
+            layer_type=get_layer_type(file_path),
+            size=os.stat(final_output_path).st_size,
+            is_final_output=is_final_output,
+            scenario=scenario_task,
+            group=group,
+            output_meta={} if not output_meta else output_meta
+        )
+        with open(final_output_path, 'rb') as output_file:
+            output_layer.file.save(filename, output_file)
+        return output_layer
+
     def upload_scenario_outputs(self):
         scenario_output_files, total_files = (
             self.scenario_task.get_scenario_output_files()
@@ -682,7 +692,7 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                 output_meta = self.output
                 if 'OUTPUT' in output_meta:
                     del output_meta['OUTPUT']
-                create_and_upload_output_layer(
+                self.create_and_upload_output_layer(
                     files[0], self.scenario_task,
                     True, None, self.output
                 )
@@ -691,7 +701,7 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                     100 * (total_uploaded_files / total_files))
             else:
                 for file in files:
-                    create_and_upload_output_layer(
+                    self.create_and_upload_output_layer(
                         file, self.scenario_task, False, group)
                     total_uploaded_files += 1
                     self.set_custom_progress(

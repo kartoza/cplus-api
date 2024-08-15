@@ -147,7 +147,7 @@ class PriorityGroupSerializer(serializers.Serializer):
 
 
 class PriorityLayerSerializer(BaseLayerSerializer):
-    selected = serializers.BooleanField()
+    selected = serializers.BooleanField(required=False)
     groups = GroupSerializer(many=True)
 
     class Meta:
@@ -425,7 +425,7 @@ class ScenarioTaskStatusSerializer(serializers.ModelSerializer):
         return TaskLog.objects.filter(
             content_type=scenario_task_ct,
             object_id=obj.pk
-        ).order_by('date_time').values_list('log', flat=True)
+        ).order_by('date_time').values('log', 'date_time')
 
     class Meta:
         swagger_schema_fields = {
@@ -561,11 +561,53 @@ class ScenarioTaskLogListSerializer(serializers.ListSerializer):
     child = ScenarioTaskLogSerializer()
 
 
-class PaginatedScenarioTaskStatusSerializer(serializers.Serializer):
+class ScenarioTaskItemSerializer(ScenarioTaskStatusSerializer):
+    class Meta:
+        props = (
+            ScenarioTaskStatusSerializer.Meta.
+            swagger_schema_fields['properties']
+        )
+        del props['logs']
+        swagger_schema_fields = {
+            'type': openapi.TYPE_OBJECT,
+            'title': 'Scenario Task Item',
+            'properties': {
+                **props,
+                'detail': {
+                    **ScenarioInputSerializer.Meta.swagger_schema_fields
+                }
+            },
+            'example': {
+                'uuid': '8c4582ab-15b1-4ed0-b8e4-00640ec10a65',
+                'task_id': '3e0c7dff-51f2-48c5-a316-15d9ca2407cb',
+                'plugin_version': '1.0.0',
+                'scenario_name': 'Scenario A',
+                'status': 'Queued',
+                'submitted_on': '2022-08-15T08:09:15.049806Z',
+                'created_by': 'admin@admin.com',
+                'started_at': '2022-08-15T08:09:15.049806Z',
+                'finished_at': '2022-08-15T09:09:15.049806Z',
+                'errors': None,
+                'progress': 70,
+                'progress_text': 'Processing ABC',
+                'detail': {}
+            }
+        }
+        model = ScenarioTask
+        fields = [
+            'uuid', 'task_id', 'plugin_version',
+            'scenario_name', 'status', 'submitted_on',
+            'created_by', 'started_at', 'finished_at',
+            'errors', 'progress', 'progress_text',
+            'detail'
+        ]
+
+
+class PaginatedScenarioTaskItemSerializer(serializers.Serializer):
     page = serializers.IntegerField()
     total_page = serializers.IntegerField()
     page_size = serializers.IntegerField()
-    results = ScenarioTaskStatusSerializer(many=True)
+    results = ScenarioTaskItemSerializer(many=True)
 
     class Meta:
         swagger_schema_fields = {
@@ -588,7 +630,7 @@ class PaginatedScenarioTaskStatusSerializer(serializers.Serializer):
                     title='Results',
                     type=openapi.TYPE_ARRAY,
                     items=openapi.Items(
-                        **ScenarioTaskStatusSerializer.
+                        **ScenarioTaskItemSerializer.
                         Meta.swagger_schema_fields
                     ),
                 )

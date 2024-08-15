@@ -323,6 +323,15 @@ class TestScenarioAPIView(BaseAPIViewTransactionTest):
         self.assertEqual(len(response.data['results']), 1)
         scenario = response.data['results'][0]
         self.assertEqual(str(scenario_task.uuid), scenario['uuid'])
+        # filter completed status only
+        request = self.factory.get(
+            reverse('v1:scenario-history') + f'?status={TaskStatus.COMPLETED}'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
+        response = view(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['results']), 0)
 
     def test_scenario_detail(self):
         view = ScenarioAnalysisTaskDetail.as_view()
@@ -348,3 +357,14 @@ class TestScenarioAPIView(BaseAPIViewTransactionTest):
             response.data['scenario_name'],
             scenario_task.detail['scenario_name']
         )
+        # delete scenario
+        request = self.factory.delete(
+            reverse('v1:scenario-detail', kwargs=kwargs)
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(ScenarioTask.objects.filter(
+            id=scenario_task.id
+        ).exists())

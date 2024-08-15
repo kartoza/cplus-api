@@ -3,7 +3,8 @@ from cplus_api.api_views.user import UserInfo
 from cplus_api.api_views.layer import (
     LayerList, LayerDetail, LayerUpload,
     LayerUploadStart, LayerUploadFinish,
-    CheckLayer, LayerUploadAbort
+    CheckLayer, LayerUploadAbort,
+    FetchLayerByClientId
 )
 from cplus_api.api_views.scenario import (
     ScenarioAnalysisSubmit,
@@ -35,6 +36,11 @@ layer_urls = [
         'layer/list/',
         LayerList.as_view(),
         name='layer-list'
+    ),
+    path(
+        'layer/filter/client_id/',
+        FetchLayerByClientId.as_view(),
+        name='fetch-layer-by-client-id'
     ),
     path(
         'layer/upload/start/',

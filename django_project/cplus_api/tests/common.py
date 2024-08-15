@@ -12,7 +12,10 @@ from rest_framework.test import APIRequestFactory
 from cplus_api.models.profile import UserRoleType
 from cplus_api.tests.factories import UserF
 from django.core.files.storage import storages
-from cplus_api.models.layer import InputLayer, OutputLayer
+from cplus_api.models.layer import (
+    InputLayer,
+    OutputLayer
+)
 
 
 class DummyTask:
