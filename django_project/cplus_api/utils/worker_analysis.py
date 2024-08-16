@@ -5,6 +5,7 @@ import os
 import logging
 import traceback
 import subprocess
+from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
 from django.template.loader import render_to_string
@@ -23,8 +24,7 @@ from cplus_api.utils.api_helper import (
     convert_size,
     todict,
     CustomJsonEncoder,
-    get_layer_type,
-    send_notification
+    get_layer_type
 )
 from cplus_api.utils.default import DEFAULT_VALUES
 
@@ -781,10 +781,11 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                 is_success else
                 f'Your analysis of {scenario_name} has stopped with errors'
             )
-            send_notification(
-                subject=subject,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[self.scenario_task.submitted_by.email],
+            send_mail(
+                subject,
+                None,
+                settings.DEFAULT_FROM_EMAIL,
+                [self.scenario_task.submitted_by.email],
                 html_message=message
             )
         except Exception as exc:
