@@ -1,6 +1,7 @@
 import uuid
 import json
 import datetime
+from unittest.mock import patch
 from django.test import TestCase
 from django.core.mail import send_mail
 from django.conf import settings
