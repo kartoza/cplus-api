@@ -296,4 +296,4 @@ def send_notification(
         "html": html_message
     }
 
-    email: resend.Email = resend.Emails.send(params)
+    resend.Emails.send(params)
