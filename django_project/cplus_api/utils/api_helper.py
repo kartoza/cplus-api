@@ -8,6 +8,7 @@ from enum import Enum
 
 import boto3
 import math
+import resend
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from django.conf import settings
@@ -276,3 +277,23 @@ def get_layer_type(file_path: str):
         return 1
     else:
         return -1
+
+
+def send_notification(
+    subject,
+    from_email,
+    recipient_list,
+    html_message=None
+):
+    if not from_email:
+        from_email = settings.DEFAULT_FROM_EMAIL
+    resend.api_key = resend.api_key = settings.RESEND_API_KEY
+
+    params: resend.Emails.SendParams = {
+        "from": from_email,
+        "to": recipient_list,
+        "subject": subject,
+        "html": html_message
+    }
+
+    email: resend.Email = resend.Emails.send(params)

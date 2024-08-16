@@ -140,3 +140,7 @@ CACHES = {
 
 LOGIN_URL = '/account/login/'
 LOGIN_REDIRECT_URL = '/'
+
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
+DEFAULT_FROM_EMAIL = os.environ.get(
+    'DEFAULT_FROM_EMAIL', 'noreply@noreply.kartoza.com')
