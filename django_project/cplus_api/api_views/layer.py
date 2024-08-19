@@ -20,7 +20,8 @@ from cplus_api.serializers.layer import (
     PaginatedInputLayerSerializer,
     UploadLayerSerializer,
     FinishUploadLayerSerializer,
-    LAYER_SCHEMA_FIELDS
+    LAYER_SCHEMA_FIELDS,
+    InputLayerListSerializer
 )
 from cplus_api.serializers.common import (
     APIErrorSerializer,
@@ -112,6 +113,29 @@ class LayerList(APIView):
             'results': output
         })
 
+
+class DefaultLayerList(APIView):
+    """API to return default layers."""
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_id='layer-default-list',
+        tags=[LAYER_API_TAG],
+        responses={
+            200: InputLayerListSerializer,
+            400: APIErrorSerializer,
+            404: APIErrorSerializer
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        layers = InputLayer.objects.filter(
+            privacy_type=InputLayer.PrivacyTypes.COMMON
+        ).order_by('name')
+        return Response(status=200, data=(
+            InputLayerSerializer(
+                layers, many=True
+            ).data
+        ))
 
 class BaseLayerUpload(APIView):
 
