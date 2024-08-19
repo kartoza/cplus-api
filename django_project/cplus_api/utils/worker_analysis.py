@@ -231,7 +231,7 @@ class WorkerScenarioAnalysisTask:
                         carbon_paths.append(
                             carbon_layer_paths[carbon_layer_uuid])
                 pathway.carbon_paths = carbon_paths
-        self.analysis_activities = (
+        self.task.analysis_activities = (
             self.task.task_config.analysis_activities
         )
 
