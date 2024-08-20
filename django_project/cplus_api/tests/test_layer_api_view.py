@@ -22,7 +22,8 @@ from cplus_api.api_views.layer import (
     is_internal_user,
     validate_layer_access,
     LayerUploadAbort,
-    FetchLayerByClientId
+    FetchLayerByClientId,
+    DefaultLayerList
 )
 from cplus_api.models.profile import UserProfile
 from cplus_api.utils.api_helper import convert_size
@@ -101,6 +102,28 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
             response.data['results'], input_layer.uuid)
         self.assertTrue(find_layer)
         self.assertTrue(find_layer['url'])
+
+    def test_default_layer_list(self):
+        request = self.factory.get(
+            reverse('v1:layer-default-list')
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        view = DefaultLayerList.as_view()
+        response = view(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, [])
+        input_layer = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.COMMON
+        )
+        response = view(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        find_layer = self.find_layer_from_response(
+            response.data, input_layer.uuid)
+        self.assertTrue(find_layer)
+        self.assertFalse(find_layer['url'])
+        self.assertFalse(input_layer.file)
 
     def test_layer_access(self):
         input_layer_1 = InputLayerF.create(

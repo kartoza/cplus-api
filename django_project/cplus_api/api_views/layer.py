@@ -137,7 +137,9 @@ class DefaultLayerList(APIView):
             ).data
         ))
 
+
 class BaseLayerUpload(APIView):
+    """Base class for layer upload."""
 
     def validate_upload_access(self, privacy_type, user,
                                is_update=False, existing_layer=None):
