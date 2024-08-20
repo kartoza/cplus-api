@@ -5,10 +5,10 @@ import os
 import logging
 import traceback
 import subprocess
+from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
 from django.template.loader import render_to_string
-from django.core.mail import send_mail
 from cplus.models.base import (
     Activity,
     NcsPathway,
@@ -784,7 +784,7 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
             send_mail(
                 subject,
                 None,
-                settings.SERVER_EMAIL,
+                settings.DEFAULT_FROM_EMAIL,
                 [self.scenario_task.submitted_by.email],
                 html_message=message
             )
