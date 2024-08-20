@@ -26,8 +26,7 @@ class BaseFactory(Generic[T], factory.django.DjangoModelFactory):
         return super().create(**kwargs)
 
 
-class UserF(BaseFactory[User],
-            metaclass=BaseMetaFactory[User]):
+class UserF(factory.django.DjangoModelFactory):
     class Meta:
         model = User
 
@@ -38,8 +37,7 @@ class UserF(BaseFactory[User],
     last_name = 'Doe'
 
 
-class ScenarioTaskF(BaseFactory[ScenarioTask],
-                    metaclass=BaseMetaFactory[ScenarioTask]):
+class ScenarioTaskF(factory.django.DjangoModelFactory):
     class Meta:
         model = ScenarioTask
 
@@ -266,8 +264,7 @@ class ScenarioTaskF(BaseFactory[ScenarioTask],
     }
 
 
-class InputLayerF(BaseFactory[InputLayer],
-                  metaclass=BaseMetaFactory[InputLayer]):
+class InputLayerF(factory.django.DjangoModelFactory):
     class Meta:
         model = InputLayer
 
@@ -281,8 +278,7 @@ class InputLayerF(BaseFactory[InputLayer],
     privacy_type = InputLayer.PrivacyTypes.PRIVATE
 
 
-class OutputLayerF(BaseFactory[OutputLayer],
-                   metaclass=BaseMetaFactory[OutputLayer]):
+class OutputLayerF(factory.django.DjangoModelFactory):
     class Meta:
         model = OutputLayer
 
@@ -295,8 +291,7 @@ class OutputLayerF(BaseFactory[OutputLayer],
     scenario = factory.SubFactory(ScenarioTaskF)
 
 
-class MultipartUploadF(BaseFactory[MultipartUpload],
-                       metaclass=BaseMetaFactory[MultipartUpload]):
+class MultipartUploadF(factory.django.DjangoModelFactory):
     class Meta:
         model = MultipartUpload
 
