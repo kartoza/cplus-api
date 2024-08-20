@@ -179,7 +179,7 @@ class InputLayerSerializer(serializers.ModelSerializer):
             'uuid', 'filename', 'created_on',
             'created_by', 'layer_type', 'size',
             'url', 'component_type', 'privacy_type',
-            'client_id'
+            'client_id', 'metadata'
         ]
 
 
@@ -213,6 +213,10 @@ class PaginatedInputLayerSerializer(serializers.Serializer):
                 )
             }
         }
+
+
+class InputLayerListSerializer(serializers.ListSerializer):
+    child = InputLayerSerializer()
 
 
 class UploadLayerSerializer(serializers.Serializer):

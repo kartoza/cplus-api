@@ -4,7 +4,8 @@ from cplus_api.api_views.layer import (
     LayerList, LayerDetail, LayerUpload,
     LayerUploadStart, LayerUploadFinish,
     CheckLayer, LayerUploadAbort,
-    FetchLayerByClientId
+    FetchLayerByClientId,
+    DefaultLayerList
 )
 from cplus_api.api_views.scenario import (
     ScenarioAnalysisSubmit,
@@ -32,6 +33,11 @@ user_urls = [
 
 # LAYER API
 layer_urls = [
+    path(
+        'layer/default/',
+        DefaultLayerList.as_view(),
+        name='layer-default-list'
+    ),
     path(
         'layer/list/',
         LayerList.as_view(),

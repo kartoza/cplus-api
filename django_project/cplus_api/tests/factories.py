@@ -1,7 +1,6 @@
 """Model factories."""
 import factory
 import uuid
-from typing import Generic, TypeVar
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from cplus_api.models.scenario import ScenarioTask
@@ -11,23 +10,10 @@ from cplus_api.models.layer import (
 )
 
 
-T = TypeVar('T')
 User = get_user_model()
 
 
-class BaseMetaFactory(Generic[T], factory.base.FactoryMetaClass):
-    def __call__(cls, *args, **kwargs) -> T:
-        return super().__call__(*args, **kwargs)
-
-
-class BaseFactory(Generic[T], factory.django.DjangoModelFactory):
-    @classmethod
-    def create(cls, **kwargs) -> T:
-        return super().create(**kwargs)
-
-
-class UserF(BaseFactory[User],
-            metaclass=BaseMetaFactory[User]):
+class UserF(factory.django.DjangoModelFactory):
     class Meta:
         model = User
 
@@ -38,8 +24,7 @@ class UserF(BaseFactory[User],
     last_name = 'Doe'
 
 
-class ScenarioTaskF(BaseFactory[ScenarioTask],
-                    metaclass=BaseMetaFactory[ScenarioTask]):
+class ScenarioTaskF(factory.django.DjangoModelFactory):
     class Meta:
         model = ScenarioTask
 
@@ -266,8 +251,7 @@ class ScenarioTaskF(BaseFactory[ScenarioTask],
     }
 
 
-class InputLayerF(BaseFactory[InputLayer],
-                  metaclass=BaseMetaFactory[InputLayer]):
+class InputLayerF(factory.django.DjangoModelFactory):
     class Meta:
         model = InputLayer
 
@@ -281,8 +265,7 @@ class InputLayerF(BaseFactory[InputLayer],
     privacy_type = InputLayer.PrivacyTypes.PRIVATE
 
 
-class OutputLayerF(BaseFactory[OutputLayer],
-                   metaclass=BaseMetaFactory[OutputLayer]):
+class OutputLayerF(factory.django.DjangoModelFactory):
     class Meta:
         model = OutputLayer
 
@@ -295,8 +278,7 @@ class OutputLayerF(BaseFactory[OutputLayer],
     scenario = factory.SubFactory(ScenarioTaskF)
 
 
-class MultipartUploadF(BaseFactory[MultipartUpload],
-                       metaclass=BaseMetaFactory[MultipartUpload]):
+class MultipartUploadF(factory.django.DjangoModelFactory):
     class Meta:
         model = MultipartUpload
 

@@ -119,6 +119,12 @@ class InputLayer(BaseLayer):
         blank=True
     )
 
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Layer Metadata.'
+    )
+
     def download_to_working_directory(self, base_dir: str):
         if not self.is_available():
             return None
