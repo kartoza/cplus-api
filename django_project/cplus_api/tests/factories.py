@@ -1,7 +1,6 @@
 """Model factories."""
 import factory
 import uuid
-from typing import Generic, TypeVar
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from cplus_api.models.scenario import ScenarioTask
@@ -11,19 +10,7 @@ from cplus_api.models.layer import (
 )
 
 
-T = TypeVar('T')
 User = get_user_model()
-
-
-class BaseMetaFactory(Generic[T], factory.base.FactoryMetaClass):
-    def __call__(cls, *args, **kwargs) -> T:
-        return super().__call__(*args, **kwargs)
-
-
-class BaseFactory(Generic[T], factory.django.DjangoModelFactory):
-    @classmethod
-    def create(cls, **kwargs) -> T:
-        return super().create(**kwargs)
 
 
 class UserF(factory.django.DjangoModelFactory):
