@@ -1,7 +1,10 @@
 import uuid
 import json
 import datetime
+from unittest.mock import patch
 from django.test import TestCase
+from django.core.mail import send_mail
+from django.conf import settings
 from cplus_api.utils.api_helper import (
     todict,
     CustomJsonEncoder,
@@ -58,6 +61,32 @@ class TestUtils(TestCase):
 
         filepath = '/tmp/test/file.netcdf'
         self.assertEqual(get_layer_type(filepath), -1)
+
+    def test_email_send(self):
+        """Test email send when scenario is finished."""
+        self.recipients = []
+        parent = self
+
+        def mock_send_fn(self, fail_silently=False):
+            """Mock send messages."""
+            parent.recipients = self.recipients()
+            return 0
+
+        with patch(
+                "django.core.mail.EmailMessage.send", mock_send_fn
+        ):
+            send_mail(
+                "Test",
+                None,
+                settings.DEFAULT_FROM_EMAIL,
+                ['email_1@domain.com', 'email_2@domain.com'],
+                html_message="Test message"
+            )
+            parent.assertEqual(len(self.recipients), 2)
+            parent.assertEqual(
+                self.recipients,
+                ['email_1@domain.com', 'email_2@domain.com']
+            )
 
 
 class TestCustomJSONEncoder(TestCase):

@@ -24,10 +24,11 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'docker')
 EMAIL_USE_TLS = ast.literal_eval(os.environ.get('EMAIL_USE_TLS', 'False'))
 EMAIL_USE_SSL = ast.literal_eval(os.environ.get('EMAIL_USE_SSL', 'False'))
 EMAIL_SUBJECT_PREFIX = os.environ.get('EMAIL_SUBJECT_PREFIX', '')
-
 SERVER_EMAIL = os.environ.get('ADMIN_EMAIL', 'noreply@kartoza.com')
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
 DEFAULT_FROM_EMAIL = os.environ.get(
-    'DEFAULT_FROM_EMAIL', 'noreply@kartoza.com')
+    'DEFAULT_FROM_EMAIL', 'noreply@noreply.kartoza.com')
+
 
 LOGGING = {
     'version': 1,
