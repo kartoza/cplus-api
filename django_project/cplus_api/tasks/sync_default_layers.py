@@ -105,8 +105,10 @@ class ProcessFile:
         """
         # Save layer if the file is modified after input layers last saved OR
         # if input layer is a new record
-        if (self.file['LastModified'] > self.input_layer.modified_on
-                or self.created):
+        if (
+                self.file['LastModified'] > self.input_layer.modified_on or
+                self.created
+        ):
             media_root = self.storage.location or settings.MEDIA_ROOT
             if isinstance(self.storage, FileSystemStorage):
                 download_path = os.path.join(media_root, self.file['Key'])
