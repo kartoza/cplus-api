@@ -12,7 +12,11 @@ from storages.backends.s3 import S3Storage
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
 
-from cplus_api.models import select_input_layer_storage, InputLayer, COMMON_LAYERS_DIR
+from cplus_api.models import (
+    select_input_layer_storage,
+    InputLayer,
+    COMMON_LAYERS_DIR
+)
 from cplus_api.utils.api_helper import get_layer_type
 
 logger = logging.getLogger(__name__)
@@ -102,7 +106,9 @@ def sync_default_layers():
     if isinstance(storage, FileSystemStorage):
         media_root = storage.location or settings.MEDIA_ROOT
         for component_type in component_types:
-            component_path = os.path.join(media_root, COMMON_LAYERS_DIR, component_type)
+            component_path = os.path.join(
+                media_root, COMMON_LAYERS_DIR, component_type
+            )
             os.makedirs(component_path, exist_ok=True)
             layers = os.listdir(component_path)
             for layer in layers:

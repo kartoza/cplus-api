@@ -32,7 +32,10 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
             'cplus_api', 'tests', 'data',
             'pathways', 'test_pathway_2.tif'
         )
-        dest_path = f'/home/web/media/minio_test/{COMMON_LAYERS_DIR}/{InputLayer.ComponentTypes.NCS_PATHWAY}/test_pathway_2.tif'
+        dest_path = (
+            f'/home/web/media/minio_test/{COMMON_LAYERS_DIR}/'
+            f'{InputLayer.ComponentTypes.NCS_PATHWAY}/test_pathway_2.tif'
+        )
         os.makedirs(os.path.dirname(dest_path), exist_ok=True)
         copyfile(source_path, dest_path)
         sync_default_layers()
