@@ -1,6 +1,7 @@
 import logging
 import os
 import typing
+import tempfile
 
 import rasterio
 from datetime import datetime
@@ -22,14 +23,10 @@ from cplus_api.utils.api_helper import get_layer_type
 logger = logging.getLogger(__name__)
 
 
-def process_file(
-        storage: typing.Union[FileSystemStorage, S3Storage],
-        owner: User,
-        component_type: str,
-        file: dict
-):
+class ProcessFile:
     """
-    Function to process a file dictionary into an Input Layer
+    Class to process a file dictionary into an Input Layer
+
     :param storage: Django storage instance
     :type storage: FileSystemStorage or S3Storage
 
@@ -45,33 +42,42 @@ def process_file(
     :return: None
     :rtype: None
     """
-    input_layer, created = InputLayer.objects.get_or_create(
-        name=os.path.basename(file['Key']),
-        owner=owner,
-        privacy_type=InputLayer.PrivacyTypes.COMMON,
-        component_type=component_type,
-        defaults={
-            'created_on': timezone.now(),
-            'layer_type': get_layer_type(file['Key'])
-        }
-    )
+    def __init__(
+        self,
+        storage: typing.Union[FileSystemStorage, S3Storage],
+        owner: User,
+        component_type: str,
+        file: dict
+    ):
+        self.storage = storage
+        self.owner = owner
+        self.component_type = component_type
+        self.file = file
+        self.input_layer, self.created = InputLayer.objects.get_or_create(
+            name=os.path.basename(file['Key']),
+            owner=owner,
+            privacy_type=InputLayer.PrivacyTypes.COMMON,
+            component_type=component_type,
+            defaults={
+                'created_on': timezone.now(),
+                'layer_type': get_layer_type(file['Key'])
+            }
+        )
 
-    # Save layer if the file is modified after input layers last saved OR
-    # if input layer is a new record
-    if file['LastModified'] > input_layer.modified_on or created:
-        media_root = storage.location or settings.MEDIA_ROOT
-        download_path = os.path.join(media_root, file['Key'])
-        os.makedirs(os.path.dirname(download_path), exist_ok=True)
+    def read_metadata(
+        self,
+        file_path: str
+    ):
+        """
+        Read metadata from layer file and save it to InputLayer object
 
-        if not isinstance(storage, FileSystemStorage):
-            boto3_client = storage.connection.meta.client
-            boto3_client.download_file(
-                storage.bucket_name,
-                file['Key'],
-                download_path,
-                Config=settings.AWS_TRANSFER_CONFIG
-            )
-        with rasterio.open(download_path) as dataset:
+        :param file_path: path for input file
+        :type file_path: str
+
+        :return: None
+        :rtype: None
+        """
+        with rasterio.open(file_path) as dataset:
             transform = dataset.transform
             res_x = abs(transform[0])
             res_y = abs(transform[4])
@@ -79,18 +85,44 @@ def process_file(
             nodata = dataset.nodata
 
             metadata = {
-                "name": os.path.basename(download_path),
-                "is_raster": get_layer_type(download_path) == 0,
-                "description": os.path.basename(download_path),
+                "name": os.path.basename(file_path),
+                "is_raster": get_layer_type(file_path) == 0,
+                "description": os.path.basename(file_path),
                 "crs": str(crs),
                 "resolution": [res_x, res_y],
                 "no_data": nodata
             }
-            input_layer.metadata = metadata
-            input_layer.file.name = file['Key']
-            input_layer.save()
-            if not isinstance(storage, FileSystemStorage):
+            self.input_layer.metadata = metadata
+            self.input_layer.file.name = self.file['Key']
+            self.input_layer.save()
+
+    def run(self):
+        """
+        Function to trigger file processing
+
+        :return: None
+        :rtype: None
+        """
+        # Save layer if the file is modified after input layers last saved OR
+        # if input layer is a new record
+        if (self.file['LastModified'] > self.input_layer.modified_on
+                or self.created):
+            media_root = self.storage.location or settings.MEDIA_ROOT
+            if isinstance(self.storage, FileSystemStorage):
+                download_path = os.path.join(media_root, self.file['Key'])
+                os.makedirs(os.path.dirname(download_path), exist_ok=True)
+                self.read_metadata(download_path)
                 os.remove(download_path)
+            else:
+                with tempfile.NamedTemporaryFile() as tmpfile:
+                    boto3_client = self.storage.connection.meta.client
+                    boto3_client.download_file(
+                        self.storage.bucket_name,
+                        self.file['Key'],
+                        tmpfile.name,
+                        Config=settings.AWS_TRANSFER_CONFIG
+                    )
+                    self.read_metadata(tmpfile.name)
 
 
 @shared_task(name="sync_default_layers")
@@ -123,8 +155,7 @@ def sync_default_layers():
                     "LastModified": last_modified,
                     "Size": os.path.getsize(download_path)
                 }
-                process_file(storage, owner, component_type, file)
-
+                ProcessFile(storage, owner, component_type, file).run()
     else:
         boto3_client = storage.connection.meta.client
         for component_type in component_types:
@@ -133,4 +164,4 @@ def sync_default_layers():
                 Prefix=f"{COMMON_LAYERS_DIR}/{component_type}"
             )
             for file in response.get('Contents', []):
-                process_file(storage, owner, component_type, file)
+                ProcessFile(storage, owner, component_type, file).run()
