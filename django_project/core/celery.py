@@ -58,7 +58,7 @@ app.conf.beat_schedule = {
     },
     'sync-default-layers': {
         'task': 'sync_default_layers',
-        'schedule': crontab(minute='0', hour='*'),  # Run every hour
+        'schedule': crontab(minute='0', hour='1'),  # Run everyday at 1am
     }
 }
 
