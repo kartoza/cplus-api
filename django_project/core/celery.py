@@ -55,6 +55,10 @@ app.conf.beat_schedule = {
     'clean-multipart-upload': {
         'task': 'clean_multipart_upload',
         'schedule': crontab(minute='0', hour='2'),  # Run everyday at 2am
+    },
+    'sync-default-layers': {
+        'task': 'sync_default_layers',
+        'schedule': crontab(minute='0', hour='1'),  # Run everyday at 1am
     }
 }
 

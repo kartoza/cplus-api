@@ -125,6 +125,11 @@ class InputLayer(BaseLayer):
         help_text='Layer Metadata.'
     )
 
+    modified_on = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} | {self.component_type}"
+
     def download_to_working_directory(self, base_dir: str):
         if not self.is_available():
             return None
