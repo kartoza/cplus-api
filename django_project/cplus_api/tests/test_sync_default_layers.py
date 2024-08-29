@@ -77,3 +77,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         # Check modified_on is updated
         input_layer.refresh_from_db()
         self.assertNotEquals(input_layer.modified_on, first_modified_on)
+    #
+    # @classmethod
+    # def tearDownClass(cls):
+    #     super().tearDownClass()

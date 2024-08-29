@@ -17,7 +17,7 @@ def input_layer_dir_path(instance, filename):
     """Return upload directory path for Input Layer."""
     file_path = f'{str(instance.owner.pk)}/'
     if instance.privacy_type == InputLayer.PrivacyTypes.COMMON:
-        file_path = f'{COMMON_LAYERS_DIR}/{instance.component_type}'
+        file_path = f'{COMMON_LAYERS_DIR}/'
     if instance.privacy_type == InputLayer.PrivacyTypes.INTERNAL:
         file_path = f'{INTERNAL_LAYERS_DIR}/'
     file_path = file_path + f'{instance.component_type}/' + filename
