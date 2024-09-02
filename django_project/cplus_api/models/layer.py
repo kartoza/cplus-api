@@ -127,6 +127,12 @@ class InputLayer(BaseLayer):
 
     modified_on = models.DateTimeField(auto_now=True)
 
+    description = models.TextField(
+        null=False,
+        blank=True,
+        default=''
+    )
+
     def __str__(self):
         return f"{self.name} | {self.component_type}"
 

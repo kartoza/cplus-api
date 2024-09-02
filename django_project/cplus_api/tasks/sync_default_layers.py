@@ -54,10 +54,10 @@ class ProcessFile:
         self.component_type = component_type
         self.file = file
         self.input_layer, self.created = InputLayer.objects.get_or_create(
-            name=os.path.basename(file['Key']),
             owner=owner,
             privacy_type=InputLayer.PrivacyTypes.COMMON,
             component_type=component_type,
+            file=file['Key'],
             defaults={
                 'created_on': timezone.now(),
                 'layer_type': get_layer_type(file['Key'])
@@ -85,13 +85,17 @@ class ProcessFile:
             nodata = dataset.nodata
 
             metadata = {
-                "name": os.path.basename(file_path),
                 "is_raster": get_layer_type(file_path) == 0,
-                "description": os.path.basename(file_path),
                 "crs": str(crs),
                 "resolution": [res_x, res_y],
                 "no_data": nodata
             }
+            if not self.input_layer.name:
+                self.input_layer.name = os.path.basename(self.file['Key'])
+            if not self.input_layer.description:
+                self.input_layer.description = (
+                    os.path.basename(self.file['Key'])
+                )
             self.input_layer.metadata = metadata
             self.input_layer.file.name = self.file['Key']
             self.input_layer.save()
