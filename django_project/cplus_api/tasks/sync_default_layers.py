@@ -156,7 +156,6 @@ def sync_default_layers():
                     os.path.getmtime(download_path),
                     tz=timezone.now().tzinfo
                 )
-                print(f"last_modified: {last_modified}")
                 file = {
                     "Key": key,
                     "LastModified": last_modified,
