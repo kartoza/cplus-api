@@ -1,3 +1,5 @@
+import copy
+
 from rest_framework import serializers
 from drf_yasg import openapi
 from django.conf import settings
@@ -161,6 +163,7 @@ class InputLayerSerializer(serializers.ModelSerializer):
     filename = serializers.CharField(source='name')
     created_by = serializers.SerializerMethodField()
     url = serializers.SerializerMethodField()
+    metadata = serializers.SerializerMethodField()
 
     def get_created_by(self, obj: InputLayer):
         return obj.owner.email
@@ -172,6 +175,12 @@ class InputLayerSerializer(serializers.ModelSerializer):
             return None
         return build_minio_absolute_url(obj.file.url)
 
+    def get_metadata(self, obj: InputLayer):
+        metadata = copy.deepcopy(obj.metadata)
+        metadata['name'] = obj.name
+        metadata['description'] = obj.description
+        return metadata
+
     class Meta:
         swagger_schema_fields = LAYER_SCHEMA_FIELDS
         model = InputLayer
@@ -179,7 +188,7 @@ class InputLayerSerializer(serializers.ModelSerializer):
             'uuid', 'filename', 'created_on',
             'created_by', 'layer_type', 'size',
             'url', 'component_type', 'privacy_type',
-            'client_id', 'metadata'
+            'client_id', 'metadata', 'description'
         ]
 
 

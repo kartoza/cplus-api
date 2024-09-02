@@ -45,12 +45,12 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         self.assertTrue(input_layers.exists())
         metadata = {
             'crs': 'EPSG:32735',
-            'name': 'test_pathway_2.tif',
             'no_data': -9999.0,
             'is_raster': True,
             'resolution': [19.676449999999022, 19.676448888890445],
-            'description': 'test_pathway_2.tif'
         }
+        self.assertEqual(input_layer.name, 'test_pathway_2.tif')
+        self.assertEqual(input_layer.description, 'test_pathway_2.tif')
         self.assertEqual(input_layer.metadata, metadata)
 
         # Rerun sync default layers
@@ -77,3 +77,10 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         # Check modified_on is updated
         input_layer.refresh_from_db()
         self.assertNotEquals(input_layer.modified_on, first_modified_on)
+
+        input_layer.name = 'New Name'
+        input_layer.description = 'New Description'
+        input_layer.save()
+        input_layer.refresh_from_db()
+        self.assertEqual(input_layer.name, 'New Name')
+        self.assertEqual(input_layer.description, 'New Description')
