@@ -93,7 +93,9 @@ class ProcessFile:
             if not self.input_layer.name:
                 self.input_layer.name = os.path.basename(self.file['Key'])
             if not self.input_layer.description:
-                self.input_layer.description = os.path.basename(self.file['Key'])
+                self.input_layer.description = (
+                    os.path.basename(self.file['Key'])
+                )
             self.input_layer.metadata = metadata
             self.input_layer.file.name = self.file['Key']
             self.input_layer.save()
@@ -154,6 +156,7 @@ def sync_default_layers():
                     os.path.getmtime(download_path),
                     tz=timezone.now().tzinfo
                 )
+                print(f"last_modified: {last_modified}")
                 file = {
                     "Key": key,
                     "LastModified": last_modified,
