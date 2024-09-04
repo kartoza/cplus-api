@@ -258,7 +258,8 @@ class OutputLayer(BaseLayer):
     )
 
     def __str__(self):
-        return f"{self.name} - {self.group} - {self.uuid}"
+        group = self.group if not self.is_final_output else 'Final'
+        return f"{self.name} - {group} - {self.uuid}"
 
 
 class MultipartUpload(models.Model):

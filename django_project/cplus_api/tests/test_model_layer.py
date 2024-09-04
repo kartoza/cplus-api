@@ -46,6 +46,7 @@ class TestModelLayer(BaseAPIViewTransactionTest):
             f'internal_layers/{input_layer.component_type}/'
             'test.tif'
         )
+        self.assertEqual(str(input_layer), f"{input_layer.name} - ncs_pathway")
 
     def test_output_layer_dir_path(self):
         # intermediate output layer
@@ -63,6 +64,11 @@ class TestModelLayer(BaseAPIViewTransactionTest):
             path,
             f'{str(output_layer.owner.pk)}/{str(output_layer.scenario.uuid)}/'
             'test.tif'
+        )
+
+        self.assertEqual(
+            str(output_layer),
+            f"{output_layer.name} - Final - {output_layer.uuid}"
         )
 
     def test_download_to_working_directory(self):
