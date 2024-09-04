@@ -36,6 +36,9 @@ class ScenarioTask(BaseTaskRequest):
         blank=True
     )
 
+    def __str__(self):
+        return f"{self.uuid} - {self.task_name}"
+
     def task_on_sent(self, task_id, task_name, parameters):
         super().task_on_sent(task_id, task_name, parameters)
         # clean logs

@@ -134,7 +134,7 @@ class InputLayer(BaseLayer):
     )
 
     def __str__(self):
-        return f"{self.name} | {self.component_type}"
+        return f"{self.name} - {self.component_type}"
 
     def download_to_working_directory(self, base_dir: str):
         if not self.is_available():
@@ -256,6 +256,9 @@ class OutputLayer(BaseLayer):
         blank=True,
         help_text='Output Metadata.'
     )
+
+    def __str__(self):
+        return f"{self.name} - {self.group} - {self.uuid}"
 
 
 class MultipartUpload(models.Model):

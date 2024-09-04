@@ -785,13 +785,32 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                 is_success else
                 f'Your analysis of {scenario_name} has stopped with errors'
             )
-            send_mail(
-                subject,
-                None,
-                settings.DEFAULT_FROM_EMAIL,
-                [self.scenario_task.submitted_by.email],
-                html_message=message
+            # send_mail(
+            #     subject,
+            #     None,
+            #     settings.DEFAULT_FROM_EMAIL,
+            #     [self.scenario_task.submitted_by.email],
+            #     html_message=message
+            # )
+
+            from django.core.mail.message import EmailMultiAlternatives
+            from django.core.mail import get_connection
+
+            connection = get_connection(
+                username="",
+                password="",
+                fail_silently=False,
             )
+            mail = EmailMultiAlternatives(
+                subject, None, settings.DEFAULT_FROM_EMAIL, [self.scenario_task.submitted_by.email], connection=connection
+            )
+            mail.attach_alternative(message, "text/html")
+
+            filepath = '/home/web/django_project/cplus_api/templates/emails/cplus-logo.png'
+            with open(filepath, 'rb') as attachment:
+                mail.attach('ci-logo.png', attachment.read(), 'image/png')
+
+                return mail.send()
         except Exception as exc:
             logger.error(f'Unexpected exception occured: {type(exc).__name__} '
                          'when sending email')
