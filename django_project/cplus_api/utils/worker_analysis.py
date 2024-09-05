@@ -6,6 +6,7 @@ import logging
 import traceback
 import subprocess
 from django.core.mail import send_mail
+from django.contrib.sites.models import Site
 from django.conf import settings
 from django.utils import timezone
 from django.template.loader import render_to_string
@@ -757,6 +758,8 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
             message = render_to_string(
                 'emails/analysis_completed.html',
                 {
+                    'protocol': 'http' if settings.DEBUG else 'https',
+                    'domain': Site.objects.get_current().domain,
                     'name': (
                         self.scenario_task.submitted_by.first_name if
                         self.scenario_task.submitted_by.first_name else
