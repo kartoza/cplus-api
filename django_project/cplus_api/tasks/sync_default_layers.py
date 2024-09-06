@@ -85,7 +85,7 @@ class ProcessFile:
             nodata = dataset.nodata
 
             metadata = {
-                "is_raster": get_layer_type(file_path) == 0,
+                "is_raster": get_layer_type(self.file['Key']) == 0,
                 "crs": str(crs),
                 "resolution": [res_x, res_y],
                 "no_data": nodata
