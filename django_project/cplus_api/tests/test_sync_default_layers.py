@@ -45,9 +45,11 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         self.assertTrue(input_layers.exists())
         metadata = {
             'crs': 'EPSG:32735',
-            'no_data': -9999.0,
+            'nodata_value': -9999.0,
             'is_raster': True,
             'resolution': [19.676449999999022, 19.676448888890445],
+            'is_geographic': False,
+            'unit': 'm'
         }
         self.assertEqual(input_layer.name, 'test_pathway_2.tif')
         self.assertEqual(input_layer.description, 'test_pathway_2.tif')

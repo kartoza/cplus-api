@@ -83,12 +83,16 @@ class ProcessFile:
             res_y = abs(transform[4])
             crs = dataset.crs
             nodata = dataset.nodata
+            unit = dataset.crs.units_factor[0]
+            unit = "m" if unit == "metre" else unit
 
             metadata = {
                 "is_raster": get_layer_type(self.file['Key']) == 0,
                 "crs": str(crs),
                 "resolution": [res_x, res_y],
-                "no_data": nodata
+                "unit": unit,
+                "nodata_value": nodata,
+                "is_geographic": dataset.crs.is_geographic
             }
             if not self.input_layer.name:
                 self.input_layer.name = os.path.basename(self.file['Key'])
