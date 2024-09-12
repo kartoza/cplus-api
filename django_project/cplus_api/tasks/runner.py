@@ -14,10 +14,10 @@ logger = logging.getLogger(__name__)
 def create_scenario_task_runner(scenario_task: ScenarioTask):
     # below imports require PyQGIS to be initialised
     from cplus_api.utils.worker_analysis import (
-        TaskConfig, WorkerScenarioAnalysisTask
+        APITaskConfig, WorkerScenarioAnalysisTask
     )
 
-    task_config = TaskConfig.from_dict(scenario_task.detail)
+    task_config = APITaskConfig.from_dict(scenario_task.detail)
     analysis_task = WorkerScenarioAnalysisTask(task_config, scenario_task)
     logger.info('Started prepare_run')
     analysis_task.prepare_run()

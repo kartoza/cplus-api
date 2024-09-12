@@ -10,15 +10,15 @@ from django.contrib.sites.models import Site
 from django.conf import settings
 from django.utils import timezone
 from django.template.loader import render_to_string
-from cplus.models.base import (
+from cplus_core.models.base import (
     Activity,
     NcsPathway,
     Scenario,
     SpatialExtent,
     LayerType
 )
-from cplus.tasks.analysis import ScenarioAnalysisTask
-from cplus.utils.conf import Settings
+from cplus_core.analysis import ScenarioAnalysisTask, TaskConfig
+from cplus_core.utils.conf import Settings
 from cplus_api.models.scenario import ScenarioTask
 from cplus_api.models.layer import OutputLayer, InputLayer
 from cplus_api.utils.api_helper import (
@@ -32,7 +32,7 @@ from cplus_api.utils.default import DEFAULT_VALUES
 logger = logging.getLogger(__name__)
 
 
-class TaskConfig(object):
+class APITaskConfig(object):
 
     scenario_name = ''
     scenario_desc = ''
@@ -197,7 +197,7 @@ class TaskConfig(object):
 
     @classmethod
     def from_dict(cls, data: dict) -> typing.Self:
-        config = TaskConfig(
+        config = APITaskConfig(
             data.get('scenario_name', ''), data.get('scenario_desc', ''),
             data.get('extent', []), [], [], []
         )
@@ -342,25 +342,19 @@ class TaskConfig(object):
         return config
 
 
-class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
+class WorkerScenarioAnalysisTask(object):
 
     MIN_UPDATE_PROGRESS_IN_SECONDS = 1
 
-    def __init__(self, task_config: TaskConfig,
+    def __init__(self, task_config: APITaskConfig,
                  scenario_task: ScenarioTask):
-        super().__init__(
-            task_config.scenario_name,
-            task_config.scenario_desc,
-            task_config.analysis_activities,
-            task_config.priority_layer_groups,
-            task_config.analysis_extent,
-            task_config.scenario
-        )
         self.task_config = task_config
         self.scenario_task = scenario_task
         self.last_update_progress = None
         self.downloaded_layers = {}
         self.downloaded_layer_count = 0
+        self.scenario = task_config.scenario
+        self.analysis_task = None
 
     def prepare_run(self):
         # clear existing scenario directory if exists
@@ -569,27 +563,11 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                 uuid_mapped[uuid_str] = layer_paths[layer_uuid]
         return uuid_mapped
 
-    def get_settings_value(self, name: str,
-                           default=None, setting_type=None):
-        return self.task_config.get_value(name, default)
-
-    def get_scenario_directory(self):
-        return self.scenario_task.get_resources_path()
-
-    def get_priority_layer(self, identifier):
-        return self.task_config.get_priority_layer(identifier)
-
-    def get_activity(self, activity_uuid):
-        return self.task_config.get_activity(activity_uuid)
-
-    def get_priority_layers(self):
-        return self.task_config.get_priority_layers()
-
-    def cancel_task(self, exception=None):
-        self.error = exception
+    def cancel_task(self):
+        self.error = self.analysis_task.error if self.analysis_task else None
         # raise exception to stop the task
-        if exception:
-            raise exception
+        if self.error:
+            raise self.error
         else:
             raise Exception('Task is stopped with errors!')
 
@@ -694,12 +672,12 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
         for group, files in scenario_output_files.items():
             is_final_output = group == 'final_output'
             if is_final_output:
-                output_meta = self.output
+                output_meta = self.analysis_task.output
                 if 'OUTPUT' in output_meta:
                     del output_meta['OUTPUT']
                 self.create_and_upload_output_layer(
                     files[0], self.scenario_task,
-                    True, None, self.output
+                    True, None, self.analysis_task.output
                 )
                 total_uploaded_files += 1
                 self.set_custom_progress(
@@ -800,6 +778,57 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
                          'when sending email')
             logger.error(exc)
             logger.error(traceback.format_exc())
+
+    def run(self):
+        # create task_config object
+        analysis_config = TaskConfig(
+            self.scenario,
+            self.task_config.priority_layers,
+            self.scenario.priority_layer_groups,
+            self.task_config.analysis_activities,
+            self.task_config.get_value(
+                Settings.SNAPPING_ENABLED, default=False
+            ),
+            self.task_config.get_value(Settings.RESAMPLING_METHOD, default=0),
+            self.task_config.get_value(
+                Settings.RESCALE_VALUES, default=False
+            ),
+            self.task_config.get_value(Settings.PATHWAY_SUITABILITY_INDEX, default=0),
+            self.task_config.get_value(Settings.CARBON_COEFFICIENT, default=0.0),
+            self.task_config.get_value(
+                Settings.SIEVE_ENABLED, default=False
+            ),
+            self.task_config.get_value(Settings.SIEVE_THRESHOLD, default=10.0),
+            self.task_config.get_value(
+                Settings.NCS_WITH_CARBON, default=True
+            ),
+            self.task_config.get_value(
+                Settings.LANDUSE_PROJECT, default=True
+            ),
+            self.task_config.get_value(
+                Settings.LANDUSE_NORMALIZED, default=True
+            ),
+            self.task_config.get_value(
+                Settings.LANDUSE_WEIGHTED, default=True
+            ),
+            self.task_config.get_value(
+                Settings.HIGHEST_POSITION, default=True
+            ),
+            self.scenario_task.get_resources_path()
+        )
+
+        # create analysis task
+        self.analysis_task = ScenarioAnalysisTask(analysis_config)
+
+        # setup signals
+        self.analysis_task.custom_progress_changed.connect(self.set_custom_progress)
+        self.analysis_task.status_message_changed.connect(self.set_status_message)
+        self.analysis_task.info_message_changed.connect(self.set_info_message)
+        self.analysis_task.log_received.connect(self.log_message)
+        self.analysis_task.task_cancelled.connect(self.cancel_task)
+
+        # call run
+        self.analysis_task.run()
 
     def finished(self, result: bool):
         if result:
