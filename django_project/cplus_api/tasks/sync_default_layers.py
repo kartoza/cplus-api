@@ -4,6 +4,8 @@ import typing
 import tempfile
 
 import rasterio
+
+from rasterio.errors import RasterioError
 from datetime import datetime
 from django.utils import timezone
 
@@ -12,6 +14,7 @@ from django.contrib.auth.models import User
 from storages.backends.s3 import S3Storage
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
+from django.db.models import Q
 
 from cplus_api.models import (
     select_input_layer_storage,
@@ -125,15 +128,35 @@ class ProcessFile:
                 self.read_metadata(download_path)
                 os.remove(download_path)
             else:
-                with tempfile.NamedTemporaryFile() as tmpfile:
-                    boto3_client = self.storage.connection.meta.client
-                    boto3_client.download_file(
-                        self.storage.bucket_name,
-                        self.file['Key'],
-                        tmpfile.name,
-                        Config=settings.AWS_TRANSFER_CONFIG
-                    )
-                    self.read_metadata(tmpfile.name)
+                invalid_file = True
+                while invalid_file:
+                    with tempfile.NamedTemporaryFile() as tmpfile:
+                        boto3_client = self.storage.connection.meta.client
+                        boto3_client.download_file(
+                            self.storage.bucket_name,
+                            self.file['Key'],
+                            tmpfile.name,
+                            Config=settings.AWS_TRANSFER_CONFIG
+                        )
+                        try:
+                            self.read_metadata(tmpfile.name)
+                        except RasterioError:
+                            continue
+                        else:
+                            invalid_file = False
+
+
+def delete_invalid_default_layers():
+    """Delete invalid default layers in DB
+
+    :return: None
+    :rtype: None
+    """
+    common_layers = InputLayer.objects.filter(privacy_type=InputLayer.PrivacyTypes.COMMON)
+    invalid_common_layers = common_layers.filter(
+        Q(name='') | Q(name__isnull=True) | Q(file__isnull=True)
+    )
+    invalid_common_layers.delete()
 
 
 @shared_task(name="sync_default_layers")
@@ -141,6 +164,8 @@ def sync_default_layers():
     """
     Create Input Layers from default layers copied to S3/local directory
     """
+
+    delete_invalid_default_layers()
 
     storage = select_input_layer_storage()
     component_types = [c[0] for c in InputLayer.ComponentTypes.choices]
