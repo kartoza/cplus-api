@@ -41,7 +41,13 @@ from cplus_api.utils.api_helper import (
 
 
 def is_internal_user(user):
-    # check if user has internal user role
+    """Check if user has internal user role.
+
+    :param user: user object
+    :type user: User
+    :return: True if user has internal role
+    :rtype: bool
+    """
     user_profile = UserProfile.objects.filter(
         user=user
     ).first()
@@ -53,6 +59,15 @@ def is_internal_user(user):
 
 
 def validate_layer_access(input_layer: InputLayer, user):
+    """Validate if user can access input layer.
+
+    :param input_layer: input layer object
+    :type input_layer: InputLayer
+    :param user: user object
+    :type user: User
+    :return: True if user has permission to access the layer
+    :rtype: bool
+    """
     if user.is_superuser:
         return True
     if input_layer.privacy_type == InputLayer.PrivacyTypes.COMMON:

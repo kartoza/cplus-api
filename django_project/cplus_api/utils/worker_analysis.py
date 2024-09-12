@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 
 class APITaskConfig(object):
+    """Class to parse the task config sent from API."""
 
     scenario_name = ''
     scenario_desc = ''
@@ -83,6 +84,62 @@ class APITaskConfig(object):
                  landuse_normalized=DEFAULT_VALUES.landuse_normalized,
                  landuse_weighted=DEFAULT_VALUES.landuse_weighted,
                  highest_position=DEFAULT_VALUES.highest_position) -> None:
+        """Initialize APITaskConfig class.
+
+        :param scenario_name: name of the scenario
+        :type scenario_name: str
+        :param scenario_desc: description of the scenario
+        :type scenario_desc: str
+        :param extent: scenario extent
+        :type extent: List[float]
+        :param analysis_activities: scenario activities
+        :type analysis_activities: List[Activity]
+        :param priority_layers: list of priority layer dict
+        :type priority_layers: List
+        :param priority_layer_groups: List of priority layer group dict
+        :type priority_layer_groups: List
+        :param snapping_enabled: enable snapping, defaults to False
+        :type snapping_enabled: bool, optional
+        :param snap_layer_uuid: Layer UUID of snap layer, defaults to ''
+        :type snap_layer_uuid: str, optional
+        :param pathway_suitability_index: Pathway suitability index,
+            defaults to DEFAULT_VALUES.pathway_suitability_index
+        :type pathway_suitability_index: int, optional
+        :param snap_rescale: Enable snap rescale,
+            defaults to DEFAULT_VALUES.snap_rescale
+        :type snap_rescale: bool, optional
+        :param snap_method: Snap method,
+            defaults to DEFAULT_VALUES.snap_method
+        :type snap_method: int, optional
+        :param sieve_enabled: Enable sieve function,
+            defaults to DEFAULT_VALUES.sieve_enabled
+        :type sieve_enabled: bool, optional
+        :param sieve_threshold: Sieve function threshold,
+            defaults to DEFAULT_VALUES.sieve_threshold
+        :type sieve_threshold: float, optional
+        :param sieve_mask_uuid: Layer UUID for sieve mask layer,
+            defaults to ''
+        :type sieve_mask_uuid: str, optional
+        :param mask_layer_uuids: Layer UUID for mask layer, defaults to ''
+        :type mask_layer_uuids: str, optional
+        :param scenario_uuid: UUID of a scenario, defaults to None
+        :type scenario_uuid: str, optional
+        :param ncs_with_carbon: Enable output ncs with carbon,
+            defaults to DEFAULT_VALUES.ncs_with_carbon
+        :type ncs_with_carbon: bool, optional
+        :param landuse_project: Enable output landuse project,
+            defaults to DEFAULT_VALUES.landuse_project
+        :type landuse_project: bool, optional
+        :param landuse_normalized: Enable output landuse normalized,
+            defaults to DEFAULT_VALUES.landuse_normalized
+        :type landuse_normalized: bool, optional
+        :param landuse_weighted: Enable output landuse weighted,
+            defaults to DEFAULT_VALUES.landuse_weighted
+        :type landuse_weighted: bool, optional
+        :param highest_position: Enable output highest position,
+            defaults to DEFAULT_VALUES.highest_position
+        :type highest_position: bool, optional
+        """
         self.scenario_name = scenario_name
         self.scenario_desc = scenario_desc
         if scenario_uuid:
@@ -120,6 +177,13 @@ class APITaskConfig(object):
     def get_activity(
         self, activity_uuid: str
     ) -> typing.Union[Activity, None]:
+        """Get activity object by its UUID.
+
+        :param activity_uuid: activity UUID
+        :type activity_uuid: str
+        :return: Activity object or None if not found
+        :rtype: typing.Union[Activity, None]
+        """
         activity = None
         filtered = [
             act for act in self.analysis_activities if
@@ -130,9 +194,21 @@ class APITaskConfig(object):
         return activity
 
     def get_priority_layers(self) -> typing.List:
+        """Get all priority layers.
+
+        :return: List of priority layer dictionary
+        :rtype: typing.List
+        """
         return self.priority_layers
 
     def get_priority_layer(self, identifier) -> typing.Dict:
+        """Get priority layer dict by its UUID.
+
+        :param identifier: Priority Layer UUID
+        :type identifier: str
+        :return: Priority Layer dict
+        :rtype: typing.Dict
+        """
         priority_layer = None
         filtered = [
             f for f in self.priority_layers if f['uuid'] == str(identifier)]
@@ -141,9 +217,23 @@ class APITaskConfig(object):
         return priority_layer
 
     def get_value(self, attr_name: Settings, default=None):
+        """Get attribute value by attribute name.
+
+        :param attr_name: Attribute name/config key
+        :type attr_name: Settings
+        :param default: Default value if not found, defaults to None
+        :type default: any, optional
+        :return: Attribute value
+        :rtype: any
+        """
         return getattr(self, attr_name.value, default)
 
     def to_dict(self):
+        """Convert API task config object to dictionary.
+
+        :return: Dictionary of task config
+        :rtype: dict
+        """
         input_dict = {
             'scenario_name': self.scenario.name,
             'scenario_desc': self.scenario.description,
@@ -197,12 +287,21 @@ class APITaskConfig(object):
 
     @classmethod
     def from_dict(cls, data: dict) -> typing.Self:
+        """Create APITaskConfig object from dictionary.
+
+        :param data: dictionary from API
+        :type data: dict
+        :return: APITaskConfig
+        :rtype: APITaskConfig
+        """
         config = APITaskConfig(
             data.get('scenario_name', ''), data.get('scenario_desc', ''),
             data.get('extent', []), [], [], []
         )
         config.priority_layers = data.get('priority_layers', [])
         config.priority_layer_groups = data.get('priority_layer_groups', [])
+
+        # fetch analysis task configurations
         config.snapping_enabled = data.get(
             'snapping_enabled', DEFAULT_VALUES.snapping_enabled)
         config.snap_layer_uuid = data.get('snap_layer_uuid', '')
@@ -231,10 +330,13 @@ class APITaskConfig(object):
             'landuse_weighted', DEFAULT_VALUES.landuse_weighted)
         config.highest_position = data.get(
             'highest_position', DEFAULT_VALUES.highest_position)
+
         # store dict of <layer_uuid, list of obj identifier>
         config.priority_uuid_layers = {}
         config.pathway_uuid_layers = {}
         config.carbon_uuid_layers = {}
+
+        # store priority layers
         for priority_layer in config.priority_layers:
             priority_layer_uuid = priority_layer.get('uuid', None)
             if not priority_layer_uuid:
@@ -249,6 +351,8 @@ class APITaskConfig(object):
                 config.priority_uuid_layers[layer_uuid] = [
                     priority_layer_uuid
                 ]
+
+        # store activities
         _activities = data.get('activities', [])
         for activity in _activities:
             uuid_str = activity.get('uuid', None)
@@ -272,6 +376,8 @@ class APITaskConfig(object):
                     config.priority_uuid_layers[m_priority_layer_uuid] = [
                         m_priority_uuid
                     ]
+
+            # create activity object
             activity_obj = Activity(
                 uuid=uuid.UUID(uuid_str) if uuid_str else uuid.uuid4(),
                 name=activity.get('name', ''),
@@ -283,6 +389,8 @@ class APITaskConfig(object):
                 priority_layers=filtered_priority_layer,
                 layer_styles=activity.get('layer_styles', {})
             )
+
+            # create pathways
             pathways = activity.get('pathways', [])
             for pathway in pathways:
                 pw_uuid_str = pathway.get('uuid', None)
@@ -320,6 +428,8 @@ class APITaskConfig(object):
                         ]
 
             config.analysis_activities.append(activity_obj)
+
+        # create scenario object
         config.scenario = Scenario(
             uuid=config.scenario_uuid,
             name=config.scenario_name,
@@ -329,6 +439,8 @@ class APITaskConfig(object):
             weighted_activities=[],
             priority_layer_groups=config.priority_layer_groups
         )
+
+        # calculate total input layers
         config.total_input_layers = (
             len(config.pathway_uuid_layers) +
             len(config.priority_uuid_layers) +
@@ -343,11 +455,19 @@ class APITaskConfig(object):
 
 
 class WorkerScenarioAnalysisTask(object):
+    """Class to run scenario analysis in worker."""
 
     MIN_UPDATE_PROGRESS_IN_SECONDS = 1
 
     def __init__(self, task_config: APITaskConfig,
                  scenario_task: ScenarioTask):
+        """Initialize WorkerScenarioAnalysisTask class.
+
+        :param task_config: task config from API request
+        :type task_config: APITaskConfig
+        :param scenario_task: Task request object
+        :type scenario_task: ScenarioTask
+        """
         self.task_config = task_config
         self.scenario_task = scenario_task
         self.last_update_progress = None
@@ -357,19 +477,28 @@ class WorkerScenarioAnalysisTask(object):
         self.analysis_task = None
 
     def prepare_run(self):
+        """Prepare resources for the task."""
         # clear existing scenario directory if exists
         self.scenario_task.clear_resources()
+
         # create scenario directory for a user
         scenario_path = self.scenario_task.get_resources_path()
         os.makedirs(scenario_path)
+
         # clear existing output results
         OutputLayer.objects.filter(
             scenario=self.scenario_task
         ).delete()
+
         # download input layers
         self.initialize_input_layers(scenario_path)
 
     def initialize_input_layers(self, scenario_path: str):
+        """Initialize input layers required by analysis task.
+
+        :param scenario_path: Base scenario directory
+        :type scenario_path: str
+        """
         self.log_message(
             f'Initialize input layers: {self.task_config.total_input_layers}')
         self.set_custom_progress(0)
@@ -385,6 +514,7 @@ class WorkerScenarioAnalysisTask(object):
                 scenario_path
             )
             self.downloaded_layers.update(priority_layer_paths)
+
         # init pathway layers
         pathway_layer_paths = {}
         pathway_uuids = self.task_config.pathway_uuid_layers.keys()
@@ -423,8 +553,11 @@ class WorkerScenarioAnalysisTask(object):
                 if key in carbon_uuids
             })
 
+        # Patch/Fix layer_path into priority layers dictionary
         if priority_layer_paths:
             self.patch_layer_path_to_priority_layers(priority_layer_paths)
+
+        # Patch/Fix layer_path into activities
         self.patch_layer_path_to_activities(
             priority_layer_paths,
             pathway_layer_paths,
@@ -485,6 +618,17 @@ class WorkerScenarioAnalysisTask(object):
     def copy_input_layers_by_uuids(
             self, component_type: InputLayer.ComponentTypes,
             uuids: list, scenario_path: str):
+        """Download input layers by UUIDs to scenario directory.
+
+        :param component_type: Layer component type
+        :type component_type: InputLayer.ComponentTypes
+        :param uuids: List of Layer UUID
+        :type uuids: list
+        :param scenario_path: scenario base directory
+        :type scenario_path: str
+        :return: Dictionary of Layer UUID and actual file path
+        :rtype: dict
+        """
         results = {}
         layers = InputLayer.objects.filter(
             uuid__in=uuids
@@ -514,6 +658,12 @@ class WorkerScenarioAnalysisTask(object):
         return results
 
     def patch_layer_path_to_priority_layers(self, priority_layer_paths):
+        """Patch/Fix layer_path into priority_layers dictionary.
+
+        :param priority_layer_paths: Dictionary of Layer UUID and
+            actual file path
+        :type priority_layer_paths: dict
+        """
         for priority_layer in self.task_config.priority_layers:
             layer_uuid = priority_layer.get('layer_uuid', None)
             if not layer_uuid or layer_uuid not in priority_layer_paths:
@@ -523,6 +673,18 @@ class WorkerScenarioAnalysisTask(object):
     def patch_layer_path_to_activities(
             self, priority_layer_paths,
             pathway_layer_paths, carbon_layer_paths):
+        """Patch/Fix layer_path into activities.
+
+        :param priority_layer_paths: Dictionary of Layer UUID and
+            actual file path for priority layers
+        :type priority_layer_paths: dict
+        :param pathway_layer_paths: Dictionary of Layer UUID and
+            actual file path for ncs_pathways
+        :type pathway_layer_paths: dict
+        :param carbon_layer_paths: Dictionary of Layer UUID and
+            actual file path for carbon layers
+        :type carbon_layer_paths: dict
+        """
         pw_uuid_mapped = self.transform_uuid_layer_paths(
             self.task_config.pathway_uuid_layers, pathway_layer_paths)
         priority_uuid_mapped = self.transform_uuid_layer_paths(
@@ -549,12 +711,26 @@ class WorkerScenarioAnalysisTask(object):
                         carbon_paths.append(
                             carbon_layer_paths[carbon_layer_uuid])
                 pathway.carbon_paths = carbon_paths
+
+        # update reference object
         self.scenario.activities = self.task_config.analysis_activities
         self.analysis_activities = (
             self.task_config.analysis_activities
         )
 
     def transform_uuid_layer_paths(self, uuid_layers, layer_paths):
+        """Create mapping between Object UUID and layer file path.
+
+        This is used to map the layer file path from Layer UUID back to
+        the actual objects that are using the layer.
+
+        :param uuid_layers: Dictionary of Layer UUID and List of Object UUID
+        :type uuid_layers: dict
+        :param layer_paths: Dictionary of Layer UUID and actual file path
+        :type layer_paths: dict
+        :return: Dictionary of Objet UUID and layer file path
+        :rtype: dict
+        """
         uuid_mapped = {}
         for layer_uuid, uuid_list in uuid_layers.items():
             if layer_uuid not in layer_paths:
@@ -564,6 +740,11 @@ class WorkerScenarioAnalysisTask(object):
         return uuid_mapped
 
     def cancel_task(self):
+        """Handle when task is cancelled.
+
+        :raises self.error: Exception from analysis task if exists
+        :raises Exception: Default Exception
+        """
         self.error = self.analysis_task.error if self.analysis_task else None
         # raise exception to stop the task
         if self.error:
@@ -573,21 +754,51 @@ class WorkerScenarioAnalysisTask(object):
 
     def log_message(self, message: str, name: str = "qgis_cplus",
                     info: bool = True, notify: bool = True):
+        """Handle when log is received from running task.
+
+        :param message: Message log
+        :type message: str
+        :param name: log name, defaults to "qgis_cplus"
+        :type name: str, optional
+        :param info: True if it is information log, defaults to True
+        :type info: bool, optional
+        :param notify: Not used in API, defaults to True
+        :type notify: bool, optional
+        """
         self.scenario_task.add_log(
             message, logging.INFO if info else logging.ERROR)
         level = logging.INFO if info else logging.WARNING
         logger.log(level, message)
 
     def set_status_message(self, message):
+        """Handle when status message is received from running task.
+
+        :param message: Status/Progress Text Message
+        :type message: str
+        """
         self.status_message = message
         self.scenario_task.progress_text = message
         self.scenario_task.save(update_fields=['progress_text'])
 
     def set_info_message(self, message, level):
+        """Handle when info message is received.
+
+        :param message: Message log
+        :type message: str
+        :param level: severity level
+        :type level: int
+        """
         # info_message seems the same with log_message
         self.info_message = message
 
     def set_custom_progress(self, value):
+        """Handle progress value to update task's progress.
+
+        This method will limit the updating to database to
+        avoid too many queries.
+        :param value: Progress value
+        :type value: float
+        """
         self.custom_progress = value
         self.scenario_task.progress = value
         # check how to control the frequency of updating progress
@@ -598,6 +809,11 @@ class WorkerScenarioAnalysisTask(object):
             self.scenario_task.save(update_fields=['progress'])
 
     def should_update_progress(self):
+        """Check whether should update back to database.
+
+        :return: True if last update time is more than 1s
+        :rtype: bool
+        """
         if self.last_update_progress is None:
             return True
         ct = timezone.now()
@@ -610,7 +826,24 @@ class WorkerScenarioAnalysisTask(object):
             self, file_path: str, scenario_task: ScenarioTask,
             is_final_output: bool, group: str,
             output_meta: dict = None) -> OutputLayer:
+        """Update output layer to object storage.
+
+        :param file_path: output layer file path
+        :type file_path: str
+        :param scenario_task: ScenarioTask object
+        :type scenario_task: ScenarioTask
+        :param is_final_output: True if it is the final output layer
+        :type is_final_output: bool
+        :param group: layer group
+        :type group: str
+        :param output_meta: Metadata of layer, defaults to None
+        :type output_meta: dict, optional
+        :return: saved OutputLayer object
+        :rtype: OutputLayer
+        """
         filename = os.path.basename(file_path)
+
+        # convert to COG if it is Raster type
         if get_layer_type(file_path) == 0:
             cog_name = (
                 f"{os.path.basename(file_path).split('.')[0]}"
@@ -644,6 +877,8 @@ class WorkerScenarioAnalysisTask(object):
                 final_output_path = file_path
         else:
             final_output_path = file_path
+
+        # create the OutputLayer object
         output_layer = OutputLayer.objects.create(
             name=filename,
             created_on=timezone.now(),
@@ -655,11 +890,14 @@ class WorkerScenarioAnalysisTask(object):
             group=group,
             output_meta={} if not output_meta else output_meta
         )
+
+        # save the binary file to object storage
         with open(final_output_path, 'rb') as output_file:
             output_layer.file.save(filename, output_file)
         return output_layer
 
     def upload_scenario_outputs(self):
+        """Upload all scenario output layers to object storage."""
         scenario_output_files, total_files = (
             self.scenario_task.get_scenario_output_files()
         )
@@ -668,6 +906,8 @@ class WorkerScenarioAnalysisTask(object):
         self.log_message(status_msg)
         self.log_message(json.dumps(scenario_output_files))
         self.set_custom_progress(0)
+
+        # iterate for each scenario output files
         total_uploaded_files = 0
         for group, files in scenario_output_files.items():
             is_final_output = group == 'final_output'
@@ -691,6 +931,11 @@ class WorkerScenarioAnalysisTask(object):
                         100 * (total_uploaded_files / total_files))
 
     def notify_user(self, is_success: bool):
+        """Send email to notify user that analysis task is finished.
+
+        :param is_success: True if task run successfully
+        :type is_success: bool
+        """
         if not self.scenario_task.submitted_by.email:
             return
         try:
@@ -733,6 +978,8 @@ class WorkerScenarioAnalysisTask(object):
                     ),
                     'size': convert_size(layer.size)
                 })
+
+            # render message in HTML string
             message = render_to_string(
                 'emails/analysis_completed.html',
                 {
@@ -760,6 +1007,8 @@ class WorkerScenarioAnalysisTask(object):
                     'errors': self.scenario_task.errors
                 },
             )
+
+            # send message
             subject = (
                 f'Your analysis of {scenario_name} '
                 'has finished successfully' if
@@ -780,6 +1029,7 @@ class WorkerScenarioAnalysisTask(object):
             logger.error(traceback.format_exc())
 
     def run(self):
+        """Run the analysis task."""
         # create task_config object
         analysis_config = TaskConfig(
             self.scenario,
@@ -793,12 +1043,18 @@ class WorkerScenarioAnalysisTask(object):
             self.task_config.get_value(
                 Settings.RESCALE_VALUES, default=False
             ),
-            self.task_config.get_value(Settings.PATHWAY_SUITABILITY_INDEX, default=0),
-            self.task_config.get_value(Settings.CARBON_COEFFICIENT, default=0.0),
+            self.task_config.get_value(
+                Settings.PATHWAY_SUITABILITY_INDEX, default=0
+            ),
+            self.task_config.get_value(
+                Settings.CARBON_COEFFICIENT, default=0.0
+            ),
             self.task_config.get_value(
                 Settings.SIEVE_ENABLED, default=False
             ),
-            self.task_config.get_value(Settings.SIEVE_THRESHOLD, default=10.0),
+            self.task_config.get_value(
+                Settings.SIEVE_THRESHOLD, default=10.0
+            ),
             self.task_config.get_value(
                 Settings.NCS_WITH_CARBON, default=True
             ),
@@ -821,8 +1077,10 @@ class WorkerScenarioAnalysisTask(object):
         self.analysis_task = ScenarioAnalysisTask(analysis_config)
 
         # setup signals
-        self.analysis_task.custom_progress_changed.connect(self.set_custom_progress)
-        self.analysis_task.status_message_changed.connect(self.set_status_message)
+        self.analysis_task.custom_progress_changed.connect(
+            self.set_custom_progress)
+        self.analysis_task.status_message_changed.connect(
+            self.set_status_message)
         self.analysis_task.info_message_changed.connect(self.set_info_message)
         self.analysis_task.log_received.connect(self.log_message)
         self.analysis_task.task_cancelled.connect(self.cancel_task)
@@ -831,17 +1089,27 @@ class WorkerScenarioAnalysisTask(object):
         self.analysis_task.run()
 
     def finished(self, result: bool):
+        """Handle when task has been run.
+
+        :param result: True if task run successfully
+        :type result: bool
+        """
         if result:
+            # uplaod output files
             self.upload_scenario_outputs()
         else:
             self.log_message(
                 f"Error from task scenario task {self.error}", info=False)
+
         # clean directory
         self.scenario_task.clear_resources()
+
+        # update scenario task object
         self.scenario_task.task_on_completed()
         self.scenario_task.updated_detail = json.loads(
             json.dumps(todict(self.scenario), cls=CustomJsonEncoder)
         )
         self.scenario_task.save()
+
         # send email to the submitter
         self.notify_user(result)
