@@ -5,7 +5,6 @@ import tempfile
 
 import rasterio
 
-from rasterio.errors import RasterioError
 from datetime import datetime
 from django.utils import timezone
 
@@ -128,22 +127,15 @@ class ProcessFile:
                 self.read_metadata(download_path)
                 os.remove(download_path)
             else:
-                invalid_file = True
-                while invalid_file:
-                    with tempfile.NamedTemporaryFile() as tmpfile:
-                        boto3_client = self.storage.connection.meta.client
-                        boto3_client.download_file(
-                            self.storage.bucket_name,
-                            self.file['Key'],
-                            tmpfile.name,
-                            Config=settings.AWS_TRANSFER_CONFIG
-                        )
-                        try:
-                            self.read_metadata(tmpfile.name)
-                        except RasterioError:
-                            continue
-                        else:
-                            invalid_file = False
+                with tempfile.NamedTemporaryFile() as tmpfile:
+                    boto3_client = self.storage.connection.meta.client
+                    boto3_client.download_file(
+                        self.storage.bucket_name,
+                        self.file['Key'],
+                        tmpfile.name,
+                        Config=settings.AWS_TRANSFER_CONFIG
+                    )
+                    self.read_metadata(tmpfile.name)
 
 
 def delete_invalid_default_layers():
