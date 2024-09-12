@@ -4,7 +4,7 @@ import typing
 import tempfile
 
 import rasterio
-
+from rasterio.errors import RasterioIOError
 from datetime import datetime
 from django.utils import timezone
 
@@ -124,18 +124,42 @@ class ProcessFile:
             if isinstance(self.storage, FileSystemStorage):
                 download_path = os.path.join(media_root, self.file['Key'])
                 os.makedirs(os.path.dirname(download_path), exist_ok=True)
-                self.read_metadata(download_path)
-                os.remove(download_path)
+                iteration = 0
+                while iteration < 3:
+                    try:
+                        self.read_metadata(download_path)
+                    except RasterioIOError:
+                        iteration += 1
+                        if iteration == 3 and (
+                                self.input_layer.name == '' or
+                                self.input_layer.file is None
+                        ):
+                            self.input_layer.delete()
+                    else:
+                        os.remove(download_path)
+                        break
             else:
-                with tempfile.NamedTemporaryFile() as tmpfile:
-                    boto3_client = self.storage.connection.meta.client
-                    boto3_client.download_file(
-                        self.storage.bucket_name,
-                        self.file['Key'],
-                        tmpfile.name,
-                        Config=settings.AWS_TRANSFER_CONFIG
-                    )
-                    self.read_metadata(tmpfile.name)
+                iteration = 0
+                while iteration < 3:
+                    with tempfile.NamedTemporaryFile() as tmpfile:
+                        boto3_client = self.storage.connection.meta.client
+                        boto3_client.download_file(
+                            self.storage.bucket_name,
+                            self.file['Key'],
+                            tmpfile.name,
+                            Config=settings.AWS_TRANSFER_CONFIG
+                        )
+                        try:
+                            self.read_metadata(tmpfile.name)
+                        except RasterioIOError:
+                            iteration += 1
+                            if iteration == 3 and (
+                                    self.input_layer.name == '' or
+                                    self.input_layer.file is None
+                            ):
+                                self.input_layer.delete()
+                        else:
+                            break
 
 
 def delete_invalid_default_layers():
@@ -144,9 +168,11 @@ def delete_invalid_default_layers():
     :return: None
     :rtype: None
     """
-    common_layers = InputLayer.objects.filter(privacy_type=InputLayer.PrivacyTypes.COMMON)
+    common_layers = InputLayer.objects.filter(
+        privacy_type=InputLayer.PrivacyTypes.COMMON
+    )
     invalid_common_layers = common_layers.filter(
-        Q(name='') | Q(name__isnull=True) | Q(file__isnull=True)
+        Q(name='') | Q(file='')
     )
     invalid_common_layers.delete()
 

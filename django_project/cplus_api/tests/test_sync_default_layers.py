@@ -1,4 +1,7 @@
 import os
+import time
+from rasterio.errors import RasterioIOError
+from unittest.mock import patch
 from shutil import copyfile
 
 from core.settings.utils import absolute_path
@@ -6,7 +9,11 @@ from cplus_api.models.layer import (
     InputLayer,
     COMMON_LAYERS_DIR
 )
-from cplus_api.tasks.sync_default_layers import sync_default_layers
+from cplus_api.tests.factories import InputLayerF
+from cplus_api.tasks.sync_default_layers import (
+    sync_default_layers,
+    ProcessFile
+)
 from cplus_api.tests.common import BaseAPIViewTransactionTest
 
 
@@ -73,6 +80,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
 
     def test_file_updated(self):
         input_layer, source_path, dest_path = self.base_run()
+        time.sleep(5)
         first_modified_on = input_layer.modified_on
         copyfile(source_path, dest_path)
         sync_default_layers()
@@ -87,3 +95,84 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         input_layer.refresh_from_db()
         self.assertEqual(input_layer.name, 'New Name')
         self.assertEqual(input_layer.description, 'New Description')
+
+    def test_delete_invalid_layers(self):
+        input_layer, source_path, dest_path = self.base_run()
+        invalid_common_layer_1 = InputLayerF.create(
+            name='',
+            privacy_type=InputLayer.PrivacyTypes.COMMON,
+            file=input_layer.file
+        )
+        invalid_common_layer_2 = InputLayerF.create(
+            name='invalid_common_layer_2',
+            privacy_type=InputLayer.PrivacyTypes.COMMON,
+            file=None
+        )
+        private_layer_1 = InputLayerF.create(
+            name='',
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE,
+            file=input_layer.file
+        )
+        private_layer_2 = InputLayerF.create(
+            name='private_layer_2',
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE
+        )
+
+        sync_default_layers()
+
+        # Calling refresh_from_db() on these 2 variable would result
+        # in InputLayer.DoesNotExist as they have been deleted,
+        # because they are invalid common layers
+        with self.assertRaises(InputLayer.DoesNotExist):
+            invalid_common_layer_1.refresh_from_db()
+        with self.assertRaises(InputLayer.DoesNotExist):
+            invalid_common_layer_2.refresh_from_db()
+
+        # These layers are not deleted, so we could still call refresh_from_db
+        private_layer_1.refresh_from_db()
+        private_layer_2.refresh_from_db()
+
+    def test_invalid_input_layers_not_created(self):
+        source_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'pathways', 'test_pathway_2.tif'
+        )
+        dest_path = (
+            f'/home/web/media/minio_test/{COMMON_LAYERS_DIR}/'
+            f'{InputLayer.ComponentTypes.NCS_PATHWAY}/test_pathway_2.tif'
+        )
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+        copyfile(source_path, dest_path)
+        with patch.object(
+                ProcessFile, 'read_metadata', autospec=True
+        ) as mock_read_metadata:
+            mock_read_metadata.side_effect = [
+                RasterioIOError('error'),
+                RasterioIOError('error'),
+                RasterioIOError('error')
+            ]
+            sync_default_layers()
+
+            self.assertFalse(InputLayer.objects.exists())
+
+    def test_invalid_input_layers_not_deleted(self):
+        input_layer, source_path, dest_path = self.base_run()
+        time.sleep(5)
+        first_modified_on = input_layer.modified_on
+        copyfile(source_path, dest_path)
+        sync_default_layers()
+        with patch.object(
+                ProcessFile, 'read_metadata', autospec=True
+        ) as mock_read_metadata:
+            mock_read_metadata.side_effect = [
+                RasterioIOError('error'),
+                RasterioIOError('error'),
+                RasterioIOError('error')
+            ]
+            sync_default_layers()
+
+            self.assertTrue(InputLayer.objects.exists())
+
+            # Check modified_on is updated
+            input_layer.refresh_from_db()
+            self.assertNotEquals(input_layer.modified_on, first_modified_on)
