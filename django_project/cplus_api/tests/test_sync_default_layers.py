@@ -54,6 +54,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         self.assertEqual(input_layer.name, 'test_pathway_2.tif')
         self.assertEqual(input_layer.description, 'test_pathway_2.tif')
         self.assertEqual(input_layer.metadata, metadata)
+        self.assertEqual(input_layer.size, os.path.getsize(source_path))
 
         # Rerun sync default layers
         sync_default_layers()

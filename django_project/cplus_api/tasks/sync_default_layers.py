@@ -102,6 +102,7 @@ class ProcessFile:
                 )
             self.input_layer.metadata = metadata
             self.input_layer.file.name = self.file['Key']
+            self.input_layer.size = os.path.getsize(file_path)
             self.input_layer.save()
 
     def run(self):
