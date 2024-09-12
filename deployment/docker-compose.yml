@@ -124,6 +124,7 @@ services:
       - db
       - minio
       - redis
+    mem_limit: ${WORKER_MEM_LIMIT:-3g}
 
   dev:
     image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_dev
