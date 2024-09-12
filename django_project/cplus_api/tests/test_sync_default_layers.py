@@ -1,27 +1,30 @@
 import os
+import tempfile
 import time
-from rasterio.errors import RasterioIOError
-from unittest.mock import patch
+from datetime import timedelta
 from shutil import copyfile
+from unittest.mock import patch, MagicMock
+
+from django.utils import timezone
+from rasterio.errors import RasterioIOError
+from storages.backends.s3 import S3Storage
 
 from core.settings.utils import absolute_path
 from cplus_api.models.layer import (
     InputLayer,
     COMMON_LAYERS_DIR
 )
-from cplus_api.tests.factories import InputLayerF
 from cplus_api.tasks.sync_default_layers import (
     sync_default_layers,
     ProcessFile
 )
 from cplus_api.tests.common import BaseAPIViewTransactionTest
+from cplus_api.tests.factories import InputLayerF
 
 
 class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
     def setUp(self, *args, **kwargs):
         super().setUp(*args, **kwargs)
-        # print(help(self))
-        # breakpoint()
         self.superuser.username = os.getenv('ADMIN_USERNAME')
         self.superuser.save()
 
@@ -176,3 +179,47 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
             # Check modified_on is updated
             input_layer.refresh_from_db()
             self.assertNotEquals(input_layer.modified_on, first_modified_on)
+
+    def run_s3(self, mock_storage, mock_named_tmp_file=None):
+        source_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'pathways', 'test_pathway_2.tif'
+        )
+        dest_path = (
+            f'/home/web/media/minio_test/{COMMON_LAYERS_DIR}/'
+            f'{InputLayer.ComponentTypes.NCS_PATHWAY}/test_pathway_2.tif'
+        )
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+        copyfile(source_path, dest_path)
+
+        storage = S3Storage(bucket_name='test-bucket')
+        s3_client = MagicMock()
+        s3_client.list_objects.return_value = {
+            'Contents': [
+                {
+                    'Key': 'common_layers/ncs_pathway/test_pathway_2.tif',
+                    'LastModified': timezone.now() + timedelta(days=1)
+                }
+            ]
+        }
+        storage.connection.meta.client = s3_client
+        mock_storage.return_value = storage
+        if mock_named_tmp_file:
+            (mock_named_tmp_file.return_value.
+             __enter__.return_value).name = dest_path
+        sync_default_layers()
+
+    @patch('cplus_api.tasks.sync_default_layers.select_input_layer_storage')
+    def test_invalid_input_layers_not_created_s3(self, mock_storage):
+        self.run_s3(mock_storage)
+        self.assertFalse(InputLayer.objects.exists())
+
+    @patch('cplus_api.tasks.sync_default_layers.select_input_layer_storage')
+    @patch.object(tempfile, 'NamedTemporaryFile')
+    def test_invalid_input_layers_created_s3(
+            self,
+            mock_named_tmp_file,
+            mock_storage
+    ):
+        self.run_s3(mock_storage, mock_named_tmp_file)
+        self.assertTrue(InputLayer.objects.exists())
