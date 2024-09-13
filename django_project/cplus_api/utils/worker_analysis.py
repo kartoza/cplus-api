@@ -746,11 +746,8 @@ class WorkerScenarioAnalysisTask(object):
         :raises Exception: Default Exception
         """
         self.error = self.analysis_task.error if self.analysis_task else None
-        # raise exception to stop the task
-        if self.error:
-            raise self.error
-        else:
-            raise Exception('Task is stopped with errors!')
+        # set the cancel flag to True
+        self.processing_cancelled = True
 
     def log_message(self, message: str, name: str = "qgis_cplus",
                     info: bool = True, notify: bool = True):
