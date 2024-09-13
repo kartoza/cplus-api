@@ -587,11 +587,8 @@ class WorkerScenarioAnalysisTask(ScenarioAnalysisTask):
 
     def cancel_task(self, exception=None):
         self.error = exception
-        # raise exception to stop the task
-        if exception:
-            raise exception
-        else:
-            raise Exception('Task is stopped with errors!')
+        # set the cancel flag to True
+        self.processing_cancelled = True
 
     def log_message(self, message: str, name: str = "qgis_cplus",
                     info: bool = True, notify: bool = True):
