@@ -3,9 +3,7 @@
 from celery import shared_task
 import logging
 import time
-import json
 from django.conf import settings
-from core.settings.utils import UUIDEncoder
 from cplus_api.models.scenario import ScenarioTask
 
 logger = logging.getLogger(__name__)
@@ -26,11 +24,7 @@ def create_scenario_task_runner(scenario_task: ScenarioTask):
 
     task_config = APITaskConfig.from_dict(scenario_task.detail)
     analysis_task = WorkerScenarioAnalysisTask(task_config, scenario_task)
-    logger.info('Started prepare_run')
     analysis_task.prepare_run()
-    logger.info('Finished prepare_run')
-    logger.info(
-        json.dumps(analysis_task.task_config.to_dict(), cls=UUIDEncoder))
     return analysis_task
 
 

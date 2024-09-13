@@ -1092,7 +1092,7 @@ class WorkerScenarioAnalysisTask(object):
         :type result: bool
         """
         if result:
-            # uplaod output files
+            # upload output files
             self.upload_scenario_outputs()
         else:
             self.log_message(
