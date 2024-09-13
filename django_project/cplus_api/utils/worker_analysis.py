@@ -1032,6 +1032,7 @@ class WorkerScenarioAnalysisTask(object):
             self.scenario,
             self.task_config.priority_layers,
             self.scenario.priority_layer_groups,
+            self.scenario.activities,
             self.task_config.analysis_activities,
             self.task_config.get_value(
                 Settings.SNAPPING_ENABLED, default=False
