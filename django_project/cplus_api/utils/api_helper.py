@@ -3,11 +3,12 @@ import logging
 import os
 import traceback
 from datetime import datetime
-from uuid import UUID
 from enum import Enum
+from uuid import UUID
 
 import boto3
 import math
+import requests
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from django.conf import settings
@@ -276,3 +277,16 @@ def get_layer_type(file_path: str):
         return 1
     else:
         return -1
+
+
+def download_file(url, local_filename):
+    # NOTE the stream=True parameter below
+    with requests.get(url, stream=True) as r:
+        r.raise_for_status()
+        with open(local_filename, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                # If you have chunk encoded response uncomment if
+                # and set chunk_size parameter to None.
+                #if chunk:
+                f.write(chunk)
+    return local_filename

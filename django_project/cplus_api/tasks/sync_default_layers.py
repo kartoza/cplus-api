@@ -1,11 +1,15 @@
 import logging
 import os
+import shutil
 import typing
 import tempfile
+import requests
+from zipfile import ZipFile
 
 import rasterio
 from datetime import datetime
 from django.utils import timezone
+from django.utils.html import strip_tags
 
 from celery import shared_task
 from django.contrib.auth.models import User
@@ -18,9 +22,11 @@ from cplus_api.models import (
     InputLayer,
     COMMON_LAYERS_DIR
 )
-from cplus_api.utils.api_helper import get_layer_type
+from cplus_api.utils.api_helper import get_layer_type, download_file
 
-logger = logging.getLogger(__name__)
+class LayerSource:
+    NATURE_BASE = "Nature Base"
+    CPLUS = "CPLUS"
 
 
 class ProcessFile:
@@ -47,22 +53,37 @@ class ProcessFile:
         storage: typing.Union[FileSystemStorage, S3Storage],
         owner: User,
         component_type: str,
-        file: dict
+        file: typing.Dict,
+        source: str = LayerSource.CPLUS,
     ):
         self.storage = storage
         self.owner = owner
         self.component_type = component_type
         self.file = file
-        self.input_layer, self.created = InputLayer.objects.get_or_create(
-            owner=owner,
-            privacy_type=InputLayer.PrivacyTypes.COMMON,
-            component_type=component_type,
-            file=file['Key'],
-            defaults={
-                'created_on': timezone.now(),
-                'layer_type': get_layer_type(file['Key'])
-            }
-        )
+        self.source = source
+        if source == LayerSource.CPLUS:
+            self.input_layer, self.created = InputLayer.objects.get_or_create(
+                owner=owner,
+                privacy_type=InputLayer.PrivacyTypes.COMMON,
+                component_type=component_type,
+                file=file['Key'],
+                defaults={
+                    'created_on': timezone.now(),
+                    'layer_type': get_layer_type(file['Key']),
+                    'name': 'N/A'
+                }
+            )
+        else:
+            self.input_layer, self.created = InputLayer.objects.get_or_create(
+                owner=owner,
+                privacy_type=InputLayer.PrivacyTypes.COMMON,
+                component_type=component_type,
+                name=file['title'],
+                defaults={
+                    'created_on': timezone.now(),
+                    'layer_type': get_layer_type(file['Key']),
+                }
+            )
 
     def read_metadata(
         self,
@@ -94,15 +115,47 @@ class ProcessFile:
                 "nodata_value": nodata,
                 "is_geographic": dataset.crs.is_geographic
             }
-            if not self.input_layer.name:
-                self.input_layer.name = os.path.basename(self.file['Key'])
+            if not self.input_layer.name or self.input_layer.name == 'N/A':
+                if self.source == LayerSource.CPLUS:
+                    self.input_layer.name = os.path.basename(self.file['Key'])
+                elif self.source == LayerSource.NATURE_BASE:
+                    self.input_layer.name = strip_tags(self.file['title'])
             if not self.input_layer.description:
-                self.input_layer.description = (
-                    os.path.basename(self.file['Key'])
-                )
+                if self.source == LayerSource.CPLUS:
+                    self.input_layer.description = strip_tags(
+                        os.path.basename(self.file['Key'])
+                    )
+                elif self.source == LayerSource.NATURE_BASE:
+                    self.input_layer.description = strip_tags(self.file['short_summary']).replace('&nbsp;', '')
             self.input_layer.metadata = metadata
-            self.input_layer.file.name = self.file['Key']
+
+            if self.source == LayerSource.NATURE_BASE:
+                with open(file_path, 'rb') as layer:
+                    self.input_layer.file.save(
+                        os.path.basename(self.file['Key']),
+                        layer
+                    )
+                self.input_layer.layer_type = 0
+            else:
+                self.input_layer.file.name = self.file['Key']
+            self.input_layer.size = os.path.getsize(file_path)
             self.input_layer.save()
+
+    def handle_nature_base(self, file_path):
+        download_file(self.file['url'], file_path)
+        zip_path = file_path
+        if self.file['url'].endswith('.zip'):
+            with ZipFile(zip_path, 'r') as zip_ref:
+                tmpdir = tempfile.mkdtemp()
+                zip_ref.extractall(tmpdir)
+                tif_file = [
+                    f for f in os.listdir(tmpdir) if f.endswith('.tif') or f.endswith('.tiff')
+                ]
+                if tif_file:
+                    self.file['Key'] = tif_file[0]
+                    tif_file = os.path.join(tmpdir, tif_file[0])
+                    return tif_file
+        return file_path
 
     def run(self):
         """
@@ -114,25 +167,61 @@ class ProcessFile:
         # Save layer if the file is modified after input layers last saved OR
         # if input layer is a new record
         if (
-                self.file['LastModified'] > self.input_layer.modified_on or
-                self.created
+            self.file['LastModified'] > self.input_layer.modified_on or
+            self.created
         ):
+            print(f"Processing {self.file['Key']}")
             media_root = self.storage.location or settings.MEDIA_ROOT
             if isinstance(self.storage, FileSystemStorage):
                 download_path = os.path.join(media_root, self.file['Key'])
                 os.makedirs(os.path.dirname(download_path), exist_ok=True)
+                self.handle_nature_base(download_path)
                 self.read_metadata(download_path)
                 os.remove(download_path)
             else:
                 with tempfile.NamedTemporaryFile() as tmpfile:
-                    boto3_client = self.storage.connection.meta.client
-                    boto3_client.download_file(
-                        self.storage.bucket_name,
-                        self.file['Key'],
-                        tmpfile.name,
-                        Config=settings.AWS_TRANSFER_CONFIG
-                    )
-                    self.read_metadata(tmpfile.name)
+                    tif_file = tmpfile.name
+                    if self.source == LayerSource.CPLUS:
+                        boto3_client = self.storage.connection.meta.client
+                        boto3_client.download_file(
+                            self.storage.bucket_name,
+                            self.file['Key'],
+                            tmpfile.name,
+                            Config=settings.AWS_TRANSFER_CONFIG
+                        )
+                    elif self.source == LayerSource.NATURE_BASE:
+                        tif_file = self.handle_nature_base(tmpfile.name)
+                    self.read_metadata(tif_file)
+
+
+def sync_nature_base():
+    """
+    Sync NatureBase NCS Pathways
+    """
+    print("Syncing NatureBase NCS Pathways")
+    storage = select_input_layer_storage()
+    component_type = InputLayer.ComponentTypes.NCS_PATHWAY
+    admin_username = os.getenv('ADMIN_USERNAME')
+    owner = User.objects.get(username=admin_username)
+    url = ("https://content.ncsmap.org/items/spatial_metadata?limit=-1&sort=title&filter[status][_in]=published&"
+           "fields=id,title,short_summary,download_links,cog_url,date_updated")
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        results = response.json()['data']
+        for result in results[0:5]:
+            if result['title'] != 'All NCS Pathway Data':
+                last_modified = datetime.fromisoformat(
+                    result['date_updated']
+                )
+                url = result['cog_url'] or result['download_links'][0]['url']
+                file = {
+                    "Key": f"/common_layers/ncs_pathway/{os.path.basename(url)}",
+                    "LastModified": last_modified,
+                    "url": url
+                }
+                file.update(result)
+                ProcessFile(storage, owner, component_type, file, source=LayerSource.NATURE_BASE).run()
 
 
 @shared_task(name="sync_default_layers")
@@ -141,6 +230,9 @@ def sync_default_layers():
     Create Input Layers from default layers copied to S3/local directory
     """
 
+    sync_nature_base()
+
+    print("Syncing CPLUS NCS Pathways")
     storage = select_input_layer_storage()
     component_types = [c[0] for c in InputLayer.ComponentTypes.choices]
     admin_username = os.getenv('ADMIN_USERNAME')
@@ -162,8 +254,7 @@ def sync_default_layers():
                 )
                 file = {
                     "Key": key,
-                    "LastModified": last_modified,
-                    "Size": os.path.getsize(download_path)
+                    "LastModified": last_modified
                 }
                 ProcessFile(storage, owner, component_type, file).run()
     else:
