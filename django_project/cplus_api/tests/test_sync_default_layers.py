@@ -1,5 +1,8 @@
 import os
 from shutil import copyfile
+from unittest.mock import patch
+
+import requests_mock
 
 from core.settings.utils import absolute_path
 from cplus_api.models.layer import (
@@ -8,6 +11,21 @@ from cplus_api.models.layer import (
 )
 from cplus_api.tasks.sync_default_layers import sync_default_layers
 from cplus_api.tests.common import BaseAPIViewTransactionTest
+
+
+def stream_from_file(requests, context, *args, **kwargs):
+    if requests.url == 'https://kartoza.com/test_pathway_2.tif':
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'pathways', 'test_pathway_2.tif'
+        )
+    elif requests.url == 'https://kartoza.com/test_pathway_3_zipped.zip':
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'pathways', 'test_pathway_3_zipped.zip'
+        )
+    with open(file_path, 'rb') as file:
+        return file.read()
 
 
 class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
@@ -62,7 +80,11 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         self.assertEqual(input_layer.modified_on, first_modified_on)
         return input_layer, source_path, dest_path
 
-    def test_new_layer(self):
+    @patch(
+        'cplus_api.tasks.sync_default_layers.sync_nature_base',
+        autospec=True
+    )
+    def test_cplus_new_layer(self, mock_sync_nature_base):
         """
         Test when a new file is added to the common layers directory
         :return:
@@ -70,7 +92,11 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         """
         self.base_run()
 
-    def test_file_updated(self):
+    @patch(
+        'cplus_api.tasks.sync_default_layers.sync_nature_base',
+        autospec=True
+    )
+    def test_cplus_file_updated(self, mock_sync_nature_base):
         input_layer, source_path, dest_path = self.base_run()
         first_modified_on = input_layer.modified_on
         copyfile(source_path, dest_path)
@@ -86,3 +112,109 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         input_layer.refresh_from_db()
         self.assertEqual(input_layer.name, 'New Name')
         self.assertEqual(input_layer.description, 'New Description')
+
+    @patch(
+        'cplus_api.tasks.sync_default_layers.sync_cplus_layers',
+        autospec=True
+    )
+    def test_nature_base_new_layer(self, mock_sync_cplus_layers):
+        """
+        Test syncing NatureBase NCS Pathway default layers
+        """
+        nature_base_url = (
+            "https://content.ncsmap.org/items/spatial_metadata?limit=-1&sort=title&filter[status][_in]=published&"  # noqa
+            "fields=id,title,short_summary,download_links,cog_url,date_updated"
+        )
+        with requests_mock.Mocker() as rm:
+            rm.get(
+                nature_base_url,
+                json={
+                    "data": [
+                        {
+                            "id": 18,
+                            "title": "All NCS Pathway Data",
+                            "short_summary": "<p>This data package shows all individual NCS pathways for an area. The information is produced through various technologies, including satellite data analysis and land system modeling, machine learning, and qualitative research.<br><br><strong>Units:&nbsp;</strong><em>all raster data (.tif) are in tCO2e/ha/yr. All tabular data (.csv) are summarised in tCO2e/yr. <br></em></p>",  # noqa
+                            "download_links": [
+                                {
+                                    "link_type": "Download",
+                                    "url": "https://kartoza.com/all_pathways.zip"  # noqa
+                                }
+                            ],
+                            "cog_url": "https://kartoza.com/total_ncs.tif",
+                            "date_updated": "2024-08-28T18:59:51.419Z"
+                        },
+                        {
+                            "id": 15,
+                            "title": "Avoided Coastal Wetland Conversion",
+                            "short_summary": "<p>Avoided emissions of above-ground biomass and soil carbon due to avoided degradation and/or loss of coastal wetlands (mangroves, tidal marshes, and seagrass meadows).</p>\n<p><strong>Units:&nbsp;</strong>all raster data (.tif) are in tCO2e/ha/yr. All tabular data (.csv) are summarised in tCO2e/yr.</p>",  # noqa
+                            "download_links": [
+                                {
+                                    "link_type": "Download",
+                                    "url": "https://kartoza.com/wet_awc_total.zip"  # noqa
+                                }
+                            ],
+                            "cog_url": "https://kartoza.com/test_pathway_2.tif",  # noqa
+                            "date_updated": "2024-08-28T18:55:55.936Z"
+                        },
+                        {
+                            "id": 5,
+                            "title": "Avoided Grassland Conversion",
+                            "short_summary": "<p>Avoided soil carbon emissions by avoiding the conversion of grasslands to cropland.</p>\n<p><strong>Units:&nbsp;</strong>all raster data (.tif) are in tCO2e/ha/yr. All tabular data (.csv) are summarised in tCO2e/yr.</p>",  # noqa
+                            "download_links": [
+                                {
+                                    "link_type": "Download",
+                                    "url": "https://kartoza.com/test_pathway_3_zipped.zip"  # noqa
+                                }
+                            ],
+                            "cog_url": None,
+                            "date_updated": "2024-08-28T18:57:00.867Z"
+                        }
+                    ]
+                }
+            )
+            rm.get(
+                'https://kartoza.com/test_pathway_2.tif',
+                content=stream_from_file
+            )
+            rm.get(
+                'https://kartoza.com/test_pathway_3_zipped.zip',
+                content=stream_from_file
+            )
+            sync_default_layers()
+
+            input_layers = InputLayer.objects.all().order_by('name')
+            self.assertEqual(input_layers.count(), 2)
+
+            avoided_coastal_wetland_conversion = input_layers[0]
+            self.assertEqual(
+                avoided_coastal_wetland_conversion.name,
+                'Avoided Coastal Wetland Conversion'
+            )
+            self.assertEqual(
+                avoided_coastal_wetland_conversion.description,
+                (
+                    'Avoided emissions of above-ground biomass '
+                    'and soil carbon '
+                    'due to avoided degradation and/or loss '
+                    'of coastal wetlands (mangroves, tidal marshes, '
+                    'and seagrass '
+                    'meadows).\nUnits:all raster data (.tif) '
+                    'are in tCO2e/ha/yr. All tabular data (.csv) '
+                    'are summarised in tCO2e/yr.'
+                )
+            )
+
+            avoided_grassland_conversion = input_layers[1]
+            self.assertEqual(
+                avoided_grassland_conversion.name,
+                'Avoided Grassland Conversion'
+            )
+            self.assertEqual(
+                avoided_grassland_conversion.description,
+                (
+                    'Avoided soil carbon emissions by avoiding the '
+                    'conversion of grasslands to cropland.'
+                    '\nUnits:all raster data (.tif) are in tCO2e/ha/yr. '
+                    'All tabular data (.csv) are summarised in tCO2e/yr.'
+                )
+            )
