@@ -10,8 +10,10 @@ from celery import shared_task
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.files.storage import FileSystemStorage
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.html import strip_tags
+from rasterio.errors import RasterioIOError
 from requests.exceptions import HTTPError
 from sentry_sdk import capture_exception
 from storages.backends.s3 import S3Storage
@@ -69,8 +71,7 @@ class ProcessFile:
                 file=file['Key'],
                 defaults={
                     'created_on': timezone.now(),
-                    'layer_type': get_layer_type(file['Key']),
-                    'name': 'N/A'
+                    'layer_type': get_layer_type(file['Key'])
                 }
             )
         else:
@@ -187,25 +188,64 @@ class ProcessFile:
                     if not download_path:
                         self.input_layer.delete()
                         return
-                self.read_metadata(download_path)
-                os.remove(download_path)
+                iteration = 0
+                while iteration < 3:
+                    try:
+                        self.read_metadata(download_path)
+                    except RasterioIOError:
+                        iteration += 1
+                        if iteration == 3 and (
+                            self.input_layer.name == '' or
+                            self.input_layer.file is None
+                        ):
+                            self.input_layer.delete()
+                    else:
+                        os.remove(download_path)
+                        break
             else:
-                with tempfile.NamedTemporaryFile() as tmpfile:
-                    tif_file = tmpfile.name
-                    if self.source == LayerSource.CPLUS:
-                        boto3_client = self.storage.connection.meta.client
-                        boto3_client.download_file(
-                            self.storage.bucket_name,
-                            self.file['Key'],
-                            tmpfile.name,
-                            Config=settings.AWS_TRANSFER_CONFIG
-                        )
-                    elif self.source == LayerSource.NATURE_BASE:
-                        tif_file = self.handle_nature_base(tmpfile.name)
+                iteration = 0
+                while iteration < 3:
+                    with tempfile.NamedTemporaryFile() as tmpfile:
+                        tif_file = tmpfile.name
+                        if self.source == LayerSource.CPLUS:
+                            boto3_client = self.storage.connection.meta.client
+                            boto3_client.download_file(
+                                self.storage.bucket_name,
+                                self.file['Key'],
+                                tmpfile.name,
+                                Config=settings.AWS_TRANSFER_CONFIG
+                            )
+                        elif self.source == LayerSource.NATURE_BASE:
+                            tif_file = self.handle_nature_base(tmpfile.name)
                         if not tif_file:
                             self.input_layer.delete()
                             return
-                    self.read_metadata(tif_file)
+                        try:
+                            self.read_metadata(tmpfile.name)
+                        except RasterioIOError:
+                            iteration += 1
+                            if iteration == 3 and (
+                                self.input_layer.name == '' or
+                                self.input_layer.file is None
+                            ):
+                                self.input_layer.delete()
+                        else:
+                            break
+
+
+def delete_invalid_default_layers():
+    """Delete invalid default layers in DB
+
+    :return: None
+    :rtype: None
+    """
+    common_layers = InputLayer.objects.filter(
+        privacy_type=InputLayer.PrivacyTypes.COMMON
+    )
+    invalid_common_layers = common_layers.filter(
+        Q(name='') | Q(file='')
+    )
+    invalid_common_layers.delete()
 
 
 def sync_nature_base():
@@ -291,6 +331,6 @@ def sync_default_layers():
     """
     Create Input Layers from default layers copied to S3/local directory
     """
-
+    delete_invalid_default_layers()
     sync_nature_base()
     sync_cplus_layers()
