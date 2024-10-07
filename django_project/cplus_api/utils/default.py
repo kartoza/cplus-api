@@ -1,5 +1,7 @@
 
 class DEFAULT_VALUES(object):
+    """Class to store default values for configuration."""
+
     snapping_enabled = False
     pathway_suitability_index = 0
     carbon_coefficient = 0.0

@@ -34,7 +34,6 @@ DEBUG = TEMPLATE_DEBUG = False
 # Extra installed apps
 INSTALLED_APPS = INSTALLED_APPS + (
     'core',
-    'cplus',
     'cplus_api'
 )
 
