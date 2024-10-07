@@ -56,14 +56,14 @@ class ProcessFile:
         owner: User,
         component_type: str,
         file: typing.Dict,
-        source: str = LayerSource.CPLUS,
+        source: str = InputLayer.LayerSources.CPLUS,
     ):
         self.storage = storage
         self.owner = owner
         self.component_type = component_type
         self.file = file
         self.source = source
-        if source == LayerSource.CPLUS:
+        if source == InputLayer.LayerSources.CPLUS:
             self.input_layer, self.created = InputLayer.objects.get_or_create(
                 owner=owner,
                 privacy_type=InputLayer.PrivacyTypes.COMMON,
@@ -99,50 +99,72 @@ class ProcessFile:
         :return: None
         :rtype: None
         """
+        new_nodata_value = -9999
         with rasterio.open(file_path) as dataset:
-            transform = dataset.transform
-            res_x = abs(transform[0])
-            res_y = abs(transform[4])
-            crs = dataset.crs
-            nodata = dataset.nodata
-            unit = dataset.crs.units_factor[0]
-            unit = "m" if unit == "metre" else unit
+            profile = dataset.profile
+            data = dataset.read()
 
-            metadata = {
-                "is_raster": get_layer_type(self.file['Key']) == 0,
-                "crs": str(crs),
-                "resolution": [res_x, res_y],
-                "unit": unit,
-                "nodata_value": nodata,
-                "is_geographic": dataset.crs.is_geographic
-            }
-            if not self.input_layer.name or self.input_layer.name == 'N/A':
-                if self.source == LayerSource.CPLUS:
-                    self.input_layer.name = os.path.basename(self.file['Key'])
-                elif self.source == LayerSource.NATURE_BASE:
-                    self.input_layer.name = strip_tags(self.file['title'])
-            if not self.input_layer.description:
-                if self.source == LayerSource.CPLUS:
-                    self.input_layer.description = strip_tags(
-                        os.path.basename(self.file['Key'])
-                    )
-                elif self.source == LayerSource.NATURE_BASE:
-                    self.input_layer.description = strip_tags(
-                        self.file['short_summary']
-                    ).replace('&nbsp;', '')
-            self.input_layer.metadata = metadata
 
-            if self.source == LayerSource.NATURE_BASE:
-                with open(file_path, 'rb') as layer:
-                    self.input_layer.file.save(
-                        os.path.basename(self.file['Key']),
-                        layer
-                    )
-                self.input_layer.layer_type = 0
-            else:
-                self.input_layer.file.name = self.file['Key']
-            self.input_layer.size = os.path.getsize(file_path)
-            self.input_layer.save()
+            # Set the new nodata value in the profile
+            profile.update(nodata=new_nodata_value)
+
+            # Replace the current nodata value with the new nodata value in the data array
+            data[data == dataset.nodata] = new_nodata_value
+
+            with tempfile.NamedTemporaryFile() as tmpfile:
+                file_path = tmpfile.name
+
+                # Write the output raster with the updated nodata value
+                with rasterio.open(file_path, "w", **profile) as dst:
+                    breakpoint()
+                    dst.write(data)
+
+                with rasterio.open(file_path) as dataset:
+                    transform = dataset.transform
+                    res_x = abs(transform[0])
+                    res_y = abs(transform[4])
+                    crs = dataset.crs
+                    nodata = dataset.nodata
+                    unit = dataset.crs.units_factor[0]
+                    unit = "m" if unit == "metre" else unit
+
+                    metadata = {
+                        "is_raster": get_layer_type(self.file['Key']) == 0,
+                        "crs": str(crs),
+                        "resolution": [res_x, res_y],
+                        "unit": unit,
+                        "nodata_value": nodata,
+                        "is_geographic": dataset.crs.is_geographic
+                    }
+                    if not self.input_layer.name or self.input_layer.name == 'N/A':
+                        if self.source == InputLayer.LayerSources.CPLUS:
+                            self.input_layer.name = os.path.basename(self.file['Key'])
+                        elif self.source == InputLayer.LayerSources.NATURE_BASE:
+                            self.input_layer.name = strip_tags(self.file['title'])
+                    if not self.input_layer.description:
+                        if self.source == InputLayer.LayerSources.CPLUS:
+                            self.input_layer.description = strip_tags(
+                                os.path.basename(self.file['Key'])
+                            )
+                        elif self.source == InputLayer.LayerSources.NATURE_BASE:
+                            self.input_layer.description = strip_tags(
+                                self.file['short_summary']
+                            ).replace('&nbsp;', '')
+                    self.input_layer.metadata = metadata
+
+                    if self.source == InputLayer.LayerSources.NATURE_BASE:
+                        with open(file_path, 'rb') as layer:
+                            self.input_layer.file.save(
+                                os.path.basename(self.file['Key']),
+                                layer
+                            )
+                        self.input_layer.layer_type = 0
+                    else:
+                        self.input_layer.file.name = self.file['Key']
+                    self.input_layer.size = os.path.getsize(file_path)
+                    breakpoint()
+                    self.input_layer.source = self.source
+                    self.input_layer.save()
 
     def handle_nature_base(self, file_path):
         try:
@@ -183,7 +205,7 @@ class ProcessFile:
             if isinstance(self.storage, FileSystemStorage):
                 download_path = os.path.join(media_root, self.file['Key'])
                 os.makedirs(os.path.dirname(download_path), exist_ok=True)
-                if self.source == LayerSource.NATURE_BASE:
+                if self.source == InputLayer.LayerSources.NATURE_BASE:
                     download_path = self.handle_nature_base(download_path)
                     if not download_path:
                         self.input_layer.delete()
@@ -207,7 +229,7 @@ class ProcessFile:
                 while iteration < 3:
                     with tempfile.NamedTemporaryFile() as tmpfile:
                         tif_file = tmpfile.name
-                        if self.source == LayerSource.CPLUS:
+                        if self.source == InputLayer.LayerSources.CPLUS:
                             boto3_client = self.storage.connection.meta.client
                             boto3_client.download_file(
                                 self.storage.bucket_name,
@@ -215,14 +237,16 @@ class ProcessFile:
                                 tmpfile.name,
                                 Config=settings.AWS_TRANSFER_CONFIG
                             )
-                        elif self.source == LayerSource.NATURE_BASE:
-                            tif_file = self.handle_nature_base(tmpfile.name)
+                        elif self.source == InputLayer.LayerSources.NATURE_BASE:
+                            tif_file = '/home/web/django_project/wet_awc_total.tif'
+                            # tif_file = self.handle_nature_base(tmpfile.name)
                         if not tif_file:
                             self.input_layer.delete()
                             return
                         try:
                             self.read_metadata(tmpfile.name)
-                        except RasterioIOError:
+                        except RasterioIOError as e:
+                            breakpoint()
                             iteration += 1
                             if iteration == 3 and (
                                 self.input_layer.name == '' or
@@ -266,7 +290,7 @@ def sync_nature_base():
 
     if response.status_code == 200:
         results = response.json()['data']
-        for result in results:
+        for result in results[0:2]:
             if result['title'] != 'All NCS Pathway Data':
                 last_modified = datetime.fromisoformat(
                     result['date_updated']
@@ -280,12 +304,13 @@ def sync_nature_base():
                     "url": url
                 }
                 file.update(result)
+                print(file)
                 ProcessFile(
                     storage,
                     owner,
                     component_type,
                     file,
-                    source=LayerSource.NATURE_BASE
+                    source=InputLayer.LayerSources.NATURE_BASE
                 ).run()
 
 
@@ -333,4 +358,4 @@ def sync_default_layers():
     """
     delete_invalid_default_layers()
     sync_nature_base()
-    sync_cplus_layers()
+    # sync_cplus_layers()
