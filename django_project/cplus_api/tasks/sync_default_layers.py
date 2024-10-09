@@ -104,7 +104,6 @@ class ProcessFile:
             profile = dataset.profile
             data = dataset.read()
 
-
             # Set the new nodata value in the profile
             profile.update(nodata=new_nodata_value)
 
@@ -116,7 +115,6 @@ class ProcessFile:
 
                 # Write the output raster with the updated nodata value
                 with rasterio.open(file_path, "w", **profile) as dst:
-                    breakpoint()
                     dst.write(data)
 
                 with rasterio.open(file_path) as dataset:
@@ -162,7 +160,6 @@ class ProcessFile:
                     else:
                         self.input_layer.file.name = self.file['Key']
                     self.input_layer.size = os.path.getsize(file_path)
-                    breakpoint()
                     self.input_layer.source = self.source
                     self.input_layer.save()
 
@@ -244,9 +241,8 @@ class ProcessFile:
                             self.input_layer.delete()
                             return
                         try:
-                            self.read_metadata(tmpfile.name)
-                        except RasterioIOError as e:
-                            breakpoint()
+                            self.read_metadata(tif_file)
+                        except RasterioIOError:
                             iteration += 1
                             if iteration == 3 and (
                                 self.input_layer.name == '' or
@@ -290,7 +286,7 @@ def sync_nature_base():
 
     if response.status_code == 200:
         results = response.json()['data']
-        for result in results[0:2]:
+        for result in results:
             if result['title'] != 'All NCS Pathway Data':
                 last_modified = datetime.fromisoformat(
                     result['date_updated']
@@ -304,7 +300,6 @@ def sync_nature_base():
                     "url": url
                 }
                 file.update(result)
-                print(file)
                 ProcessFile(
                     storage,
                     owner,
@@ -358,4 +353,4 @@ def sync_default_layers():
     """
     delete_invalid_default_layers()
     sync_nature_base()
-    # sync_cplus_layers()
+    sync_cplus_layers()

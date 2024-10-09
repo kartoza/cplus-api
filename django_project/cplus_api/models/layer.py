@@ -95,7 +95,7 @@ class InputLayer(BaseLayer):
 
     class LayerSources(models.TextChoices):
         CPLUS = 'cplus', _('CPLUS')
-        NATURE_BASE = 'nature_base', _('Nature Base')
+        NATURE_BASE = 'naturebase', _('Naturebase')
 
     file = models.FileField(
         upload_to=input_layer_dir_path,

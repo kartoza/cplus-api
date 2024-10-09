@@ -24,15 +24,15 @@ from cplus_api.tests.factories import InputLayerF
 
 
 def stream_from_file(requests, context, *args, **kwargs):
-    if requests.url == 'https://kartoza.com/test_pathway_2.tif':
+    if requests.url == 'https://kartoza.com/test_pathway_naturebase.tif':
         file_path = absolute_path(
             'cplus_api', 'tests', 'data',
-            'pathways', 'test_pathway_2.tif'
+            'pathways', 'test_pathway_naturebase.tif'
         )
-    elif requests.url == 'https://kartoza.com/test_pathway_3_zipped.zip':
+    elif requests.url == 'https://kartoza.com/test_pathway_naturebase.zip':
         file_path = absolute_path(
             'cplus_api', 'tests', 'data',
-            'pathways', 'test_pathway_3_zipped.zip'
+            'pathways', 'test_pathway_naturebase.zip'
         )
     with open(file_path, 'rb') as file:
         return file.read()
@@ -80,7 +80,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         self.assertEqual(input_layer.name, 'test_pathway_2.tif')
         self.assertEqual(input_layer.description, 'test_pathway_2.tif')
         self.assertEqual(input_layer.metadata, metadata)
-        self.assertEqual(input_layer.size, os.path.getsize(source_path))
+        self.assertEqual(input_layer.size, 11906)
 
         # Rerun sync default layers
         sync_default_layers()
@@ -103,7 +103,6 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
 
     @patch(
         'cplus_api.tasks.sync_default_layers.sync_nature_base',
-        autospec=True
     )
     def test_cplus_file_updated(self, mock_sync_nature_base):
         input_layer, source_path, dest_path = self.base_run()
@@ -313,7 +312,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
                                     "url": "https://kartoza.com/wet_awc_total.zip"  # noqa
                                 }
                             ],
-                            "cog_url": "https://kartoza.com/test_pathway_2.tif",  # noqa
+                            "cog_url": "https://kartoza.com/test_pathway_naturebase.tif",  # noqa
                             "date_updated": "2024-08-28T18:55:55.936Z"
                         },
                         {
@@ -323,7 +322,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
                             "download_links": [
                                 {
                                     "link_type": "Download",
-                                    "url": "https://kartoza.com/test_pathway_3_zipped.zip"  # noqa
+                                    "url": "https://kartoza.com/test_pathway_naturebase.zip"  # noqa
                                 }
                             ],
                             "cog_url": None,
@@ -333,11 +332,11 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
                 }
             )
             rm.get(
-                'https://kartoza.com/test_pathway_2.tif',
+                'https://kartoza.com/test_pathway_naturebase.tif',
                 content=stream_from_file
             )
             rm.get(
-                'https://kartoza.com/test_pathway_3_zipped.zip',
+                'https://kartoza.com/test_pathway_naturebase.zip',
                 content=stream_from_file
             )
             sync_default_layers()
