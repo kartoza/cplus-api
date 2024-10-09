@@ -91,7 +91,6 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
 
     @patch(
         'cplus_api.tasks.sync_default_layers.sync_nature_base',
-        autospec=True
     )
     def test_cplus_new_layer(self, mock_sync_nature_base):
         """
@@ -124,7 +123,6 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
 
     @patch(
         'cplus_api.tasks.sync_default_layers.sync_nature_base',
-        autospec=True
     )
     def test_delete_invalid_layers(self, mock_sync_nature_base):
         input_layer, source_path, dest_path = self.base_run()
@@ -164,7 +162,6 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
 
     @patch(
         'cplus_api.tasks.sync_default_layers.sync_nature_base',
-        autospec=True
     )
     def test_invalid_input_layers_not_created(self, mock_sync_nature_base):
         source_path = absolute_path(
@@ -178,7 +175,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         os.makedirs(os.path.dirname(dest_path), exist_ok=True)
         copyfile(source_path, dest_path)
         with patch.object(
-                ProcessFile, 'read_metadata', autospec=True
+                ProcessFile, 'read_metadata'
         ) as mock_read_metadata:
             mock_read_metadata.side_effect = [
                 RasterioIOError('error'),
@@ -191,7 +188,6 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
 
     @patch(
         'cplus_api.tasks.sync_default_layers.sync_nature_base',
-        autospec=True
     )
     def test_invalid_input_layers_not_deleted(self, mock_sync_nature_base):
         input_layer, source_path, dest_path = self.base_run()
@@ -200,7 +196,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         copyfile(source_path, dest_path)
         sync_default_layers()
         with patch.object(
-                ProcessFile, 'read_metadata', autospec=True
+                ProcessFile, 'read_metadata'
         ) as mock_read_metadata:
             mock_read_metadata.side_effect = [
                 RasterioIOError('error'),
@@ -247,7 +243,6 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
     @patch('cplus_api.tasks.sync_default_layers.select_input_layer_storage')
     @patch(
         'cplus_api.tasks.sync_default_layers.sync_nature_base',
-        autospec=True
     )
     def test_invalid_input_layers_not_created_s3(
             self,
@@ -261,7 +256,6 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
     @patch.object(tempfile, 'NamedTemporaryFile')
     @patch(
         'cplus_api.tasks.sync_default_layers.sync_nature_base',
-        autospec=True
     )
     def test_invalid_input_layers_created_s3(
             self,
@@ -274,7 +268,6 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
 
     @patch(
         'cplus_api.tasks.sync_default_layers.sync_cplus_layers',
-        autospec=True
     )
     def test_nature_base_new_layer(self, mock_sync_cplus_layers):
         """
