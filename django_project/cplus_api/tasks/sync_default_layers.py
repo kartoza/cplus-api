@@ -107,7 +107,8 @@ class ProcessFile:
             # Set the new nodata value in the profile
             profile.update(nodata=new_nodata_value)
 
-            # Replace the current nodata value with the new nodata value in the data array
+            # Replace the current nodata value with the new nodata
+            # value in the data array
             data[data == dataset.nodata] = new_nodata_value
 
             with tempfile.NamedTemporaryFile() as tmpfile:
@@ -134,17 +135,17 @@ class ProcessFile:
                         "nodata_value": nodata,
                         "is_geographic": dataset.crs.is_geographic
                     }
-                    if not self.input_layer.name or self.input_layer.name == 'N/A':
+                    if not self.input_layer.name or self.input_layer.name == 'N/A':  # noqa
                         if self.source == InputLayer.LayerSources.CPLUS:
-                            self.input_layer.name = os.path.basename(self.file['Key'])
-                        elif self.source == InputLayer.LayerSources.NATURE_BASE:
-                            self.input_layer.name = strip_tags(self.file['title'])
+                            self.input_layer.name = os.path.basename(self.file['Key'])  # noqa
+                        elif self.source == InputLayer.LayerSources.NATURE_BASE:  # noqa
+                            self.input_layer.name = strip_tags(self.file['title'])  # noqa
                     if not self.input_layer.description:
                         if self.source == InputLayer.LayerSources.CPLUS:
                             self.input_layer.description = strip_tags(
                                 os.path.basename(self.file['Key'])
                             )
-                        elif self.source == InputLayer.LayerSources.NATURE_BASE:
+                        elif self.source == InputLayer.LayerSources.NATURE_BASE:  # noqa
                             self.input_layer.description = strip_tags(
                                 self.file['short_summary']
                             ).replace('&nbsp;', '')
@@ -234,9 +235,8 @@ class ProcessFile:
                                 tmpfile.name,
                                 Config=settings.AWS_TRANSFER_CONFIG
                             )
-                        elif self.source == InputLayer.LayerSources.NATURE_BASE:
-                            tif_file = '/home/web/django_project/wet_awc_total.tif'
-                            # tif_file = self.handle_nature_base(tmpfile.name)
+                        elif self.source == InputLayer.LayerSources.NATURE_BASE:  # noqa
+                            tif_file = self.handle_nature_base(tmpfile.name)
                         if not tif_file:
                             self.input_layer.delete()
                             return
