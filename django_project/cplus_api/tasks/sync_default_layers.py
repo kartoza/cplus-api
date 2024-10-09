@@ -351,6 +351,7 @@ def sync_default_layers():
     """
     Create Input Layers from default layers copied to S3/local directory
     """
+    print(sync_nature_base)
     delete_invalid_default_layers()
     sync_nature_base()
     sync_cplus_layers()

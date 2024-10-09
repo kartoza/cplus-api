@@ -104,10 +104,13 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         'cplus_api.tasks.sync_default_layers.sync_nature_base',
     )
     def test_cplus_file_updated(self, mock_sync_nature_base):
+        print(self)
+        print('aaaaaaaaaaaaaaaa')
         input_layer, source_path, dest_path = self.base_run()
         time.sleep(5)
         first_modified_on = input_layer.modified_on
         copyfile(source_path, dest_path)
+        print('rerun sync_default_layers')
         sync_default_layers()
 
         # Check modified_on is updated
