@@ -321,15 +321,8 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
             mock_named_tmp_file,
             mock_storage
     ):
-        with requests_mock.Mocker() as rm:
-            rm.get(
-                self.nature_base_url,
-                json={
-                    "data": []
-                }
-            )
-            self.run_s3(mock_storage, mock_named_tmp_file)
-            self.assertTrue(InputLayer.objects.exists())
+        self.run_s3(mock_storage, mock_named_tmp_file)
+        self.assertTrue(InputLayer.objects.exists())
 
     @patch(
         'cplus_api.tasks.sync_default_layers.sync_cplus_layers',

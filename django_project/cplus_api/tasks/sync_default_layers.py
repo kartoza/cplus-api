@@ -26,11 +26,6 @@ from cplus_api.models import (
 from cplus_api.utils.api_helper import get_layer_type, download_file
 
 
-class LayerSource:
-    NATURE_BASE = "Nature Base"
-    CPLUS = "CPLUS"
-
-
 class ProcessFile:
     """
     Class to process a file dictionary into an Input Layer
@@ -200,6 +195,7 @@ class ProcessFile:
         ):
             print(f"Processing {self.file['Key']}")
             media_root = self.storage.location or settings.MEDIA_ROOT
+            print(isinstance(self.storage, FileSystemStorage))
             if isinstance(self.storage, FileSystemStorage):
                 download_path = os.path.join(media_root, self.file['Key'])
                 os.makedirs(os.path.dirname(download_path), exist_ok=True)
@@ -240,7 +236,6 @@ class ProcessFile:
                         elif self.source == InputLayer.LayerSources.NATURE_BASE:  # noqa
                             tif_file = self.handle_nature_base(tmpfile.name)
                         print(tif_file)
-                        breakpoint()
                         if not tif_file:
                             self.input_layer.delete()
                             print('return')
