@@ -93,6 +93,10 @@ class InputLayer(BaseLayer):
         INTERNAL = 'internal', _('internal')
         COMMON = 'common', _('common')
 
+    class LayerSources(models.TextChoices):
+        CPLUS = 'cplus', _('CPLUS')
+        NATURE_BASE = 'naturebase', _('Naturebase')
+
     file = models.FileField(
         upload_to=input_layer_dir_path,
         storage=select_input_layer_storage
@@ -131,6 +135,12 @@ class InputLayer(BaseLayer):
         null=False,
         blank=True,
         default=''
+    )
+
+    source = models.CharField(
+        max_length=50,
+        choices=LayerSources.choices,
+        default=LayerSources.CPLUS
     )
 
     def __str__(self):
