@@ -43,6 +43,10 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         super().setUp(*args, **kwargs)
         self.superuser.username = os.getenv('ADMIN_USERNAME')
         self.superuser.save()
+        self.nature_base_url = (
+            "https://content.ncsmap.org/items/spatial_metadata?limit=-1&sort=title&filter[status][_in]=published&"  # noqa
+            "fields=id,title,short_summary,download_links,cog_url,date_updated"
+        )
 
     def base_run(self):
         # Check Input Layer before test
@@ -94,125 +98,167 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
     )
     def test_cplus_new_layer(self, mock_sync_nature_base):
         """
-        Test when a new file is added to the common layers directory
-        :return:
-        :rtype:
+        Test when a new file is added to the common layers directory.
+        The Default layer record in Django should be created.
         """
-        self.base_run()
+        with requests_mock.Mocker() as rm:
+            rm.get(
+                self.nature_base_url,
+                json={
+                    "data": []
+                }
+            )
+            self.base_run()
 
     @patch(
         'cplus_api.tasks.sync_default_layers.sync_nature_base',
     )
     def test_cplus_file_updated(self, mock_sync_nature_base):
-        print(self)
-        print('aaaaaaaaaaaaaaaa')
-        input_layer, source_path, dest_path = self.base_run()
-        time.sleep(5)
-        first_modified_on = input_layer.modified_on
-        copyfile(source_path, dest_path)
-        print('rerun sync_default_layers')
-        sync_default_layers()
+        """
+        Test when a file in the common layers directory is updated.
+        The Default layer record in Django should be updated.
+        """
+        with requests_mock.Mocker() as rm:
+            rm.get(
+                self.nature_base_url,
+                json={
+                    "data": []
+                }
+            )
+            input_layer, source_path, dest_path = self.base_run()
+            time.sleep(5)
+            first_modified_on = input_layer.modified_on
+            copyfile(source_path, dest_path)
+            sync_default_layers()
 
-        # Check modified_on is updated
-        input_layer.refresh_from_db()
-        self.assertNotEquals(input_layer.modified_on, first_modified_on)
+            # Check modified_on is updated
+            input_layer.refresh_from_db()
+            self.assertNotEquals(input_layer.modified_on, first_modified_on)
 
-        input_layer.name = 'New Name'
-        input_layer.description = 'New Description'
-        input_layer.save()
-        input_layer.refresh_from_db()
-        self.assertEqual(input_layer.name, 'New Name')
-        self.assertEqual(input_layer.description, 'New Description')
+            input_layer.name = 'New Name'
+            input_layer.description = 'New Description'
+            input_layer.save()
+            input_layer.refresh_from_db()
+            self.assertEqual(input_layer.name, 'New Name')
+            self.assertEqual(input_layer.description, 'New Description')
 
     @patch(
         'cplus_api.tasks.sync_default_layers.sync_nature_base',
     )
     def test_delete_invalid_layers(self, mock_sync_nature_base):
-        input_layer, source_path, dest_path = self.base_run()
-        invalid_common_layer_1 = InputLayerF.create(
-            name='',
-            privacy_type=InputLayer.PrivacyTypes.COMMON,
-            file=input_layer.file
-        )
-        invalid_common_layer_2 = InputLayerF.create(
-            name='invalid_common_layer_2',
-            privacy_type=InputLayer.PrivacyTypes.COMMON,
-            file=None
-        )
-        private_layer_1 = InputLayerF.create(
-            name='',
-            privacy_type=InputLayer.PrivacyTypes.PRIVATE,
-            file=input_layer.file
-        )
-        private_layer_2 = InputLayerF.create(
-            name='private_layer_2',
-            privacy_type=InputLayer.PrivacyTypes.PRIVATE
-        )
+        """
+        Test deleting invalid default layers. Invalid default layers are
+        those without name or file.
+        """
+        with requests_mock.Mocker() as rm:
+            rm.get(
+                self.nature_base_url,
+                json={
+                    "data": []
+                }
+            )
+            input_layer, source_path, dest_path = self.base_run()
+            invalid_common_layer_1 = InputLayerF.create(
+                name='',
+                privacy_type=InputLayer.PrivacyTypes.COMMON,
+                file=input_layer.file
+            )
+            invalid_common_layer_2 = InputLayerF.create(
+                name='invalid_common_layer_2',
+                privacy_type=InputLayer.PrivacyTypes.COMMON,
+                file=None
+            )
+            private_layer_1 = InputLayerF.create(
+                name='',
+                privacy_type=InputLayer.PrivacyTypes.PRIVATE,
+                file=input_layer.file
+            )
+            private_layer_2 = InputLayerF.create(
+                name='private_layer_2',
+                privacy_type=InputLayer.PrivacyTypes.PRIVATE
+            )
 
-        sync_default_layers()
+            sync_default_layers()
 
-        # Calling refresh_from_db() on these 2 variable would result
-        # in InputLayer.DoesNotExist as they have been deleted,
-        # because they are invalid common layers
-        with self.assertRaises(InputLayer.DoesNotExist):
-            invalid_common_layer_1.refresh_from_db()
-        with self.assertRaises(InputLayer.DoesNotExist):
-            invalid_common_layer_2.refresh_from_db()
+            # Calling refresh_from_db() on these 2 variable would result
+            # in InputLayer.DoesNotExist as they have been deleted,
+            # because they are invalid common layers
+            with self.assertRaises(InputLayer.DoesNotExist):
+                invalid_common_layer_1.refresh_from_db()
+            with self.assertRaises(InputLayer.DoesNotExist):
+                invalid_common_layer_2.refresh_from_db()
 
-        # These layers are not deleted, so we could still call refresh_from_db
-        private_layer_1.refresh_from_db()
-        private_layer_2.refresh_from_db()
+            # These layers are not deleted, so we could still call refresh_from_db
+            private_layer_1.refresh_from_db()
+            private_layer_2.refresh_from_db()
 
     @patch(
         'cplus_api.tasks.sync_default_layers.sync_nature_base',
     )
     def test_invalid_input_layers_not_created(self, mock_sync_nature_base):
-        source_path = absolute_path(
-            'cplus_api', 'tests', 'data',
-            'pathways', 'test_pathway_2.tif'
-        )
-        dest_path = (
-            f'/home/web/media/minio_test/{COMMON_LAYERS_DIR}/'
-            f'{InputLayer.ComponentTypes.NCS_PATHWAY}/test_pathway_2.tif'
-        )
-        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-        copyfile(source_path, dest_path)
-        with patch.object(
-                ProcessFile, 'read_metadata'
-        ) as mock_read_metadata:
-            mock_read_metadata.side_effect = [
-                RasterioIOError('error'),
-                RasterioIOError('error'),
-                RasterioIOError('error')
-            ]
-            sync_default_layers()
+        """
+        Test default layer not created when input file has error/corrupted.
+        """
+        with requests_mock.Mocker() as rm:
+            rm.get(
+                self.nature_base_url,
+                json={
+                    "data": []
+                }
+            )
+            source_path = absolute_path(
+                'cplus_api', 'tests', 'data',
+                'pathways', 'test_pathway_2.tif'
+            )
+            dest_path = (
+                f'/home/web/media/minio_test/{COMMON_LAYERS_DIR}/'
+                f'{InputLayer.ComponentTypes.NCS_PATHWAY}/test_pathway_2.tif'
+            )
+            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+            copyfile(source_path, dest_path)
+            with patch.object(
+                    ProcessFile, 'read_metadata'
+            ) as mock_read_metadata:
+                mock_read_metadata.side_effect = [
+                    RasterioIOError('error'),
+                    RasterioIOError('error'),
+                    RasterioIOError('error')
+                ]
+                sync_default_layers()
 
-            self.assertFalse(InputLayer.objects.exists())
+                self.assertFalse(InputLayer.objects.exists())
 
     @patch(
         'cplus_api.tasks.sync_default_layers.sync_nature_base',
     )
     def test_invalid_input_layers_not_deleted(self, mock_sync_nature_base):
-        input_layer, source_path, dest_path = self.base_run()
-        time.sleep(5)
-        first_modified_on = input_layer.modified_on
-        copyfile(source_path, dest_path)
-        sync_default_layers()
-        with patch.object(
-                ProcessFile, 'read_metadata'
-        ) as mock_read_metadata:
-            mock_read_metadata.side_effect = [
-                RasterioIOError('error'),
-                RasterioIOError('error'),
-                RasterioIOError('error')
-            ]
+        with requests_mock.Mocker() as rm:
+            rm.get(
+                self.nature_base_url,
+                json={
+                    "data": []
+                }
+            )
+            input_layer, source_path, dest_path = self.base_run()
+            time.sleep(5)
+            first_modified_on = input_layer.modified_on
+            copyfile(source_path, dest_path)
             sync_default_layers()
+            with patch.object(
+                    ProcessFile, 'read_metadata'
+            ) as mock_read_metadata:
+                mock_read_metadata.side_effect = [
+                    RasterioIOError('error'),
+                    RasterioIOError('error'),
+                    RasterioIOError('error')
+                ]
+                sync_default_layers()
 
-            self.assertTrue(InputLayer.objects.exists())
+                self.assertTrue(InputLayer.objects.exists())
 
-            # Check modified_on is updated
-            input_layer.refresh_from_db()
-            self.assertNotEquals(input_layer.modified_on, first_modified_on)
+                # Check modified_on is updated
+                input_layer.refresh_from_db()
+                self.assertNotEquals(input_layer.modified_on, first_modified_on)
 
     def run_s3(self, mock_storage, mock_named_tmp_file=None):
         source_path = absolute_path(
@@ -252,8 +298,17 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
             mock_sync_nature_base,
             mock_storage
     ):
-        self.run_s3(mock_storage)
-        self.assertFalse(InputLayer.objects.exists())
+        print(self)
+        with requests_mock.Mocker() as rm:
+            rm.get(
+                self.nature_base_url,
+                json={
+                    "data": []
+                }
+            )
+            self.run_s3(mock_storage)
+            breakpoint()
+            self.assertFalse(InputLayer.objects.exists())
 
     @patch('cplus_api.tasks.sync_default_layers.select_input_layer_storage')
     @patch.object(tempfile, 'NamedTemporaryFile')
@@ -266,8 +321,15 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
             mock_named_tmp_file,
             mock_storage
     ):
-        self.run_s3(mock_storage, mock_named_tmp_file)
-        self.assertTrue(InputLayer.objects.exists())
+        with requests_mock.Mocker() as rm:
+            rm.get(
+                self.nature_base_url,
+                json={
+                    "data": []
+                }
+            )
+            self.run_s3(mock_storage, mock_named_tmp_file)
+            self.assertTrue(InputLayer.objects.exists())
 
     @patch(
         'cplus_api.tasks.sync_default_layers.sync_cplus_layers',
@@ -276,13 +338,9 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         """
         Test syncing NatureBase NCS Pathway default layers
         """
-        nature_base_url = (
-            "https://content.ncsmap.org/items/spatial_metadata?limit=-1&sort=title&filter[status][_in]=published&"  # noqa
-            "fields=id,title,short_summary,download_links,cog_url,date_updated"
-        )
         with requests_mock.Mocker() as rm:
             rm.get(
-                nature_base_url,
+                self.nature_base_url,
                 json={
                     "data": [
                         {

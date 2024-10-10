@@ -223,6 +223,8 @@ class ProcessFile:
                         os.remove(download_path)
                         break
             else:
+                print('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+                print(isinstance(self.storage, FileSystemStorage))
                 iteration = 0
                 while iteration < 3:
                     with tempfile.NamedTemporaryFile() as tmpfile:
@@ -237,12 +239,16 @@ class ProcessFile:
                             )
                         elif self.source == InputLayer.LayerSources.NATURE_BASE:  # noqa
                             tif_file = self.handle_nature_base(tmpfile.name)
+                        print(tif_file)
+                        breakpoint()
                         if not tif_file:
                             self.input_layer.delete()
+                            print('return')
                             return
                         try:
                             self.read_metadata(tif_file)
-                        except RasterioIOError:
+                        except RasterioIOError as e:
+                            print(e)
                             iteration += 1
                             if iteration == 3 and (
                                 self.input_layer.name == '' or
@@ -351,7 +357,6 @@ def sync_default_layers():
     """
     Create Input Layers from default layers copied to S3/local directory
     """
-    print(sync_nature_base)
     delete_invalid_default_layers()
     sync_nature_base()
     sync_cplus_layers()
