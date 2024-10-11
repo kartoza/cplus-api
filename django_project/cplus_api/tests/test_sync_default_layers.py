@@ -15,12 +15,10 @@ from cplus_api.models.layer import (
     InputLayer,
     COMMON_LAYERS_DIR
 )
-from cplus_api.tasks.sync_default_layers import (
-    sync_default_layers,
-    ProcessFile
-)
+from cplus_api.tasks.sync_default_layers import sync_default_layers
 from cplus_api.tests.common import BaseAPIViewTransactionTest
 from cplus_api.tests.factories import InputLayerF
+from cplus_api.utils.layers import ProcessFile
 
 
 def stream_from_file(requests, context, *args, **kwargs):
@@ -90,7 +88,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         return input_layer, source_path, dest_path
 
     @patch(
-        'cplus_api.tasks.sync_default_layers.sync_nature_base',
+        'cplus_api.utils.layers.sync_nature_base',
         autospec=True
     )
     def test_cplus_new_layer(self, mock_sync_nature_base):
@@ -99,12 +97,14 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         :return:
         :rtype:
         """
+        print(self)
         self.base_run()
 
     @patch(
-        'cplus_api.tasks.sync_default_layers.sync_nature_base',
+        'cplus_api.utils.layers.sync_nature_base',
     )
     def test_cplus_file_updated(self, mock_sync_nature_base):
+        print(self)
         input_layer, source_path, dest_path = self.base_run()
         time.sleep(5)
         first_modified_on = input_layer.modified_on
@@ -123,10 +123,11 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         self.assertEqual(input_layer.description, 'New Description')
 
     @patch(
-        'cplus_api.tasks.sync_default_layers.sync_nature_base',
+        'cplus_api.utils.layers.sync_nature_base',
         autospec=True
     )
     def test_delete_invalid_layers(self, mock_sync_nature_base):
+        print(self)
         input_layer, source_path, dest_path = self.base_run()
         invalid_common_layer_1 = InputLayerF.create(
             name='',
@@ -163,10 +164,11 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         private_layer_2.refresh_from_db()
 
     @patch(
-        'cplus_api.tasks.sync_default_layers.sync_nature_base',
+        'cplus_api.utils.layers.sync_nature_base',
         autospec=True
     )
     def test_invalid_input_layers_not_created(self, mock_sync_nature_base):
+        print(self)
         source_path = absolute_path(
             'cplus_api', 'tests', 'data',
             'pathways', 'test_pathway_2.tif'
@@ -190,10 +192,11 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
             self.assertFalse(InputLayer.objects.exists())
 
     @patch(
-        'cplus_api.tasks.sync_default_layers.sync_nature_base',
+        'cplus_api.utils.layers.sync_nature_base',
         autospec=True
     )
     def test_invalid_input_layers_not_deleted(self, mock_sync_nature_base):
+        print(self)
         input_layer, source_path, dest_path = self.base_run()
         time.sleep(5)
         first_modified_on = input_layer.modified_on
@@ -244,9 +247,9 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
              __enter__.return_value).name = dest_path
         sync_default_layers()
 
-    @patch('cplus_api.tasks.sync_default_layers.select_input_layer_storage')
+    @patch('cplus_api.utils.layers.select_input_layer_storage')
     @patch(
-        'cplus_api.tasks.sync_default_layers.sync_nature_base',
+        'cplus_api.utils.layers.sync_nature_base',
         autospec=True
     )
     def test_invalid_input_layers_not_created_s3(
@@ -254,13 +257,14 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
             mock_sync_nature_base,
             mock_storage
     ):
+        print(self)
         self.run_s3(mock_storage)
         self.assertFalse(InputLayer.objects.exists())
 
-    @patch('cplus_api.tasks.sync_default_layers.select_input_layer_storage')
+    @patch('cplus_api.utils.layers.select_input_layer_storage')
     @patch.object(tempfile, 'NamedTemporaryFile')
     @patch(
-        'cplus_api.tasks.sync_default_layers.sync_nature_base',
+        'cplus_api.utils.layers.sync_nature_base',
         autospec=True
     )
     def test_invalid_input_layers_created_s3(
@@ -273,7 +277,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         self.assertTrue(InputLayer.objects.exists())
 
     @patch(
-        'cplus_api.tasks.sync_default_layers.sync_cplus_layers',
+        'cplus_api.utils.layers.sync_cplus_layers',
         autospec=True
     )
     def test_nature_base_new_layer(self, mock_sync_cplus_layers):
