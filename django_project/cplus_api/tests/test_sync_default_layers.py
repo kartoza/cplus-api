@@ -14,12 +14,10 @@ from cplus_api.models.layer import (
     InputLayer,
     COMMON_LAYERS_DIR
 )
-from cplus_api.tasks.sync_default_layers import (
-    sync_default_layers,
-    ProcessFile
-)
+from cplus_api.tasks.sync_default_layers import sync_default_layers
 from cplus_api.tests.common import BaseAPIViewTransactionTest
 from cplus_api.tests.factories import InputLayerF
+from cplus_api.utils.layers import ProcessFile
 
 
 class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
@@ -209,12 +207,12 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
              __enter__.return_value).name = dest_path
         sync_default_layers()
 
-    @patch('cplus_api.tasks.sync_default_layers.select_input_layer_storage')
+    @patch('cplus_api.utils.layers.select_input_layer_storage')
     def test_invalid_input_layers_not_created_s3(self, mock_storage):
         self.run_s3(mock_storage)
         self.assertFalse(InputLayer.objects.exists())
 
-    @patch('cplus_api.tasks.sync_default_layers.select_input_layer_storage')
+    @patch('cplus_api.utils.layers.select_input_layer_storage')
     @patch.object(tempfile, 'NamedTemporaryFile')
     def test_invalid_input_layers_created_s3(
             self,
