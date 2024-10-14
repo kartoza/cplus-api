@@ -190,7 +190,7 @@ class ProcessFile:
         # if input layer is a new record
         if (
             self.file['LastModified'] > self.input_layer.modified_on or
-            self.created
+                self.created or not self.input_layer.is_available()
         ):
             print(f"Processing {self.file['Key']}")
             media_root = self.storage.location or settings.MEDIA_ROOT
