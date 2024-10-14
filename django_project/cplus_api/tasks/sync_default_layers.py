@@ -1,8 +1,4 @@
-import logging
-
 from celery import shared_task
-
-logger = logging.getLogger(__name__)
 
 
 @shared_task(name="sync_default_layers")
@@ -12,8 +8,10 @@ def sync_default_layers():
     """
     from cplus_api.utils.layers import (
         delete_invalid_default_layers,
+        sync_nature_base,
         sync_cplus_layers
     )
 
     delete_invalid_default_layers()
+    sync_nature_base()
     sync_cplus_layers()
