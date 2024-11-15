@@ -739,15 +739,15 @@ class WorkerScenarioAnalysisTask(object):
                 uuid_mapped[uuid_str] = layer_paths[layer_uuid]
         return uuid_mapped
 
-    def cancel_task(self):
-        """Handle when task is cancelled.
+    def cancel_task(self, exception=None):
+        """Cancel running task
 
-        :raises self.error: Exception from analysis task if exists
-        :raises Exception: Default Exception
+        :param exception: Exception if any, defaults to None
+        :type exception: Exception, optional
         """
-        self.error = self.analysis_task.error if self.analysis_task else None
-        # set the cancel flag to True
-        self.processing_cancelled = True
+        self.error = exception
+        # self.processing_cancelled = True
+        self.cancel()
 
     def log_message(self, message: str, name: str = "qgis_cplus",
                     info: bool = True, notify: bool = True):
