@@ -59,6 +59,7 @@ class APITaskConfig(object):
     pathway_uuid_layers = {}
     carbon_uuid_layers = {}
     priority_uuid_layers = {}
+    activity_mask_uuid_layers = {}
     total_input_layers = 0
     # output selections
     ncs_with_carbon = DEFAULT_VALUES.ncs_with_carbon
@@ -254,6 +255,7 @@ class APITaskConfig(object):
             'pathway_uuid_layers': self.pathway_uuid_layers,
             'carbon_uuid_layers': self.carbon_uuid_layers,
             'priority_uuid_layers': self.priority_uuid_layers,
+            'activity_mask_uuid_layers': self.activity_mask_uuid_layers,
             'total_input_layers': self.total_input_layers,
             'ncs_with_carbon': self.ncs_with_carbon,
             'landuse_project': self.landuse_project,
@@ -271,6 +273,7 @@ class APITaskConfig(object):
                 'user_defined': activity.user_defined,
                 'pathways': [],
                 'priority_layers': activity.priority_layers,
+                'mask_paths': activity.mask_paths,
                 'layer_styles': activity.layer_styles
             }
             for pathway in activity.pathways:
@@ -335,6 +338,7 @@ class APITaskConfig(object):
         config.priority_uuid_layers = {}
         config.pathway_uuid_layers = {}
         config.carbon_uuid_layers = {}
+        config.activity_mask_uuid_layers = {}
 
         # store priority layers
         for priority_layer in config.priority_layers:
@@ -387,7 +391,8 @@ class APITaskConfig(object):
                 user_defined=activity.get('user_defined', False),
                 pathways=[],
                 priority_layers=filtered_priority_layer,
-                layer_styles=activity.get('layer_styles', {})
+                layer_styles=activity.get('layer_styles', {}),
+                mask_paths=activity.get('mask_uuids', [])
             )
 
             # create pathways
@@ -424,6 +429,25 @@ class APITaskConfig(object):
                             str(pw_uuid))
                     else:
                         config.carbon_uuid_layers[carbon_uuid] = [
+                            str(pw_uuid)
+                        ]
+
+            # create activity mask paths
+            mask_paths = activity.get('mask_paths', [])
+            for mask_path in mask_paths:
+                mask_path_uuid_str = mask_path.get('uuid', None)
+                mask_path_uuid = (
+                    uuid.UUID(mask_path_uuid_str) if mask_path_uuid_str else
+                    uuid.uuid4()
+                )
+                activity_obj
+                pw_layer_uuid = pathway.get('layer_uuid', None)
+                if pw_layer_uuid:
+                    if pw_layer_uuid in config.pathway_uuid_layers:
+                        config.pathway_uuid_layers[pw_layer_uuid].append(
+                            str(pw_uuid))
+                    else:
+                        config.pathway_uuid_layers[pw_layer_uuid] = [
                             str(pw_uuid)
                         ]
 
@@ -536,6 +560,25 @@ class WorkerScenarioAnalysisTask(object):
 
         # init carbon layers
         carbon_layer_paths = {}
+        carbon_uuids = self.task_config.carbon_uuid_layers.keys()
+        if carbon_uuids:
+            carbon_uuids_to_download = [
+                c_uuid for c_uuid in carbon_uuids if
+                str(c_uuid) not in self.downloaded_layers
+            ]
+            carbon_layer_paths = self.copy_input_layers_by_uuids(
+                InputLayer.ComponentTypes.NCS_CARBON,
+                carbon_uuids_to_download,
+                scenario_path
+            )
+            self.downloaded_layers.update(carbon_layer_paths)
+            carbon_layer_paths.update({
+                key: val for key, val in self.downloaded_layers.items()
+                if key in carbon_uuids
+            })
+
+        # init activity mask layers
+        activity_mask_paths = {}
         carbon_uuids = self.task_config.carbon_uuid_layers.keys()
         if carbon_uuids:
             carbon_uuids_to_download = [
@@ -702,6 +745,16 @@ class WorkerScenarioAnalysisTask(object):
                     priority_uuid_mapped[priority_layer_uuid]
                 )
             for pathway in activity.pathways:
+                pathway_uuid = str(pathway.uuid)
+                if pathway_uuid in pw_uuid_mapped:
+                    pathway.path = pw_uuid_mapped[pathway_uuid]
+                carbon_paths = []
+                for carbon_layer_uuid in pathway.carbon_paths:
+                    if carbon_layer_uuid in carbon_layer_paths:
+                        carbon_paths.append(
+                            carbon_layer_paths[carbon_layer_uuid])
+                pathway.carbon_paths = carbon_paths
+            for mask_path in activity.mask_paths:
                 pathway_uuid = str(pathway.uuid)
                 if pathway_uuid in pw_uuid_mapped:
                     pathway.path = pw_uuid_mapped[pathway_uuid]

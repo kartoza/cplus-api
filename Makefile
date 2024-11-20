@@ -59,7 +59,7 @@ dev-runserver:
 	@echo "------------------------------------------------------------------"
 	@echo "Start django runserver in dev container"
 	@echo "------------------------------------------------------------------"
-	@docker compose $(ARGS) exec -T dev bash -c "nohup python manage.py runserver 0.0.0.0:8080 &"
+	@docker compose $(ARGS) exec -T dev bash -c "python manage.py runserver 0.0.0.0:8080"
 
 dev-shell:
 	@echo

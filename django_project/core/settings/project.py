@@ -34,7 +34,8 @@ DEBUG = TEMPLATE_DEBUG = False
 # Extra installed apps
 INSTALLED_APPS = INSTALLED_APPS + (
     'core',
-    'cplus_api'
+    'cplus_api',
+    'cplus_core'
 )
 
 # use custom filter to hide other sensitive informations
