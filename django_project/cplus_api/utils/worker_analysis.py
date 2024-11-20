@@ -582,7 +582,9 @@ class WorkerScenarioAnalysisTask(object):
                 activity_mask_paths[layer_uuid] = layer_paths[layer_uuid]
                 self.downloaded_layers.update(layer_paths)
             else:
-                activity_mask_paths[layer_uuid] = self.downloaded_layers[layer_uuid]
+                activity_mask_paths[
+                    layer_uuid
+                ] = self.downloaded_layers[layer_uuid]
         self.task_config.activity_mask_layer_paths = activity_mask_paths
 
         # Patch/Fix layer_path into priority layers dictionary
