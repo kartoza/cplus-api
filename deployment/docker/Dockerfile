@@ -7,7 +7,7 @@ RUN apt-get update -y && \
     python3-dev python3-gdal python3-psycopg2 python3-ldap \
     python3-pip python3-pil python3-lxml python3-pylibmc \
     uwsgi uwsgi-plugin-python3 wget \
-    gnupg software-properties-common
+    gnupg software-properties-common git
     
 # qgis python3-qgis qgis-plugin-grass
 RUN mkdir -m755 -p /etc/apt/keyrings
@@ -62,7 +62,7 @@ RUN groupadd --gid $USER_GID $USERNAME \
 # ********************************************************
 # * Anything else you want to do like clean up goes here *
 # ********************************************************
-RUN apt-get update && apt-get install -y git gnupg2 openssh-client
+RUN apt-get update && apt-get install -y gnupg2 openssh-client
 
 # [Optional] Set the default user. Omit if you want to keep the default as root.
 USER $USERNAME
