@@ -177,7 +177,7 @@ class InputLayerSerializer(serializers.ModelSerializer):
 
     def get_metadata(self, obj: InputLayer):
         metadata = copy.deepcopy(obj.metadata)
-        metadata['name'] = obj.name
+        metadata['name'] = f'{obj.get_source_display()}: {obj.name}'
         metadata['description'] = obj.description
         return metadata
 
