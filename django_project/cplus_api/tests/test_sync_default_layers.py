@@ -375,3 +375,50 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
                     'All tabular data (.csv) are summarised in tCO2e/yr.'
                 )
             )
+
+    @patch(
+        'cplus_api.utils.layers.sync_nature_base',
+        autospec=True
+    )
+    def test_skip_cplus_layer_if_exist_fs_storage(self, mock_sync_nature_base):
+        """
+        Test using FileSystemStorage that sync_cplus_layer will skip creating
+        a new default layer with CPLUS as source, if the file key already
+        belongs to Naturebase.
+        """
+        input_layer, source_path, dest_path = self.base_run()
+        copyfile(source_path, dest_path)
+        input_layer.source = InputLayer.LayerSources.NATURE_BASE
+        input_layer.save()
+
+        sync_default_layers()
+
+        all_layer_sources = list(InputLayer.objects.values_list('source', flat=True))
+
+        # Check that there is only Naturebase Input layers
+        self.assertEqual(all_layer_sources, [InputLayer.LayerSources.NATURE_BASE])
+
+    @patch(
+        'cplus_api.utils.layers.sync_nature_base',
+        autospec=True
+    )
+    def test_skip_cplus_layer_if_exist_s3(
+            self,
+            mock_sync_nature_base
+    ):
+        """
+        Test using S3Storage that sync_cplus_layer will skip creating
+        a new default layer with CPLUS as source, if the file key already
+        belongs to Naturebase.
+        """
+        input_layer, source_path, dest_path = self.base_run()
+        copyfile(source_path, dest_path)
+        input_layer.source = InputLayer.LayerSources.NATURE_BASE
+        input_layer.save()
+        with patch('cplus_api.utils.layers.select_input_layer_storage') as mock_storage:
+            self.run_s3(mock_storage)
+
+        all_layer_sources = list(InputLayer.objects.values_list('source', flat=True))
+
+        # Check that there is only Naturebase Input layers
+        self.assertEqual(all_layer_sources, [InputLayer.LayerSources.NATURE_BASE])
