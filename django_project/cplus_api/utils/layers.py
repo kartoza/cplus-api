@@ -315,6 +315,10 @@ def sync_cplus_layers():
     component_types = [c[0] for c in InputLayer.ComponentTypes.choices]
     admin_username = os.getenv('ADMIN_USERNAME')
     owner = User.objects.get(username=admin_username)
+
+    non_cplus_layer_keys = InputLayer.objects.exclude(
+        source=InputLayer.LayerSources.CPLUS
+    ).values_list('file', flat=True)
     if isinstance(storage, FileSystemStorage):
         media_root = storage.location or settings.MEDIA_ROOT
         for component_type in component_types:
@@ -325,6 +329,8 @@ def sync_cplus_layers():
             layers = os.listdir(component_path)
             for layer in layers:
                 key = f"{COMMON_LAYERS_DIR}/{component_type}/{layer}"
+                if key in non_cplus_layer_keys:
+                    continue
                 download_path = os.path.join(media_root, key)
                 last_modified = datetime.fromtimestamp(
                     os.path.getmtime(download_path),
@@ -343,4 +349,6 @@ def sync_cplus_layers():
                 Prefix=f"{COMMON_LAYERS_DIR}/{component_type}"
             )
             for file in response.get('Contents', []):
+                if file['Key'] in non_cplus_layer_keys:
+                    continue
                 ProcessFile(storage, owner, component_type, file).run()
