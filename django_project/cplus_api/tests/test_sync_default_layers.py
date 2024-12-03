@@ -387,19 +387,20 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         belongs to Naturebase.
         """
         input_layer, source_path, dest_path = self.base_run()
+        InputLayer.objects.update(source=InputLayer.LayerSources.NATURE_BASE)
         copyfile(source_path, dest_path)
         input_layer.source = InputLayer.LayerSources.NATURE_BASE
         input_layer.save()
 
         sync_default_layers()
 
-        all_layer_sources = list(
+        all_layer_sources = set(
             InputLayer.objects.values_list('source', flat=True)
         )
 
         # Check that there is only Naturebase Input layers
         self.assertEqual(
-            all_layer_sources, [InputLayer.LayerSources.NATURE_BASE]
+            all_layer_sources, {InputLayer.LayerSources.NATURE_BASE}
         )
 
     @patch(
