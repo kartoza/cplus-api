@@ -1,5 +1,7 @@
 import math
 import os
+
+from rest_framework import permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -31,6 +33,7 @@ from cplus_api.utils.api_helper import (
     get_page_size,
     LAYER_API_TAG,
     PARAM_LAYER_UUID_IN_PATH,
+    PARAM_BBOX_IN_QUERY,
     get_presigned_url,
     convert_size,
     PARAMS_PAGINATION,
@@ -786,3 +789,35 @@ class FetchLayerByClientId(APIView):
             list(results.values()),
             many=True
         ).data)
+
+
+class ReferenceLayerDownload(APIView):
+    """APIs to fetch and remove layer file."""
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    @swagger_auto_schema(
+        operation_id='reference-layer-download',
+        operation_description='API to download and crop reference layer.',
+        tags=[LAYER_API_TAG],
+        manual_parameters=[PARAM_BBOX_IN_QUERY],
+        responses={
+            200: openapi.Response(description='Binary response'),
+            404: APIErrorSerializer
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        from django.core.exceptions import MultipleObjectsReturned
+        print(request.query_params)
+        try:
+            reference_layer = get_object_or_404(
+                InputLayer,
+                component_type=InputLayer.ComponentTypes.REFERENCE_LAYER
+            )
+        except MultipleObjectsReturned:
+            reference_layer = InputLayer.objects.filter(
+                component_type=InputLayer.ComponentTypes.REFERENCE_LAYER
+            ).first()
+        if reference_layer.is_available():
+            return Response({'message': 'OK'})
+        return Response({'detail': 'Reference layer not available.'}, status=404)

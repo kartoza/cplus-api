@@ -7,6 +7,8 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from django.utils import timezone
 from django.core.files.storage import storages, FileSystemStorage
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
 COMMON_LAYERS_DIR = 'common_layers'
@@ -87,6 +89,7 @@ class InputLayer(BaseLayer):
         SNAP_LAYER = 'snap_layer', _('snap_layer')
         SIEVE_MASK_LAYER = 'sieve_mask_layer', _('sieve_mask_layer')
         MASK_LAYER = 'mask_layer', _('mask_layer')
+        REFERENCE_LAYER = 'reference_layer', _('reference_layer')
 
     class PrivacyTypes(models.TextChoices):
         PRIVATE = 'private', _('private')
@@ -145,6 +148,18 @@ class InputLayer(BaseLayer):
 
     def __str__(self):
         return f"{self.name} - {self.component_type}"
+
+    def save(
+        self, force_insert=False, force_update=False, using=None, update_fields=None
+    ):
+        old_instance = InputLayer.objects.get(uuid=self.uuid)
+        if not update_fields:
+            update_fields = []
+        if old_instance.privacy_type != self.privacy_type:
+            update_fields.append('privacy_type')
+        if old_instance.component_type != self.component_type:
+            update_fields.append('component_type')
+        return super().save(force_insert=False, force_update=False, using=None, update_fields=update_fields)
 
     def download_to_working_directory(self, base_dir: str):
         if not self.is_available():
@@ -205,13 +220,7 @@ class InputLayer(BaseLayer):
             prefix_path = f'{INTERNAL_LAYERS_DIR}/'
         return layer_path.startswith(prefix_path)
 
-    def fix_layer_metadata(self):
-        if not self.is_available():
-            return
-        self.size = self.file.size
-        self.save(update_fields=['size'])
-        if self.is_in_correct_directory():
-            return
+    def move_file(self):
         old_path = self.file.name
         correct_path = input_layer_dir_path(self, self.name)
         storage = select_input_layer_storage()
@@ -234,6 +243,16 @@ class InputLayer(BaseLayer):
                 Bucket=storage.bucket_name, Key=old_path)
         self.file.name = correct_path
         self.save(update_fields=['file'])
+
+    def fix_layer_metadata(self):
+        print(self.is_available())
+        if not self.is_available():
+            return
+        self.size = self.file.size
+        self.save(update_fields=['size'])
+        if self.is_in_correct_directory():
+            return
+        self.move_file()
 
 
 class OutputLayer(BaseLayer):
@@ -300,3 +319,14 @@ class MultipartUpload(models.Model):
         null=True,
         blank=True
     )
+
+
+@receiver(post_save, sender=InputLayer)
+def save_input_layer(sender, instance, created, **kwargs):
+    """
+    Handle Moving file after changing Input component type or privacy tyoe
+    """
+    from cplus_api.tasks.move_input_layer_file import move_input_layer_file
+    if not created:
+        if 'component_type' in kwargs['update_fields'] or 'privacy_type' in kwargs['update_fields']:
+            move_input_layer_file(instance.uuid)
