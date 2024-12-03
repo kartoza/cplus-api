@@ -96,21 +96,27 @@ class ProcessFile:
         new_nodata_value = -9999
         with rasterio.open(file_path) as dataset:
             profile = dataset.profile
-            data = dataset.read()
 
             # Set the new nodata value in the profile
             profile.update(nodata=new_nodata_value)
-
-            # Replace the current nodata value with the new nodata
-            # value in the data array
-            data[data == dataset.nodata] = new_nodata_value
 
             with tempfile.NamedTemporaryFile() as tmpfile:
                 file_path = tmpfile.name
 
                 # Write the output raster with the updated nodata value
                 with rasterio.open(file_path, "w", **profile) as dst:
-                    dst.write(data)
+                    # Iterate over blocks using block_windows
+                    for idx, window in dataset.block_windows():
+                        # Read the data for the current block
+                        block_data = dataset.read(window=window)
+
+                        # Replace nodata values in the block
+                        block_data[block_data == dataset.nodata] = (
+                            new_nodata_value
+                        )
+
+                        # Write the modified block to the output file
+                        dst.write(block_data, window=window)
 
                 with rasterio.open(file_path) as dataset:
                     transform = dataset.transform
