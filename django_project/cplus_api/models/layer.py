@@ -152,13 +152,14 @@ class InputLayer(BaseLayer):
     def save(
         self, force_insert=False, force_update=False, using=None, update_fields=None
     ):
-        old_instance = InputLayer.objects.get(uuid=self.uuid)
-        if not update_fields:
-            update_fields = []
-        if old_instance.privacy_type != self.privacy_type:
-            update_fields.append('privacy_type')
-        if old_instance.component_type != self.component_type:
-            update_fields.append('component_type')
+        if self.pk:
+            old_instance = InputLayer.objects.get(uuid=self.uuid)
+            if not update_fields:
+                update_fields = []
+            if old_instance.privacy_type != self.privacy_type:
+                update_fields.append('privacy_type')
+            if old_instance.component_type != self.component_type:
+                update_fields.append('component_type')
         return super().save(force_insert=False, force_update=False, using=None, update_fields=update_fields)
 
     def download_to_working_directory(self, base_dir: str):

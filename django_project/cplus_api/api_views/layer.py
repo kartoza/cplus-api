@@ -1,22 +1,28 @@
-import math
 import os
 
-from rest_framework import permissions
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.parsers import MultiPartParser
-from rest_framework.exceptions import PermissionDenied, ValidationError
+import math
 from django.core.paginator import Paginator
+from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
+from rest_framework import permissions
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.parsers import MultiPartParser
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from cplus_api.models.layer import (
     BaseLayer, InputLayer, input_layer_dir_path,
     select_input_layer_storage, MultipartUpload
 )
 from cplus_api.models.profile import UserProfile
+from cplus_api.serializers.common import (
+    APIErrorSerializer,
+    NoContentSerializer
+)
 from cplus_api.serializers.layer import (
     InputLayerSerializer,
     PaginatedInputLayerSerializer,
@@ -24,10 +30,6 @@ from cplus_api.serializers.layer import (
     FinishUploadLayerSerializer,
     LAYER_SCHEMA_FIELDS,
     InputLayerListSerializer
-)
-from cplus_api.serializers.common import (
-    APIErrorSerializer,
-    NoContentSerializer
 )
 from cplus_api.utils.api_helper import (
     get_page_size,
@@ -39,7 +41,8 @@ from cplus_api.utils.api_helper import (
     PARAMS_PAGINATION,
     get_multipart_presigned_urls,
     complete_multipart_upload,
-    abort_multipart_upload
+    abort_multipart_upload,
+    clip_raster
 )
 
 
@@ -796,6 +799,25 @@ class ReferenceLayerDownload(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
+    def _stream_response(self, file_path):
+        # Stream the clipped file as a response
+        def file_iterator(fp, chunk_size=8192):
+            with open(fp, 'rb') as file:
+                while chunk := file.read(chunk_size):
+                    yield chunk
+
+        response = StreamingHttpResponse(
+            file_iterator(file_path),
+            content_type="application/octet-stream"
+        )
+        response['Content-Disposition'] = f'attachment; filename="reference_layer.tif"'
+
+        # Clean up the temporary file after the response is completed
+        response['X-Accel-Buffering'] = 'no'  # Disable buffering if applicable (Nginx)
+        response.close = lambda: os.remove(file_path)
+
+        return response
+
     @swagger_auto_schema(
         operation_id='reference-layer-download',
         operation_description='API to download and crop reference layer.',
@@ -808,7 +830,6 @@ class ReferenceLayerDownload(APIView):
     )
     def get(self, request, *args, **kwargs):
         from django.core.exceptions import MultipleObjectsReturned
-        print(request.query_params)
         try:
             reference_layer = get_object_or_404(
                 InputLayer,
@@ -819,5 +840,14 @@ class ReferenceLayerDownload(APIView):
                 component_type=InputLayer.ComponentTypes.REFERENCE_LAYER
             ).first()
         if reference_layer.is_available():
-            return Response({'message': 'OK'})
+            basename = os.path.basename(reference_layer.file.name)
+            file_path = os.path.join('tmp', 'reference_layer', basename)
+            if not os.path.exists(file_path):
+                file_path = reference_layer.download_to_working_directory('/tmp/')
+            if 'bbox' in request.query_params:
+                bbox = request.query_params.get('bbox')
+                bbox = bbox.replace(' ', '').split(',')
+                bbox = [float(b) for b in bbox]
+                file_path = clip_raster(file_path, bbox)
+            return self._stream_response(file_path)
         return Response({'detail': 'Reference layer not available.'}, status=404)

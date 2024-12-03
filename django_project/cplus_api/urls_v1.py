@@ -5,7 +5,8 @@ from cplus_api.api_views.layer import (
     LayerUploadStart, LayerUploadFinish,
     CheckLayer, LayerUploadAbort,
     FetchLayerByClientId,
-    DefaultLayerList
+    DefaultLayerList,
+    ReferenceLayerDownload
 )
 from cplus_api.api_views.scenario import (
     ScenarioAnalysisSubmit,
@@ -77,6 +78,11 @@ layer_urls = [
         'layer/<uuid:layer_uuid>/',
         LayerDetail.as_view(),
         name='layer-detail'
+    ),
+    path(
+        'reference_layer/carbon_calculation/',
+        ReferenceLayerDownload.as_view(),
+        name='reference-layer-download'
     ),
 ]
 

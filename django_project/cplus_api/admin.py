@@ -50,7 +50,7 @@ class InputLayerAdmin(admin.ModelAdmin):
                     'size', 'component_type', 'privacy_type')
     search_fields = ['name', 'uuid']
     list_filter = ["layer_type", "owner", "component_type", "privacy_type"]
-    readonly_fields = ['layer_type', 'uuid', 'modified_on']
+    readonly_fields = ['uuid', 'modified_on']
     actions = [trigger_verify_input_layer]
 
 
