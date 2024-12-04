@@ -96,21 +96,27 @@ class ProcessFile:
         new_nodata_value = -9999
         with rasterio.open(file_path) as dataset:
             profile = dataset.profile
-            data = dataset.read()
 
             # Set the new nodata value in the profile
             profile.update(nodata=new_nodata_value)
-
-            # Replace the current nodata value with the new nodata
-            # value in the data array
-            data[data == dataset.nodata] = new_nodata_value
 
             with tempfile.NamedTemporaryFile() as tmpfile:
                 file_path = tmpfile.name
 
                 # Write the output raster with the updated nodata value
                 with rasterio.open(file_path, "w", **profile) as dst:
-                    dst.write(data)
+                    # Iterate over blocks using block_windows
+                    for idx, window in dataset.block_windows():
+                        # Read the data for the current block
+                        block_data = dataset.read(window=window)
+
+                        # Replace nodata values in the block
+                        block_data[block_data == dataset.nodata] = (
+                            new_nodata_value
+                        )
+
+                        # Write the modified block to the output file
+                        dst.write(block_data, window=window)
 
                 with rasterio.open(file_path) as dataset:
                     transform = dataset.transform
@@ -309,6 +315,10 @@ def sync_cplus_layers():
     component_types = [c[0] for c in InputLayer.ComponentTypes.choices]
     admin_username = os.getenv('ADMIN_USERNAME')
     owner = User.objects.get(username=admin_username)
+
+    non_cplus_layer_keys = InputLayer.objects.exclude(
+        source=InputLayer.LayerSources.CPLUS
+    ).values_list('file', flat=True)
     if isinstance(storage, FileSystemStorage):
         media_root = storage.location or settings.MEDIA_ROOT
         for component_type in component_types:
@@ -319,6 +329,8 @@ def sync_cplus_layers():
             layers = os.listdir(component_path)
             for layer in layers:
                 key = f"{COMMON_LAYERS_DIR}/{component_type}/{layer}"
+                if key in non_cplus_layer_keys:
+                    continue
                 download_path = os.path.join(media_root, key)
                 last_modified = datetime.fromtimestamp(
                     os.path.getmtime(download_path),
@@ -337,4 +349,6 @@ def sync_cplus_layers():
                 Prefix=f"{COMMON_LAYERS_DIR}/{component_type}"
             )
             for file in response.get('Contents', []):
+                if file['Key'] in non_cplus_layer_keys:
+                    continue
                 ProcessFile(storage, owner, component_type, file).run()

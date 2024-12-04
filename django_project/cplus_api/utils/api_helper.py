@@ -386,6 +386,10 @@ def download_file(url, local_filename):
         with open(local_filename, 'wb') as f:
             for chunk in r.iter_content(chunk_size=8192):
                 f.write(chunk)
+
+    file_size = os.path.getsize(local_filename)
+    print(f"File size: {file_size / 1024:.2f} KB")
+
     return local_filename
 
 
