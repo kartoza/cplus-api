@@ -5,6 +5,7 @@ from datetime import timedelta
 from shutil import copyfile
 from unittest.mock import patch, MagicMock
 
+import requests_mock
 from django.utils import timezone
 from rasterio.errors import RasterioIOError
 from storages.backends.s3 import S3Storage
@@ -18,6 +19,21 @@ from cplus_api.tasks.sync_default_layers import sync_default_layers
 from cplus_api.tests.common import BaseAPIViewTransactionTest
 from cplus_api.tests.factories import InputLayerF
 from cplus_api.utils.layers import ProcessFile
+
+
+def stream_from_file(requests, context, *args, **kwargs):
+    if requests.url == 'https://kartoza.com/test_pathway_naturebase.tif':
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'pathways', 'test_pathway_naturebase.tif'
+        )
+    elif requests.url == 'https://kartoza.com/test_pathway_naturebase.zip':
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'pathways', 'test_pathway_naturebase.zip'
+        )
+    with open(file_path, 'rb') as file:
+        return file.read()
 
 
 class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
@@ -62,7 +78,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         self.assertEqual(input_layer.name, 'test_pathway_2.tif')
         self.assertEqual(input_layer.description, 'test_pathway_2.tif')
         self.assertEqual(input_layer.metadata, metadata)
-        self.assertEqual(input_layer.size, os.path.getsize(source_path))
+        self.assertEqual(input_layer.size, 11906)
 
         # Rerun sync default layers
         sync_default_layers()
@@ -71,7 +87,11 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         self.assertEqual(input_layer.modified_on, first_modified_on)
         return input_layer, source_path, dest_path
 
-    def test_new_layer(self):
+    @patch(
+        'cplus_api.utils.layers.sync_nature_base',
+        autospec=True
+    )
+    def test_cplus_new_layer(self, mock_sync_nature_base):
         """
         Test when a new file is added to the common layers directory
         :return:
@@ -79,7 +99,10 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         """
         self.base_run()
 
-    def test_file_updated(self):
+    @patch(
+        'cplus_api.utils.layers.sync_nature_base',
+    )
+    def test_cplus_file_updated(self, mock_sync_nature_base):
         input_layer, source_path, dest_path = self.base_run()
         time.sleep(5)
         first_modified_on = input_layer.modified_on
@@ -97,7 +120,11 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         self.assertEqual(input_layer.name, 'New Name')
         self.assertEqual(input_layer.description, 'New Description')
 
-    def test_delete_invalid_layers(self):
+    @patch(
+        'cplus_api.utils.layers.sync_nature_base',
+        autospec=True
+    )
+    def test_delete_invalid_layers(self, mock_sync_nature_base):
         input_layer, source_path, dest_path = self.base_run()
         invalid_common_layer_1 = InputLayerF.create(
             name='',
@@ -133,7 +160,11 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         private_layer_1.refresh_from_db()
         private_layer_2.refresh_from_db()
 
-    def test_invalid_input_layers_not_created(self):
+    @patch(
+        'cplus_api.utils.layers.sync_nature_base',
+        autospec=True
+    )
+    def test_invalid_input_layers_not_created(self, mock_sync_nature_base):
         source_path = absolute_path(
             'cplus_api', 'tests', 'data',
             'pathways', 'test_pathway_2.tif'
@@ -156,7 +187,11 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
 
             self.assertFalse(InputLayer.objects.exists())
 
-    def test_invalid_input_layers_not_deleted(self):
+    @patch(
+        'cplus_api.utils.layers.sync_nature_base',
+        autospec=True
+    )
+    def test_invalid_input_layers_not_deleted(self, mock_sync_nature_base):
         input_layer, source_path, dest_path = self.base_run()
         time.sleep(5)
         first_modified_on = input_layer.modified_on
@@ -208,16 +243,193 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         sync_default_layers()
 
     @patch('cplus_api.utils.layers.select_input_layer_storage')
-    def test_invalid_input_layers_not_created_s3(self, mock_storage):
+    @patch(
+        'cplus_api.utils.layers.sync_nature_base',
+        autospec=True
+    )
+    def test_invalid_input_layers_not_created_s3(
+            self,
+            mock_sync_nature_base,
+            mock_storage
+    ):
         self.run_s3(mock_storage)
         self.assertFalse(InputLayer.objects.exists())
 
     @patch('cplus_api.utils.layers.select_input_layer_storage')
     @patch.object(tempfile, 'NamedTemporaryFile')
+    @patch(
+        'cplus_api.utils.layers.sync_nature_base',
+        autospec=True
+    )
     def test_invalid_input_layers_created_s3(
             self,
+            mock_sync_nature_base,
             mock_named_tmp_file,
             mock_storage
     ):
         self.run_s3(mock_storage, mock_named_tmp_file)
         self.assertTrue(InputLayer.objects.exists())
+
+    @patch(
+        'cplus_api.utils.layers.sync_cplus_layers',
+        autospec=True
+    )
+    def test_nature_base_new_layer(self, mock_sync_cplus_layers):
+        """
+        Test syncing NatureBase NCS Pathway default layers
+        """
+        nature_base_url = (
+            "https://content.ncsmap.org/items/spatial_metadata?limit=-1&sort=title&filter[status][_in]=published&"  # noqa
+            "fields=id,title,short_summary,download_links,cog_url,date_updated"
+        )
+        with requests_mock.Mocker() as rm:
+            rm.get(
+                nature_base_url,
+                json={
+                    "data": [
+                        {
+                            "id": 18,
+                            "title": "All NCS Pathway Data",
+                            "short_summary": "<p>This data package shows all individual NCS pathways for an area. The information is produced through various technologies, including satellite data analysis and land system modeling, machine learning, and qualitative research.<br><br><strong>Units:&nbsp;</strong><em>all raster data (.tif) are in tCO2e/ha/yr. All tabular data (.csv) are summarised in tCO2e/yr. <br></em></p>",  # noqa
+                            "download_links": [
+                                {
+                                    "link_type": "Download",
+                                    "url": "https://kartoza.com/all_pathways.zip"  # noqa
+                                }
+                            ],
+                            "cog_url": "https://kartoza.com/total_ncs.tif",
+                            "date_updated": "2024-08-28T18:59:51.419Z"
+                        },
+                        {
+                            "id": 15,
+                            "title": "Avoided Coastal Wetland Conversion",
+                            "short_summary": "<p>Avoided emissions of above-ground biomass and soil carbon due to avoided degradation and/or loss of coastal wetlands (mangroves, tidal marshes, and seagrass meadows).</p>\n<p><strong>Units:&nbsp;</strong>all raster data (.tif) are in tCO2e/ha/yr. All tabular data (.csv) are summarised in tCO2e/yr.</p>",  # noqa
+                            "download_links": [
+                                {
+                                    "link_type": "Download",
+                                    "url": "https://kartoza.com/wet_awc_total.zip"  # noqa
+                                }
+                            ],
+                            "cog_url": "https://kartoza.com/test_pathway_naturebase.tif",  # noqa
+                            "date_updated": "2024-08-28T18:55:55.936Z"
+                        },
+                        {
+                            "id": 5,
+                            "title": "Avoided Grassland Conversion",
+                            "short_summary": "<p>Avoided soil carbon emissions by avoiding the conversion of grasslands to cropland.</p>\n<p><strong>Units:&nbsp;</strong>all raster data (.tif) are in tCO2e/ha/yr. All tabular data (.csv) are summarised in tCO2e/yr.</p>",  # noqa
+                            "download_links": [
+                                {
+                                    "link_type": "Download",
+                                    "url": "https://kartoza.com/test_pathway_naturebase.zip"  # noqa
+                                }
+                            ],
+                            "cog_url": None,
+                            "date_updated": "2024-08-28T18:57:00.867Z"
+                        }
+                    ]
+                }
+            )
+            rm.get(
+                'https://kartoza.com/test_pathway_naturebase.tif',
+                content=stream_from_file
+            )
+            rm.get(
+                'https://kartoza.com/test_pathway_naturebase.zip',
+                content=stream_from_file
+            )
+            sync_default_layers()
+
+            input_layers = InputLayer.objects.all().order_by('name')
+            self.assertEqual(input_layers.count(), 2)
+
+            avoided_coastal_wetland_conversion = input_layers[0]
+            self.assertEqual(
+                avoided_coastal_wetland_conversion.name,
+                'Avoided Coastal Wetland Conversion'
+            )
+            self.assertEqual(
+                avoided_coastal_wetland_conversion.description,
+                (
+                    'Avoided emissions of above-ground biomass '
+                    'and soil carbon '
+                    'due to avoided degradation and/or loss '
+                    'of coastal wetlands (mangroves, tidal marshes, '
+                    'and seagrass '
+                    'meadows).\nUnits:all raster data (.tif) '
+                    'are in tCO2e/ha/yr. All tabular data (.csv) '
+                    'are summarised in tCO2e/yr.'
+                )
+            )
+
+            avoided_grassland_conversion = input_layers[1]
+            self.assertEqual(
+                avoided_grassland_conversion.name,
+                'Avoided Grassland Conversion'
+            )
+            self.assertEqual(
+                avoided_grassland_conversion.description,
+                (
+                    'Avoided soil carbon emissions by avoiding the '
+                    'conversion of grasslands to cropland.'
+                    '\nUnits:all raster data (.tif) are in tCO2e/ha/yr. '
+                    'All tabular data (.csv) are summarised in tCO2e/yr.'
+                )
+            )
+
+    @patch(
+        'cplus_api.utils.layers.sync_nature_base',
+        autospec=True
+    )
+    def test_skip_cplus_layer_if_exist_fs_storage(self, mock_sync_nature_base):
+        """
+        Test using FileSystemStorage that sync_cplus_layer will skip creating
+        a new default layer with CPLUS as source, if the file key already
+        belongs to Naturebase.
+        """
+        input_layer, source_path, dest_path = self.base_run()
+        InputLayer.objects.update(source=InputLayer.LayerSources.NATURE_BASE)
+        copyfile(source_path, dest_path)
+        input_layer.source = InputLayer.LayerSources.NATURE_BASE
+        input_layer.save()
+
+        sync_default_layers()
+
+        all_layer_sources = set(
+            InputLayer.objects.values_list('source', flat=True)
+        )
+
+        # Check that there is only Naturebase Input layers
+        self.assertEqual(
+            all_layer_sources, {InputLayer.LayerSources.NATURE_BASE}
+        )
+
+    @patch(
+        'cplus_api.utils.layers.sync_nature_base',
+        autospec=True
+    )
+    def test_skip_cplus_layer_if_exist_s3(
+            self,
+            mock_sync_nature_base
+    ):
+        """
+        Test using S3Storage that sync_cplus_layer will skip creating
+        a new default layer with CPLUS as source, if the file key already
+        belongs to Naturebase.
+        """
+        input_layer, source_path, dest_path = self.base_run()
+        copyfile(source_path, dest_path)
+        input_layer.source = InputLayer.LayerSources.NATURE_BASE
+        input_layer.save()
+        with patch(
+                'cplus_api.utils.layers.select_input_layer_storage'
+        ) as mock_storage:
+            self.run_s3(mock_storage)
+
+        all_layer_sources = list(
+            InputLayer.objects.values_list('source', flat=True)
+        )
+
+        # Check that there is only Naturebase Input layers
+        self.assertEqual(
+            all_layer_sources, [InputLayer.LayerSources.NATURE_BASE]
+        )
