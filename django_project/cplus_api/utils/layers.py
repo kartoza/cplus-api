@@ -68,7 +68,6 @@ class ProcessFile:
                     'layer_type': get_layer_type(file['Key'])
                 }
             )
-            print('name',  self.input_layer.name)
         else:
             self.input_layer, self.created = InputLayer.objects.get_or_create(
                 owner=owner,
