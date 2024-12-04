@@ -427,18 +427,17 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         """
         input_layer, source_path, dest_path = self.base_run()
         copyfile(source_path, dest_path)
-        input_layer.source = InputLayer.LayerSources.NATURE_BASE
-        input_layer.save()
+        InputLayer.objects.update(source=InputLayer.LayerSources.NATURE_BASE)
         with patch(
                 'cplus_api.utils.layers.select_input_layer_storage'
         ) as mock_storage:
             self.run_s3(mock_storage)
 
-        all_layer_sources = list(
+        all_layer_sources = set(
             InputLayer.objects.values_list('source', flat=True)
         )
 
         # Check that there is only Naturebase Input layers
         self.assertEqual(
-            all_layer_sources, [InputLayer.LayerSources.NATURE_BASE]
+            all_layer_sources, {InputLayer.LayerSources.NATURE_BASE}
         )

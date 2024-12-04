@@ -249,14 +249,10 @@ class ProcessFile:
                                 self.input_layer.name == '' or
                                 self.input_layer.file is None
                             ):
-                                breakpoint()
                                 self.input_layer.delete()
                         else:
                             break
 
-            self.input_layer.refresh_from_db()
-            print(self.input_layer)
-            print(InputLayer.objects.values())
 
 def delete_invalid_default_layers():
     """Delete invalid default layers in DB

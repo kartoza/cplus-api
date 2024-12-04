@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from django.utils import timezone
 from django.core.files.storage import storages, FileSystemStorage
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
 
@@ -155,16 +155,15 @@ class InputLayer(BaseLayer):
     ):
         if self.pk:
             old_instance = InputLayer.objects.get(uuid=self.uuid)
-            if not update_fields:
-                update_fields = []
+            self.move_file = False
             if old_instance.privacy_type != self.privacy_type:
-                update_fields.append('privacy_type')
+                self.move_file = True
             if old_instance.component_type != self.component_type:
-                update_fields.append('component_type')
+                self.move_file = True
         return super().save(
             force_insert=False,
             force_update=False,
-            using=None,
+            using=using,
             update_fields=update_fields
         )
 
@@ -228,6 +227,8 @@ class InputLayer(BaseLayer):
         return layer_path.startswith(prefix_path)
 
     def move_file(self):
+        if not self.is_available():
+            return
         old_path = self.file.name
         correct_path = input_layer_dir_path(self, self.name)
         storage = select_input_layer_storage()
@@ -252,7 +253,6 @@ class InputLayer(BaseLayer):
         self.save(update_fields=['file'])
 
     def fix_layer_metadata(self):
-        print(self.is_available())
         if not self.is_available():
             return
         self.size = self.file.size
@@ -334,8 +334,6 @@ def save_input_layer(sender, instance, created, **kwargs):
     Handle Moving file after changing Input component type or privacy tyoe
     """
     from cplus_api.tasks.move_input_layer_file import move_input_layer_file
-    print('save_input_layer')
     if not created:
-        if ('component_type' in kwargs['update_fields'] or
-                'privacy_type' in kwargs['update_fields']):
+        if instance.move_file:
             move_input_layer_file(instance.uuid)

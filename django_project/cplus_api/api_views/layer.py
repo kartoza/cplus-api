@@ -1,28 +1,20 @@
-import os
-
 import math
+import os
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.parsers import MultiPartParser
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import permissions
-from rest_framework.exceptions import PermissionDenied, ValidationError
-from rest_framework.parsers import MultiPartParser
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
 from cplus_api.models.layer import (
     BaseLayer, InputLayer, input_layer_dir_path,
     select_input_layer_storage, MultipartUpload
 )
 from cplus_api.models.profile import UserProfile
-from cplus_api.serializers.common import (
-    APIErrorSerializer,
-    NoContentSerializer
-)
 from cplus_api.serializers.layer import (
     InputLayerSerializer,
     PaginatedInputLayerSerializer,
@@ -31,18 +23,21 @@ from cplus_api.serializers.layer import (
     LAYER_SCHEMA_FIELDS,
     InputLayerListSerializer
 )
+from cplus_api.serializers.common import (
+    APIErrorSerializer,
+    NoContentSerializer
+)
 from cplus_api.utils.api_helper import (
     get_page_size,
     LAYER_API_TAG,
     PARAM_LAYER_UUID_IN_PATH,
-    PARAM_BBOX_IN_QUERY,
     get_presigned_url,
     convert_size,
     PARAMS_PAGINATION,
+    PARAM_BBOX_IN_QUERY,
     get_multipart_presigned_urls,
     complete_multipart_upload,
-    abort_multipart_upload,
-    clip_raster
+    abort_multipart_upload
 )
 
 
@@ -796,7 +791,7 @@ class FetchLayerByClientId(APIView):
 
 class ReferenceLayerDownload(APIView):
     """APIs to fetch and remove layer file."""
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [AllowAny]
     authentication_classes = []
 
     def _stream_response(self, file_path):
