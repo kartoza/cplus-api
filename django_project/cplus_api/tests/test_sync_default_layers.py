@@ -63,6 +63,15 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         os.makedirs(os.path.dirname(dest_path), exist_ok=True)
         copyfile(source_path, dest_path)
         sync_default_layers()
+
+        input_layers = InputLayer.objects.filter(
+            name='test_pathway_2.tif',
+            owner=self.superuser,
+            privacy_type=InputLayer.PrivacyTypes.COMMON,
+            component_type=InputLayer.ComponentTypes.NCS_PATHWAY
+        )
+        print(input_layers)
+
         input_layers = input_layers.all()
         input_layer = input_layers[0]
         first_modified_on = input_layer.modified_on

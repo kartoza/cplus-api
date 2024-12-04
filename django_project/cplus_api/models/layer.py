@@ -334,6 +334,7 @@ def save_input_layer(sender, instance, created, **kwargs):
     Handle Moving file after changing Input component type or privacy tyoe
     """
     from cplus_api.tasks.move_input_layer_file import move_input_layer_file
+    print('save_input_layer')
     if not created:
         if ('component_type' in kwargs['update_fields'] or
                 'privacy_type' in kwargs['update_fields']):
