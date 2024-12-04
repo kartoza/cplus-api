@@ -150,7 +150,8 @@ class InputLayer(BaseLayer):
         return f"{self.name} - {self.component_type}"
 
     def save(
-        self, force_insert=False, force_update=False, using=None, update_fields=None
+        self, force_insert=False, force_update=False,
+            using=None, update_fields=None
     ):
         if self.pk:
             old_instance = InputLayer.objects.get(uuid=self.uuid)
@@ -160,7 +161,12 @@ class InputLayer(BaseLayer):
                 update_fields.append('privacy_type')
             if old_instance.component_type != self.component_type:
                 update_fields.append('component_type')
-        return super().save(force_insert=False, force_update=False, using=None, update_fields=update_fields)
+        return super().save(
+            force_insert=False,
+            force_update=False,
+            using=None,
+            update_fields=update_fields
+        )
 
     def download_to_working_directory(self, base_dir: str):
         if not self.is_available():
@@ -329,5 +335,6 @@ def save_input_layer(sender, instance, created, **kwargs):
     """
     from cplus_api.tasks.move_input_layer_file import move_input_layer_file
     if not created:
-        if 'component_type' in kwargs['update_fields'] or 'privacy_type' in kwargs['update_fields']:
+        if ('component_type' in kwargs['update_fields'] or
+                'privacy_type' in kwargs['update_fields']):
             move_input_layer_file(instance.uuid)

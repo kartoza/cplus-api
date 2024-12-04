@@ -810,10 +810,11 @@ class ReferenceLayerDownload(APIView):
             file_iterator(file_path),
             content_type="application/octet-stream"
         )
-        response['Content-Disposition'] = f'attachment; filename="reference_layer.tif"'
+        response['Content-Disposition'] = ('attachment; filename'
+                                           '="reference_layer.tif"')
 
         # Clean up the temporary file after the response is completed
-        response['X-Accel-Buffering'] = 'no'  # Disable buffering if applicable (Nginx)
+        response['X-Accel-Buffering'] = 'no'
         response.close = lambda: os.remove(file_path)
 
         return response
@@ -843,11 +844,16 @@ class ReferenceLayerDownload(APIView):
             basename = os.path.basename(reference_layer.file.name)
             file_path = os.path.join('tmp', 'reference_layer', basename)
             if not os.path.exists(file_path):
-                file_path = reference_layer.download_to_working_directory('/tmp/')
+                file_path = reference_layer.download_to_working_directory(
+                    '/tmp/'
+                )
             if 'bbox' in request.query_params:
                 bbox = request.query_params.get('bbox')
                 bbox = bbox.replace(' ', '').split(',')
                 bbox = [float(b) for b in bbox]
                 file_path = clip_raster(file_path, bbox)
             return self._stream_response(file_path)
-        return Response({'detail': 'Reference layer not available.'}, status=404)
+        return Response(
+            {'detail': 'Reference layer not available.'},
+            status=404
+        )

@@ -3,6 +3,7 @@ import logging
 import os
 import tempfile
 import traceback
+import typing
 import uuid
 from datetime import datetime
 from enum import Enum
@@ -39,7 +40,9 @@ PARAM_SCENARIO_UUID_IN_PATH = openapi.Parameter(
 )
 PARAM_BBOX_IN_QUERY = openapi.Parameter(
     'bbox', openapi.IN_QUERY,
-    description="Bounding box filter in the format 'minx,miny,maxx,maxy' or 'West,South,East,North', EPSG:4326.",
+    description="Bounding box filter in the format "
+                "'minx,miny,maxx,maxy' or "
+                "'West,South,East,North', EPSG:4326.",
     type=openapi.TYPE_STRING, required=False
 )
 PARAMS_PAGINATION = [
@@ -393,13 +396,14 @@ def download_file(url, local_filename):
     return local_filename
 
 
-def clip_raster(file_path, bbox):
+def clip_raster(file_path: str, bbox: typing.List[float]) -> str:
     """
     Clip the raster file to the specified bounding box (bbox).
 
     Args:
         file_path (str): Path to the raster file.
-        bbox (tuple): Bounding box (minx, miny, maxx, maxy) in the same CRS as the raster file.
+        bbox (tuple): Bounding box (minx, miny, maxx, maxy)
+        in the same CRS as the raster file.
 
     Returns:
         str: Path to the temporary clipped raster file.
@@ -412,7 +416,10 @@ def clip_raster(file_path, bbox):
         row_stop, col_stop = src.index(maxx, miny)
 
         # Define the window to read
-        window = Window.from_slices((row_start, row_stop), (col_start, col_stop))
+        window = Window.from_slices(
+            (row_start, row_stop),
+            (col_start, col_stop)
+        )
         transform = src.window_transform(window)
 
         # Read the data within the window
