@@ -1,7 +1,7 @@
 import os
 import tempfile
 import mock
-from django.test import Client
+from django.test import Client, override_settings
 from rest_framework import status
 from django.urls import reverse
 from django.contrib.auth.models import User
@@ -34,7 +34,7 @@ class TestModelLayer(BaseAPIViewTransactionTest):
         path = input_layer_dir_path(input_layer, 'test.tif')
         self.assertEqual(
             path,
-            f'common_layers/{input_layer.component_type}/'
+            f'common_layers/{input_layer.component_type}/{input_layer.source}/'
             'test.tif'
         )
         # internal layer
@@ -43,7 +43,7 @@ class TestModelLayer(BaseAPIViewTransactionTest):
         path = input_layer_dir_path(input_layer, 'test.tif')
         self.assertEqual(
             path,
-            f'internal_layers/{input_layer.component_type}/'
+            f'internal_layers/{input_layer.component_type}/{input_layer.source}/'
             'test.tif'
         )
         self.assertEqual(str(input_layer), f"{input_layer.name} - ncs_pathway")
@@ -142,20 +142,30 @@ class TestModelLayer(BaseAPIViewTransactionTest):
         file_path = input_layer_4.download_to_working_directory(tmp_dir)
         self.assertIsNone(file_path)
 
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
     def test_is_in_correct_directory(self):
         input_layer = InputLayerF.create()
         file_path = absolute_path(
             'cplus_api', 'tests', 'data',
             'models', 'test_model_1.tif'
         )
-        self.store_layer_file(input_layer, file_path)
+        self.store_layer_file(input_layer, file_path, input_layer.name)
         self.assertTrue(input_layer.is_in_correct_directory())
-        input_layer.privacy_type = InputLayer.PrivacyTypes.COMMON
-        input_layer.save()
-        self.assertFalse(input_layer.is_in_correct_directory())
+
         input_layer.privacy_type = InputLayer.PrivacyTypes.INTERNAL
         input_layer.save()
-        self.assertFalse(input_layer.is_in_correct_directory())
+        input_layer.refresh_from_db()
+        self.assertTrue(input_layer.is_in_correct_directory())
+
+        input_layer.privacy_type = InputLayer.PrivacyTypes.COMMON
+        input_layer.save()
+        input_layer.refresh_from_db()
+        self.assertTrue(input_layer.is_in_correct_directory())
+
+        input_layer.component_type = InputLayer.ComponentTypes.REFERENCE_LAYER
+        input_layer.save()
+        input_layer.refresh_from_db()
+        self.assertTrue(input_layer.is_in_correct_directory())
 
     def test_fix_layer_metadata(self):
         input_layer = InputLayerF.create(

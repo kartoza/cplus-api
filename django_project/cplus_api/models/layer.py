@@ -17,12 +17,25 @@ INTERNAL_LAYERS_DIR = 'internal_layers'
 
 def input_layer_dir_path(instance, filename):
     """Return upload directory path for Input Layer."""
-    file_path = f'{str(instance.owner.pk)}/'
+    file_path = str(instance.owner.pk)
     if instance.privacy_type == InputLayer.PrivacyTypes.COMMON:
-        file_path = f'{COMMON_LAYERS_DIR}/'
+        file_path = COMMON_LAYERS_DIR
     if instance.privacy_type == InputLayer.PrivacyTypes.INTERNAL:
-        file_path = f'{INTERNAL_LAYERS_DIR}/'
-    file_path = file_path + f'{instance.component_type}/' + filename
+        file_path = INTERNAL_LAYERS_DIR
+
+    if instance.privacy_type in [InputLayer.PrivacyTypes.COMMON, InputLayer.PrivacyTypes.INTERNAL]:
+        file_path = os.path.join(
+            file_path,
+            instance.component_type,
+            instance.source,
+            filename
+        )
+    else:
+        file_path = os.path.join(
+            file_path,
+            instance.component_type,
+            filename
+        )
     return file_path
 
 
@@ -221,12 +234,12 @@ class InputLayer(BaseLayer):
         layer_path = self.file.name
         prefix_path = f'{str(self.owner.pk)}/'
         if self.privacy_type == InputLayer.PrivacyTypes.COMMON:
-            prefix_path = f'{COMMON_LAYERS_DIR}/'
+            prefix_path = f'{COMMON_LAYERS_DIR}/{self.component_type}/{self.source}'
         elif self.privacy_type == InputLayer.PrivacyTypes.INTERNAL:
-            prefix_path = f'{INTERNAL_LAYERS_DIR}/'
+            prefix_path = f'{INTERNAL_LAYERS_DIR}/{self.component_type}/{self.source}'
         return layer_path.startswith(prefix_path)
 
-    def move_file(self):
+    def move_file_location(self):
         if not self.is_available():
             return
         old_path = self.file.name
@@ -335,5 +348,5 @@ def save_input_layer(sender, instance, created, **kwargs):
     """
     from cplus_api.tasks.move_input_layer_file import move_input_layer_file
     if not created:
-        if instance.move_file:
+        if getattr(instance, 'move_file', False):
             move_input_layer_file(instance.uuid)

@@ -70,7 +70,6 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
             privacy_type=InputLayer.PrivacyTypes.COMMON,
             component_type=InputLayer.ComponentTypes.NCS_PATHWAY
         )
-        print(input_layers)
 
         input_layers = input_layers.all()
         input_layer = input_layers[0]

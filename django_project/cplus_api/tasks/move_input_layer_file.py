@@ -14,7 +14,7 @@ def move_input_layer_file(layer_uuid):
     Move input layer file after updating component type or privacy type
     """
     layer = InputLayer.objects.get(uuid=layer_uuid)
-    layer.move_file()
+    layer.move_file_location()
     if layer.is_available():
         logger.info(
             f'Layer {layer.uuid} is stored in {layer.file.name} '

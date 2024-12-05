@@ -1,6 +1,8 @@
 import os
 import uuid
 import mock
+from django.contrib.gis.geos import Polygon
+from django.http import StreamingHttpResponse
 from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -23,7 +25,8 @@ from cplus_api.api_views.layer import (
     validate_layer_access,
     LayerUploadAbort,
     FetchLayerByClientId,
-    DefaultLayerList
+    DefaultLayerList,
+    ReferenceLayerDownload
 )
 from cplus_api.models.profile import UserProfile
 from cplus_api.utils.api_helper import convert_size
@@ -919,3 +922,67 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertTrue(find_layer)
         self.assertTrue(find_layer['url'])
         self.assertEqual(find_layer['uuid'], str(input_layer_2.uuid))
+
+    def test_reference_layer_not_exist_yet(self):
+        view = ReferenceLayerDownload.as_view()
+        request = self.factory.get(
+            reverse('v1:reference-layer-download'),
+            format='json'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        response = view(request)
+        self.assertEqual(response.status_code, 404)
+
+    def test_reference_layer_not_available(self):
+        view = ReferenceLayerDownload.as_view()
+        InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.COMMON,
+            component_type=InputLayer.ComponentTypes.REFERENCE_LAYER
+        )
+        request = self.factory.get(
+            reverse('v1:reference-layer-download'),
+            format='json'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        response = view(request)
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.data, {'detail': 'Reference layer is not available.'})
+
+    def test_reference_layer_download(self):
+        bbox = '29.134295060,-31.158062261,29.279926683,-31.094568889'
+        view = ReferenceLayerDownload.as_view()
+        reference_layer_1 = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.COMMON,
+            component_type=InputLayer.ComponentTypes.REFERENCE_LAYER
+        )
+        reference_layer_2 = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.COMMON,
+            component_type=InputLayer.ComponentTypes.REFERENCE_LAYER
+        )
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'reference_layer.tif'
+        )
+        self.store_layer_file(
+            reference_layer_1, file_path, reference_layer_1.name)
+        self.store_layer_file(
+            reference_layer_2, file_path, reference_layer_2.name)
+        request = self.factory.get(
+            f"{reverse('v1:reference-layer-download')}?bbox={bbox}",
+            format='json'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        response = view(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response, StreamingHttpResponse)
+        # Test the streamed content
+        content = b"".join(response.streaming_content)
+        import rasterio
+        from rasterio.io import MemoryFile
+
+        with MemoryFile(content) as memfile:
+            with memfile.open() as dataset:
+                expected_area = 0.01331516565230782
+                bbox_polygon = Polygon.from_bbox(dataset.bounds)
+                self.assertAlmostEqual(bbox_polygon.area, expected_area, places=3)
+

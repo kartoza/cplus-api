@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from django.contrib.gis.geos import Polygon
 from django.core.paginator import Paginator
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
@@ -848,9 +849,29 @@ class ReferenceLayerDownload(APIView):
                 bbox = request.query_params.get('bbox')
                 bbox = bbox.replace(' ', '').split(',')
                 bbox = [float(b) for b in bbox]
-                file_path = clip_raster(file_path, bbox)
+
+                # Calculate the width and height of the bounding box
+                width = bbox[2] - bbox[0]
+                height = bbox[3] - bbox[1]
+
+                # Calculate 20% expansion
+                expand_width = width * 0.2
+                expand_height = height * 0.2
+
+                # Create the expanded bounding box
+                expanded_bbox = (
+                    bbox[0] - expand_width / 2,  # min_x
+                    bbox[1] - expand_height / 2,  # min_y
+                    bbox[2] + expand_width / 2,  # max_x
+                    bbox[3] + expand_height / 2  # max_y
+                )
+
+                # Convert the expanded bounding box to a Polygon
+                expanded_polygon = Polygon.from_bbox(expanded_bbox)
+
+                file_path = clip_raster(file_path, expanded_polygon.extent)
             return self._stream_response(file_path)
         return Response(
-            {'detail': 'Reference layer not available.'},
+            data={'detail': 'Reference layer is not available.'},
             status=404
         )
