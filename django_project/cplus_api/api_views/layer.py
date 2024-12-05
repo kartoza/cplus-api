@@ -813,8 +813,15 @@ class ReferenceLayerDownload(APIView):
 
         # Clean up the temporary file after the response is completed
         response['X-Accel-Buffering'] = 'no'
-        response.close = lambda: os.remove(file_path)
 
+        def close_response(fp: str):
+            # if file path starts with /tmp/reference_layer/,
+            # it means it is the original/unclipped file.
+            # Do not remove it.
+            if not fp.startswith('/tmp/reference_layer/'):
+                os.remove(fp)
+
+        response.close = close_response
         return response
 
     @swagger_auto_schema(
