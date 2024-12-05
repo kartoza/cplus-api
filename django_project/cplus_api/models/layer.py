@@ -23,7 +23,10 @@ def input_layer_dir_path(instance, filename):
     if instance.privacy_type == InputLayer.PrivacyTypes.INTERNAL:
         file_path = INTERNAL_LAYERS_DIR
 
-    if instance.privacy_type in [InputLayer.PrivacyTypes.COMMON, InputLayer.PrivacyTypes.INTERNAL]:
+    if instance.privacy_type in [
+        InputLayer.PrivacyTypes.COMMON,
+        InputLayer.PrivacyTypes.INTERNAL
+    ]:
         file_path = os.path.join(
             file_path,
             instance.component_type,
@@ -232,11 +235,19 @@ class InputLayer(BaseLayer):
 
     def is_in_correct_directory(self):
         layer_path = self.file.name
-        prefix_path = f'{str(self.owner.pk)}/'
+        prefix_path = str(self.owner.pk)
         if self.privacy_type == InputLayer.PrivacyTypes.COMMON:
-            prefix_path = f'{COMMON_LAYERS_DIR}/{self.component_type}/{self.source}'
+            prefix_path = os.path.join(
+                COMMON_LAYERS_DIR,
+                self.component_type,
+                self.source
+            )
         elif self.privacy_type == InputLayer.PrivacyTypes.INTERNAL:
-            prefix_path = f'{INTERNAL_LAYERS_DIR}/{self.component_type}/{self.source}'
+            prefix_path = os.path.join(
+                INTERNAL_LAYERS_DIR,
+                self.component_type,
+                self.source
+            )
         return layer_path.startswith(prefix_path)
 
     def move_file_location(self):

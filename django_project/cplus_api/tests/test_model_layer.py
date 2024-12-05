@@ -43,8 +43,12 @@ class TestModelLayer(BaseAPIViewTransactionTest):
         path = input_layer_dir_path(input_layer, 'test.tif')
         self.assertEqual(
             path,
-            f'internal_layers/{input_layer.component_type}/{input_layer.source}/'
-            'test.tif'
+            os.path.join(
+                'internal_layers',
+                input_layer.component_type,
+                input_layer.source,
+                'test.tif'
+            )
         )
         self.assertEqual(str(input_layer), f"{input_layer.name} - ncs_pathway")
 

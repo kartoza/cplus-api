@@ -946,7 +946,10 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         request.resolver_match = FakeResolverMatchV1
         response = view(request)
         self.assertEqual(response.status_code, 404)
-        self.assertEqual(response.data, {'detail': 'Reference layer is not available.'})
+        self.assertEqual(
+            response.data,
+            {'detail': 'Reference layer is not available.'}
+        )
 
     def test_reference_layer_download(self):
         bbox = '29.134295060,-31.158062261,29.279926683,-31.094568889'
@@ -977,12 +980,14 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertIsInstance(response, StreamingHttpResponse)
         # Test the streamed content
         content = b"".join(response.streaming_content)
-        import rasterio
         from rasterio.io import MemoryFile
 
         with MemoryFile(content) as memfile:
             with memfile.open() as dataset:
                 expected_area = 0.01331516565230782
                 bbox_polygon = Polygon.from_bbox(dataset.bounds)
-                self.assertAlmostEqual(bbox_polygon.area, expected_area, places=3)
-
+                self.assertAlmostEqual(
+                    bbox_polygon.area,
+                    expected_area,
+                    places=3
+                )
