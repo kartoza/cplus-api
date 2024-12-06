@@ -7,7 +7,6 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.contrib.gis.geos import Polygon
 from django.core.paginator import Paginator
-from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.conf import settings
@@ -874,9 +873,9 @@ class ReferenceLayerDownload(APIView):
                 x_accel_redirect = file_name
 
             # fix issue nginx unable to read file
-            os.chmod(file_path , 0o644)
+            os.chmod(file_path, 0o644)
             response = Response(status=200)
-            response['Content-type']= "application/octet-stream"
+            response['Content-type'] = "application/octet-stream"
             response['X-Accel-Redirect'] = (
                 f'/userfiles/{x_accel_redirect}'
             )

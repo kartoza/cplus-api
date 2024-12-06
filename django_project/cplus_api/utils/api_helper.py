@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import tempfile
 import traceback
 import typing
 import uuid
