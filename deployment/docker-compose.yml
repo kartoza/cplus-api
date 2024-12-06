@@ -9,6 +9,7 @@ volumes:
   backups-data:
   data-volume:
   minio-data:
+  user-data:
 
 x-common-variables: &common-variables
   # editable in .env
@@ -97,6 +98,7 @@ services:
     command: 'uwsgi --ini /uwsgi.conf'
     volumes:
       - static-data:/home/web/static
+      - user-data:/home/web/user_data
     links:
       - db
       - minio
@@ -120,6 +122,7 @@ services:
       CPLUS_WORKER: 1
     volumes:
       - media-data:/home/web/media
+      - user-data:/home/web/user_data
     links:
       - db
       - minio
@@ -134,6 +137,7 @@ services:
     volumes:
       - static-data:/home/web/static
       - media-data:/home/web/media
+      - user-data:/home/web/user_data
     links:
       - db
       - redis
@@ -146,6 +150,7 @@ services:
       - conf-data:/etc/nginx/conf.d:ro
       - nginx-cache:/home/web/nginx_cache
       - static-data:/home/web/static
+      - user-data:/home/web/user_data
     links:
       - django
       - minio

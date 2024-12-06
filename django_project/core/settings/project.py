@@ -45,6 +45,10 @@ DEFAULT_EXCEPTION_REPORTER_FILTER = (
 CODE_RELEASE_VERSION = code_release_version()
 CODE_COMMIT_HASH = code_commit_release_version()
 
+# PATH To temporary referencer layers
+TEMPORARY_LAYER_DIR = '/home/web/user_data'
+
+
 # s3
 # TODO: set CacheControl in object_parameters+endpoint_url
 MB = 1024 ** 2

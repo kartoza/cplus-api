@@ -7,6 +7,7 @@ from django.db.models import Q
 from core.models.preferences import SitePreferences
 from cplus_api.models import (
     InputLayer, OutputLayer, MultipartUpload,
+    TemporaryLayer,
     input_layer_dir_path
 )
 from cplus_api.utils.api_helper import (
@@ -23,7 +24,8 @@ def remove_layers():
     """
     results = {
         InputLayer: 0,
-        OutputLayer: 0
+        OutputLayer: 0,
+        TemporaryLayer: 0
     }
 
     # Remove private Input Layer that is more 2 weeks
@@ -52,6 +54,17 @@ def remove_layers():
     )
     results[OutputLayer] = output_layers.count()
     output_layers.delete()
+
+    # Remove temporary layer after a day
+    last_x_days_datetime = (
+        timezone.now() -
+        timedelta(days=1)
+    )
+    temp_layers = TemporaryLayer.objects.filter(
+        created_on__lte=last_x_days_datetime
+    )
+    results[TemporaryLayer] = temp_layers.count()
+    temp_layers.delete()
 
     logger.info(f'Removed {results}')
 

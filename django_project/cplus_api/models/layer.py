@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from django.utils import timezone
 from django.core.files.storage import storages, FileSystemStorage
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
 
@@ -352,6 +352,17 @@ class MultipartUpload(models.Model):
     )
 
 
+class TemporaryLayer(models.Model):
+    """Model to store temporary layer files."""
+
+    file_name = models.CharField(
+        max_length=512,
+        help_text='File name that is stored in TEMPORARY_LAYER_DIR.'
+    )
+    size = models.IntegerField()
+    created_on = models.DateTimeField(auto_now_add=True)
+
+
 @receiver(post_save, sender=InputLayer)
 def save_input_layer(sender, instance, created, **kwargs):
     """
@@ -361,3 +372,11 @@ def save_input_layer(sender, instance, created, **kwargs):
     if not created:
         if getattr(instance, 'move_file', False):
             move_input_layer_file(instance.uuid)
+
+
+@receiver(post_delete, sender=TemporaryLayer)
+def post_delete_temp_layer(sender, instance, **kwargs):
+    """Remove temporary layer file if TemporaryLayer is deleted."""
+    file_path = os.path.join(settings.TEMPORARY_LAYER_DIR, instance.file_name)
+    if os.path.exists(file_path):
+        os.remove(file_path)

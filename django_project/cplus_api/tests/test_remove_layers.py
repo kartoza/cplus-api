@@ -1,6 +1,8 @@
 import mock
+import os
 from datetime import timedelta
 from django.utils import timezone
+from django.conf import settings
 from cplus_api.tests.factories import (
     InputLayerF,
     OutputLayerF,
@@ -9,7 +11,8 @@ from cplus_api.tests.factories import (
 from cplus_api.models.layer import (
     InputLayer,
     OutputLayer,
-    MultipartUpload
+    MultipartUpload,
+    TemporaryLayer
 )
 from cplus_api.tasks.remove_layers import (
     remove_layers,
@@ -104,6 +107,29 @@ class TestRemoveLayers(BaseAPIViewTransactionTest):
         self.assertTrue(OutputLayer.objects.filter(
             uuid=output_layer_2.uuid).exists()
         )
+
+    def test_temporary_layers_removed(self):
+        """Test to remove temporary layers."""
+        file_path = os.path.join(
+            settings.TEMPORARY_LAYER_DIR,
+            'test.txt'
+        )
+        with open(file_path, 'w') as f:
+            f.write('echo')
+        self.assertTrue(os.path.exists(file_path))
+        temp_layer = TemporaryLayer.objects.create(
+            file_name='test.txt',
+            size=1
+        )
+        temp_layer.created_on = timezone.now() - timedelta(days=15)
+        temp_layer.save()
+        remove_layers()
+        self.assertFalse(
+            TemporaryLayer.objects.filter(
+                id=temp_layer.id
+            ).exists()
+        )
+        self.assertFalse(os.path.exists(file_path))
 
     @mock.patch('boto3.client')
     def test_clean_multipart_upload(self, mocked_s3):

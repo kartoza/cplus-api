@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import tempfile
 import traceback
 import typing
 import uuid
@@ -396,7 +395,7 @@ def download_file(url, local_filename):
     return local_filename
 
 
-def clip_raster(file_path: str, bbox: typing.List[float]) -> str:
+def clip_raster(file_path: str, bbox: typing.List[float], temp_dir) -> str:
     """
     Clip the raster file to the specified bounding box (bbox).
 
@@ -404,6 +403,7 @@ def clip_raster(file_path: str, bbox: typing.List[float]) -> str:
         file_path (str): Path to the raster file.
         bbox (tuple): Bounding box (minx, miny, maxx, maxy)
         in the same CRS as the raster file.
+        temp_dir: Temporary directory to store the file.
 
     Returns:
         str: Path to the temporary clipped raster file.
@@ -425,8 +425,6 @@ def clip_raster(file_path: str, bbox: typing.List[float]) -> str:
         # Read the data within the window
         data = src.read(window=window)
 
-        # Create a temporary file to store the clipped raster
-        temp_dir = tempfile.gettempdir()
         temp_file_path = os.path.join(temp_dir, f"{uuid.uuid4().hex}.tif")
 
         # Write the clipped raster to the temporary file

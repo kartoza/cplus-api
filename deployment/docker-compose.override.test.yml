@@ -12,6 +12,7 @@ services:
     volumes:
       - ../django_project:/home/web/django_project
       - ./volumes/media:/home/web/media
+      - ./volumes/user_data:/home/web/user_data
     links:
       - db
       - redis
@@ -23,6 +24,7 @@ services:
       - ../django_project:/home/web/django_project
       - ./volumes/static:/home/web/static
       - ./volumes/media:/home/web/media
+      - ./volumes/user_data:/home/web/user_data
     links:
       - db
       - worker

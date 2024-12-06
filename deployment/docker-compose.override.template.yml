@@ -19,6 +19,7 @@ services:
     volumes:
       - ../django_project:/home/web/django_project
       - ./volumes/static:/home/web/static
+      - ./volumes/user_data:/home/web/user_data
 
   celery_beat:
     image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_worker_dev
@@ -40,6 +41,7 @@ services:
       - ../:/home/web/project
       - ../django_project:/home/web/django_project
       - ./volumes/media:/home/web/media
+      - ./volumes/user_data:/home/web/user_data
 
   dev:
     image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_dev
@@ -59,6 +61,7 @@ services:
     volumes:
       - ./nginx/sites-enabled:/etc/nginx/conf.d:ro
       - ./volumes/static:/home/web/static
+      - ./volumes/user_data:/home/web/user_data
     ports:
       - "${HTTP_PORT:-8888}:80"
 
