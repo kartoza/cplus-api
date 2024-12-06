@@ -2,10 +2,12 @@ import math
 import os
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import MultiPartParser
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from django.contrib.gis.geos import Polygon
 from django.core.paginator import Paginator
+from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_yasg import openapi
@@ -34,9 +36,11 @@ from cplus_api.utils.api_helper import (
     get_presigned_url,
     convert_size,
     PARAMS_PAGINATION,
+    PARAM_BBOX_IN_QUERY,
     get_multipart_presigned_urls,
     complete_multipart_upload,
-    abort_multipart_upload
+    abort_multipart_upload,
+    clip_raster
 )
 
 
@@ -786,3 +790,95 @@ class FetchLayerByClientId(APIView):
             list(results.values()),
             many=True
         ).data)
+
+
+class ReferenceLayerDownload(APIView):
+    """APIs to fetch and remove layer file."""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def _stream_response(self, file_path):
+        # Stream the clipped file as a response
+        def file_iterator(fp, chunk_size=8192):
+            with open(fp, 'rb') as file:
+                while chunk := file.read(chunk_size):
+                    yield chunk
+
+        response = StreamingHttpResponse(
+            file_iterator(file_path),
+            content_type="application/octet-stream"
+        )
+        response['Content-Disposition'] = ('attachment; filename'
+                                           '="reference_layer.tif"')
+
+        # Clean up the temporary file after the response is completed
+        response['X-Accel-Buffering'] = 'no'
+
+        def close_response(fp: str):
+            # if file path starts with /tmp/reference_layer/,
+            # it means it is the original/unclipped file.
+            # Do not remove it.
+            if not fp.startswith('/tmp/reference_layer/'):
+                os.remove(fp)
+
+        response.close = close_response
+        return response
+
+    @swagger_auto_schema(
+        operation_id='reference-layer-download',
+        operation_description='API to download and crop reference layer.',
+        tags=[LAYER_API_TAG],
+        manual_parameters=[PARAM_BBOX_IN_QUERY],
+        responses={
+            200: openapi.Response(description='Binary response'),
+            404: APIErrorSerializer
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        from django.core.exceptions import MultipleObjectsReturned
+        try:
+            reference_layer = get_object_or_404(
+                InputLayer,
+                component_type=InputLayer.ComponentTypes.REFERENCE_LAYER
+            )
+        except MultipleObjectsReturned:
+            reference_layer = InputLayer.objects.filter(
+                component_type=InputLayer.ComponentTypes.REFERENCE_LAYER
+            ).first()
+        if reference_layer.is_available():
+            basename = os.path.basename(reference_layer.file.name)
+            file_path = os.path.join('tmp', 'reference_layer', basename)
+            if not os.path.exists(file_path):
+                file_path = reference_layer.download_to_working_directory(
+                    '/tmp/'
+                )
+            if 'bbox' in request.query_params:
+                bbox = request.query_params.get('bbox')
+                bbox = bbox.replace(' ', '').split(',')
+                bbox = [float(b) for b in bbox]
+
+                # Calculate the width and height of the bounding box
+                width = bbox[2] - bbox[0]
+                height = bbox[3] - bbox[1]
+
+                # Calculate 20% expansion
+                expand_width = width * 0.2
+                expand_height = height * 0.2
+
+                # Create the expanded bounding box
+                expanded_bbox = (
+                    bbox[0] - expand_width / 2,  # min_x
+                    bbox[1] - expand_height / 2,  # min_y
+                    bbox[2] + expand_width / 2,  # max_x
+                    bbox[3] + expand_height / 2  # max_y
+                )
+
+                # Convert the expanded bounding box to a Polygon
+                expanded_polygon = Polygon.from_bbox(expanded_bbox)
+
+                file_path = clip_raster(file_path, expanded_polygon.extent)
+            return self._stream_response(file_path)
+        return Response(
+            data={'detail': 'Reference layer is not available.'},
+            status=404
+        )

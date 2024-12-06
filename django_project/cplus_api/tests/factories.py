@@ -256,7 +256,7 @@ class InputLayerF(factory.django.DjangoModelFactory):
         model = InputLayer
 
     name = factory.Sequence(
-        lambda n: u'input_layer_ %s' % n
+        lambda n: u'input_layer_%s' % n
     )
     created_on = timezone.now()
     owner = factory.SubFactory(UserF)

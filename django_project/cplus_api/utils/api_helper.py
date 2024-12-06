@@ -1,19 +1,24 @@
 import json
 import logging
 import os
+import tempfile
 import traceback
+import typing
+import uuid
 from datetime import datetime
 from enum import Enum
 from uuid import UUID
 
 import boto3
 import math
+import rasterio
 import requests
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from django.conf import settings
 from django.contrib.sites.models import Site
 from drf_yasg import openapi
+from rasterio.windows import Window
 from rest_framework.exceptions import PermissionDenied
 
 from core.models.preferences import SitePreferences
@@ -32,6 +37,13 @@ PARAM_LAYER_UUID_IN_PATH = openapi.Parameter(
 PARAM_SCENARIO_UUID_IN_PATH = openapi.Parameter(
     'scenario_uuid', openapi.IN_PATH,
     description='Scenario UUID', type=openapi.TYPE_STRING
+)
+PARAM_BBOX_IN_QUERY = openapi.Parameter(
+    'bbox', openapi.IN_QUERY,
+    description="Bounding box filter in the format "
+                "'minx,miny,maxx,maxy' or "
+                "'West,South,East,North', EPSG:4326.",
+    type=openapi.TYPE_STRING, required=False
 )
 PARAMS_PAGINATION = [
     openapi.Parameter(
@@ -382,3 +394,50 @@ def download_file(url, local_filename):
     print(f"File size: {file_size / 1024:.2f} KB")
 
     return local_filename
+
+
+def clip_raster(file_path: str, bbox: typing.List[float]) -> str:
+    """
+    Clip the raster file to the specified bounding box (bbox).
+
+    Args:
+        file_path (str): Path to the raster file.
+        bbox (tuple): Bounding box (minx, miny, maxx, maxy)
+        in the same CRS as the raster file.
+
+    Returns:
+        str: Path to the temporary clipped raster file.
+    """
+    minx, miny, maxx, maxy = bbox
+
+    with rasterio.open(file_path) as src:
+        # Convert bbox coordinates to pixel indices
+        row_start, col_start = src.index(minx, maxy)
+        row_stop, col_stop = src.index(maxx, miny)
+
+        # Define the window to read
+        window = Window.from_slices(
+            (row_start, row_stop),
+            (col_start, col_stop)
+        )
+        transform = src.window_transform(window)
+
+        # Read the data within the window
+        data = src.read(window=window)
+
+        # Create a temporary file to store the clipped raster
+        temp_dir = tempfile.gettempdir()
+        temp_file_path = os.path.join(temp_dir, f"{uuid.uuid4().hex}.tif")
+
+        # Write the clipped raster to the temporary file
+        profile = src.profile
+        profile.update({
+            "height": data.shape[1],
+            "width": data.shape[2],
+            "transform": transform
+        })
+
+        with rasterio.open(temp_file_path, "w", **profile) as dst:
+            dst.write(data)
+
+    return temp_file_path
