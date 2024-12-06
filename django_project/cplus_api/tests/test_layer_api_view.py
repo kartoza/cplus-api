@@ -2,8 +2,8 @@ import os
 import uuid
 import mock
 from django.contrib.gis.geos import Polygon
-from django.http import StreamingHttpResponse
 from django.test import override_settings
+from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
@@ -977,17 +977,21 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         request.resolver_match = FakeResolverMatchV1
         response = view(request)
         self.assertEqual(response.status_code, 200)
-        self.assertIsInstance(response, StreamingHttpResponse)
+        self.assertIn('X-Accel-Redirect', response.headers)
+        file_path = os.path.join(
+            settings.TEMPORARY_LAYER_DIR,
+            response.headers['X-Accel-Redirect'].replace('/userfiles/', '')
+        )
+        self.assertTrue(os.path.exists(file_path))
         # Test the streamed content
-        content = b"".join(response.streaming_content)
-        from rasterio.io import MemoryFile
+        import rasterio
 
-        with MemoryFile(content) as memfile:
-            with memfile.open() as dataset:
-                expected_area = 0.01331516565230782
-                bbox_polygon = Polygon.from_bbox(dataset.bounds)
-                self.assertAlmostEqual(
-                    bbox_polygon.area,
-                    expected_area,
-                    places=3
-                )
+        with rasterio.open(file_path) as dataset:
+            expected_area = 0.01331516565230782
+            bbox_polygon = Polygon.from_bbox(dataset.bounds)
+            self.assertAlmostEqual(
+                bbox_polygon.area,
+                expected_area,
+                places=3
+            )
+        os.remove(file_path)

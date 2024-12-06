@@ -10,11 +10,13 @@ from django.core.paginator import Paginator
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.conf import settings
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from cplus_api.models.layer import (
     BaseLayer, InputLayer, input_layer_dir_path,
-    select_input_layer_storage, MultipartUpload
+    select_input_layer_storage, MultipartUpload,
+    TemporaryLayer
 )
 from cplus_api.models.profile import UserProfile
 from cplus_api.serializers.layer import (
@@ -797,33 +799,6 @@ class ReferenceLayerDownload(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
-    def _stream_response(self, file_path):
-        # Stream the clipped file as a response
-        def file_iterator(fp, chunk_size=8192):
-            with open(fp, 'rb') as file:
-                while chunk := file.read(chunk_size):
-                    yield chunk
-
-        response = StreamingHttpResponse(
-            file_iterator(file_path),
-            content_type="application/octet-stream"
-        )
-        response['Content-Disposition'] = ('attachment; filename'
-                                           '="reference_layer.tif"')
-
-        # Clean up the temporary file after the response is completed
-        response['X-Accel-Buffering'] = 'no'
-
-        def close_response(fp: str):
-            # if file path starts with /tmp/reference_layer/,
-            # it means it is the original/unclipped file.
-            # Do not remove it.
-            if not fp.startswith('/tmp/reference_layer/'):
-                os.remove(fp)
-
-        response.close = close_response
-        return response
-
     @swagger_auto_schema(
         operation_id='reference-layer-download',
         operation_description='API to download and crop reference layer.',
@@ -847,11 +822,18 @@ class ReferenceLayerDownload(APIView):
             ).first()
         if reference_layer.is_available():
             basename = os.path.basename(reference_layer.file.name)
-            file_path = os.path.join('tmp', 'reference_layer', basename)
+            file_path = os.path.join(
+                settings.TEMPORARY_LAYER_DIR,
+                'reference_layer',
+                basename
+            )
             if not os.path.exists(file_path):
                 file_path = reference_layer.download_to_working_directory(
-                    '/tmp/'
+                    settings.TEMPORARY_LAYER_DIR
                 )
+            x_accel_redirect = os.path.join('reference_layer', basename)
+            file_name = basename
+
             if 'bbox' in request.query_params:
                 bbox = request.query_params.get('bbox')
                 bbox = bbox.replace(' ', '').split(',')
@@ -876,8 +858,34 @@ class ReferenceLayerDownload(APIView):
                 # Convert the expanded bounding box to a Polygon
                 expanded_polygon = Polygon.from_bbox(expanded_bbox)
 
-                file_path = clip_raster(file_path, expanded_polygon.extent)
-            return self._stream_response(file_path)
+                # Clip the raster
+                file_path = clip_raster(
+                    file_path,
+                    expanded_polygon.extent,
+                    settings.TEMPORARY_LAYER_DIR
+                )
+
+                # Create temporary layer object
+                TemporaryLayer.objects.create(
+                    file_name=os.path.basename(file_path),
+                    size=os.path.getsize(file_path)
+                )
+                file_name = os.path.basename(file_path)
+                x_accel_redirect = file_name
+
+            # fix issue nginx unable to read file
+            os.chmod(file_path , 0o644)
+            response = Response(status=200)
+            response['Content-type']= "application/octet-stream"
+            response['X-Accel-Redirect'] = (
+                f'/userfiles/{x_accel_redirect}'
+            )
+            response['Content-Disposition'] = (
+                f'attachment; filename="{file_name}"'
+            )
+
+            return response
+
         return Response(
             data={'detail': 'Reference layer is not available.'},
             status=404
