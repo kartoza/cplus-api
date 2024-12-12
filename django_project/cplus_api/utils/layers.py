@@ -155,6 +155,7 @@ class ProcessFile:
                     self.input_layer.metadata = metadata
 
                     if self.source == InputLayer.LayerSources.NATURE_BASE:
+                        self.input_layer.layer_type = 0
                     else:
                         self.input_layer.file.name = self.file['Key']
 
