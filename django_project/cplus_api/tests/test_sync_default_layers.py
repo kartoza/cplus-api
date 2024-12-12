@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 import time
 from datetime import timedelta
@@ -58,7 +59,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         )
         dest_path = (
             f'/home/web/media/minio_test/{COMMON_LAYERS_DIR}/'
-            f'{InputLayer.ComponentTypes.NCS_PATHWAY}/test_pathway_2.tif'
+            f'{InputLayer.ComponentTypes.NCS_PATHWAY}/cplus/test_pathway_2.tif'
         )
         os.makedirs(os.path.dirname(dest_path), exist_ok=True)
         copyfile(source_path, dest_path)
@@ -173,27 +174,20 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         autospec=True
     )
     def test_invalid_input_layers_not_created(self, mock_sync_nature_base):
+        shutil.rmtree(f"/home/web/media/minio_test/{COMMON_LAYERS_DIR}/")
         source_path = absolute_path(
             'cplus_api', 'tests', 'data',
-            'pathways', 'test_pathway_2.tif'
+            'mask_layers', 'shapefile.zip'
         )
         dest_path = (
             f'/home/web/media/minio_test/{COMMON_LAYERS_DIR}/'
-            f'{InputLayer.ComponentTypes.NCS_PATHWAY}/test_pathway_2.tif'
+            f'{InputLayer.ComponentTypes.NCS_PATHWAY}/cplus/test_pathway_2.tif'
         )
         os.makedirs(os.path.dirname(dest_path), exist_ok=True)
         copyfile(source_path, dest_path)
-        with patch.object(
-                ProcessFile, 'read_metadata', autospec=True
-        ) as mock_read_metadata:
-            mock_read_metadata.side_effect = [
-                RasterioIOError('error'),
-                RasterioIOError('error'),
-                RasterioIOError('error')
-            ]
-            sync_default_layers()
 
-            self.assertFalse(InputLayer.objects.exists())
+        sync_default_layers()
+        self.assertFalse(InputLayer.objects.exists())
 
     @patch(
         'cplus_api.utils.layers.sync_nature_base',
@@ -228,17 +222,21 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         )
         dest_path = (
             f'/home/web/media/minio_test/{COMMON_LAYERS_DIR}/'
-            f'{InputLayer.ComponentTypes.NCS_PATHWAY}/test_pathway_2.tif'
+            f'{InputLayer.ComponentTypes.NCS_PATHWAY}/cplus/test_pathway_2.tif'
         )
         os.makedirs(os.path.dirname(dest_path), exist_ok=True)
         copyfile(source_path, dest_path)
 
         storage = S3Storage(bucket_name='test-bucket')
+        storage.location = '/home/web/media/minio_test'
         s3_client = MagicMock()
         s3_client.list_objects.return_value = {
             'Contents': [
                 {
-                    'Key': 'common_layers/ncs_pathway/test_pathway_2.tif',
+                    'Key': (
+                        'common_layers/ncs_pathway/'
+                        'cplus/test_pathway_2.tif'
+                    ),
                     'LastModified': timezone.now() + timedelta(days=1)
                 }
             ]

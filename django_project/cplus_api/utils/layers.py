@@ -1,6 +1,8 @@
 import os
 import tempfile
+
 import typing
+from pathlib import Path
 from datetime import datetime
 from zipfile import ZipFile
 
@@ -98,7 +100,7 @@ class ProcessFile:
             profile = dataset.profile
 
             # Set the new nodata value in the profile
-            profile.update(nodata=new_nodata_value)
+            profile.update(nodata=new_nodata_value, dtype='float32')
 
             with tempfile.NamedTemporaryFile() as tmpfile:
                 file_path = tmpfile.name
@@ -109,6 +111,7 @@ class ProcessFile:
                     for idx, window in dataset.block_windows():
                         # Read the data for the current block
                         block_data = dataset.read(window=window)
+                        block_data = block_data.astype('float32')
 
                         # Replace nodata values in the block
                         block_data[block_data == dataset.nodata] = (
@@ -152,15 +155,27 @@ class ProcessFile:
                     self.input_layer.metadata = metadata
 
                     if self.source == InputLayer.LayerSources.NATURE_BASE:
-                        with open(file_path, 'rb') as layer:
-                            self.input_layer.file.save(
-                                os.path.basename(self.file['Key']),
-                                layer
-                            )
                         self.input_layer.layer_type = 0
                     else:
                         self.input_layer.file.name = self.file['Key']
+
                     self.input_layer.size = os.path.getsize(file_path)
+                    with open(file_path, 'rb') as layer:
+                        storage = select_input_layer_storage()
+                        if self.input_layer.file:
+                            try:
+                                os.remove(
+                                    os.path.join(
+                                        storage.location,
+                                        self.input_layer.file.name
+                                    )
+                                )
+                            except OSError:
+                                pass
+                        self.input_layer.file.save(
+                            os.path.basename(self.file['Key']),
+                            layer
+                        )
                     self.input_layer.source = self.source
                     self.input_layer.save()
 
@@ -220,7 +235,10 @@ class ProcessFile:
                         ):
                             self.input_layer.delete()
                     else:
-                        os.remove(download_path)
+                        try:
+                            os.remove(download_path)
+                        except OSError:
+                            pass
                         break
             else:
                 iteration = 0
@@ -294,7 +312,9 @@ def sync_nature_base():
                 url = result['cog_url'] or result['download_links'][0]['url']
                 file = {
                     "Key": (
-                        f"common_layers/ncs_pathway/{os.path.basename(url)}"
+                        f"common_layers/ncs_pathway/"
+                        f"{InputLayer.LayerSources.NATURE_BASE}/"
+                        f"{os.path.basename(url)}"
                     ),
                     "LastModified": last_modified,
                     "url": url
@@ -321,26 +341,28 @@ def sync_cplus_layers():
     ).values_list('file', flat=True)
     if isinstance(storage, FileSystemStorage):
         media_root = storage.location or settings.MEDIA_ROOT
-        for component_type in component_types:
-            component_path = os.path.join(
-                media_root, COMMON_LAYERS_DIR, component_type
+        results = list(
+            Path(
+                os.path.join(media_root, COMMON_LAYERS_DIR)
+            ).rglob("*.tif")
+        )
+
+        for layer in results:
+            layer = str(layer)
+            key = layer.replace(media_root + '/', '')
+            component_type = key.split('/')[1]
+            if key in non_cplus_layer_keys:
+                continue
+            download_path = os.path.join(media_root, key)
+            last_modified = datetime.fromtimestamp(
+                os.path.getmtime(download_path),
+                tz=timezone.now().tzinfo
             )
-            os.makedirs(component_path, exist_ok=True)
-            layers = os.listdir(component_path)
-            for layer in layers:
-                key = f"{COMMON_LAYERS_DIR}/{component_type}/{layer}"
-                if key in non_cplus_layer_keys:
-                    continue
-                download_path = os.path.join(media_root, key)
-                last_modified = datetime.fromtimestamp(
-                    os.path.getmtime(download_path),
-                    tz=timezone.now().tzinfo
-                )
-                file = {
-                    "Key": key,
-                    "LastModified": last_modified
-                }
-                ProcessFile(storage, owner, component_type, file).run()
+            file = {
+                "Key": key,
+                "LastModified": last_modified
+            }
+            ProcessFile(storage, owner, component_type, file).run()
     else:
         boto3_client = storage.connection.meta.client
         for component_type in component_types:

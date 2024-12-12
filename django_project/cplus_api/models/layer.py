@@ -283,7 +283,7 @@ class InputLayer(BaseLayer):
         self.save(update_fields=['size'])
         if self.is_in_correct_directory():
             return
-        self.move_file()
+        self.move_file_location()
 
 
 class OutputLayer(BaseLayer):
@@ -371,7 +371,7 @@ def save_input_layer(sender, instance, created, **kwargs):
     from cplus_api.tasks.move_input_layer_file import move_input_layer_file
     if not created:
         if getattr(instance, 'move_file', False):
-            move_input_layer_file(instance.uuid)
+            move_input_layer_file.delay(instance.uuid)
 
 
 @receiver(post_delete, sender=TemporaryLayer)
