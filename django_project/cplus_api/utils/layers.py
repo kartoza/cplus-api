@@ -353,7 +353,7 @@ def sync_cplus_layers():
 
         for layer in results:
             layer = str(layer)
-            key = layer.replace(media_root+'/', '')
+            key = layer.replace(media_root + '/', '')
             component_type = key.split('/')[1]
             if key in non_cplus_layer_keys:
                 continue
