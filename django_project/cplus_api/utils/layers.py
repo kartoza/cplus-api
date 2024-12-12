@@ -343,12 +343,11 @@ def sync_cplus_layers():
                 ProcessFile(storage, owner, component_type, file).run()
     else:
         boto3_client = storage.connection.meta.client
-        for component_type in ['reference_layer']:
+        for component_type in component_types:
             response = boto3_client.list_objects(
                 Bucket=storage.bucket_name,
                 Prefix=f"{COMMON_LAYERS_DIR}/{component_type}"
             )
-
             for file in response.get('Contents', []):
                 if file['Key'] in non_cplus_layer_keys:
                     continue
