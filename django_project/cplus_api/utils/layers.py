@@ -98,7 +98,7 @@ class ProcessFile:
             profile = dataset.profile
 
             # Set the new nodata value in the profile
-            profile.update(nodata=new_nodata_value)
+            profile.update(nodata=new_nodata_value, dtype='float32')
 
             with tempfile.NamedTemporaryFile() as tmpfile:
                 file_path = tmpfile.name
@@ -109,6 +109,7 @@ class ProcessFile:
                     for idx, window in dataset.block_windows():
                         # Read the data for the current block
                         block_data = dataset.read(window=window)
+                        block_data = block_data.astype('float32')
 
                         # Replace nodata values in the block
                         block_data[block_data == dataset.nodata] = (
@@ -152,15 +153,20 @@ class ProcessFile:
                     self.input_layer.metadata = metadata
 
                     if self.source == InputLayer.LayerSources.NATURE_BASE:
-                        with open(file_path, 'rb') as layer:
-                            self.input_layer.file.save(
-                                os.path.basename(self.file['Key']),
-                                layer
-                            )
                         self.input_layer.layer_type = 0
                     else:
                         self.input_layer.file.name = self.file['Key']
+                    print('Finish update tiff: ', timezone.now())
                     self.input_layer.size = os.path.getsize(file_path)
+                    # correct_path = self.input_layer.upload_file(file_path)
+                    # print('Finish upload file: ', timezone.now())
+                    # self.input_layer.file.name = correct_path
+                    with open(file_path, 'rb') as layer:
+                        self.input_layer.file.save(
+                            os.path.basename(self.file['Key']),
+                            layer
+                        )
+                    print('Finish upload file: ', timezone.now())
                     self.input_layer.source = self.source
                     self.input_layer.save()
 
@@ -343,11 +349,12 @@ def sync_cplus_layers():
                 ProcessFile(storage, owner, component_type, file).run()
     else:
         boto3_client = storage.connection.meta.client
-        for component_type in component_types:
+        for component_type in ['reference_layer']:
             response = boto3_client.list_objects(
                 Bucket=storage.bucket_name,
                 Prefix=f"{COMMON_LAYERS_DIR}/{component_type}"
             )
+
             for file in response.get('Contents', []):
                 if file['Key'] in non_cplus_layer_keys:
                     continue

@@ -1,4 +1,5 @@
 from celery import shared_task
+from django.utils import timezone
 
 
 @shared_task(name="sync_default_layers")
@@ -15,3 +16,4 @@ def sync_default_layers():
     delete_invalid_default_layers()
     sync_nature_base()
     sync_cplus_layers()
+
