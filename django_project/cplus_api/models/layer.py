@@ -276,40 +276,6 @@ class InputLayer(BaseLayer):
         self.file.name = correct_path
         self.save(update_fields=['file'])
 
-    def upload_file(self, file_path: str) -> str:
-        """
-        Upload file specified in the file_path to the correct
-        storage location of the InputLayer object
-
-        :param file_path: File path of the file to be uploaded
-        :type file_path: str
-        :return: Correct path of the uploaded file
-        :rtype: str
-        """
-        correct_path = input_layer_dir_path(self, self.name)
-        old_path = self.file.name
-        storage = select_input_layer_storage()
-        if isinstance(storage, FileSystemStorage):
-            full_correct_path = os.path.join(storage.location, correct_path)
-            dirname = os.path.split(full_correct_path)[0]
-            os.makedirs(dirname, exist_ok=True)
-            shutil.move(
-                file_path,
-                full_correct_path
-            )
-            os.remove(os.path.join(storage.location, old_path))
-        else:
-            boto3_client = storage.connection.meta.client
-            boto3_client.upload_file(
-                file_path,
-                storage.bucket_name,
-                correct_path
-            )
-            boto3_client.delete_object(
-                Bucket=storage.bucket_name, Key=old_path
-            )
-        return correct_path
-
     def fix_layer_metadata(self):
         if not self.is_available():
             return

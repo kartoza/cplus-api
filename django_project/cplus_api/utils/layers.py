@@ -156,17 +156,11 @@ class ProcessFile:
                         self.input_layer.layer_type = 0
                     else:
                         self.input_layer.file.name = self.file['Key']
-                    print('Finish update tiff: ', timezone.now())
-                    self.input_layer.size = os.path.getsize(file_path)
-                    # correct_path = self.input_layer.upload_file(file_path)
-                    # print('Finish upload file: ', timezone.now())
-                    # self.input_layer.file.name = correct_path
                     with open(file_path, 'rb') as layer:
                         self.input_layer.file.save(
                             os.path.basename(self.file['Key']),
                             layer
                         )
-                    print('Finish upload file: ', timezone.now())
                     self.input_layer.source = self.source
                     self.input_layer.save()
 
