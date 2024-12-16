@@ -813,12 +813,14 @@ class ReferenceLayerDownload(APIView):
         try:
             reference_layer = get_object_or_404(
                 InputLayer,
-                component_type=InputLayer.ComponentTypes.REFERENCE_LAYER
+                component_type=InputLayer.ComponentTypes.REFERENCE_LAYER,
+                file__isnull=False
             )
         except MultipleObjectsReturned:
             reference_layer = InputLayer.objects.filter(
                 component_type=InputLayer.ComponentTypes.REFERENCE_LAYER
-            ).first()
+            ).last()
+        breakpoint()
         if reference_layer.is_available():
             basename = os.path.basename(reference_layer.file.name)
             file_path = os.path.join(
@@ -863,6 +865,7 @@ class ReferenceLayerDownload(APIView):
                     expanded_polygon.extent,
                     settings.TEMPORARY_LAYER_DIR
                 )
+                breakpoint()
 
                 # Create temporary layer object
                 TemporaryLayer.objects.create(
