@@ -100,6 +100,11 @@ Then we can trigger below task to sync into InputLayers table.
 ![Sync Defeault Layer Task](docs/assets/cplus_api_task_1.png)
 
 
+#### CPLUS Core Package
+
+This repository is using CPLUS Core package for the analysis. You can find the repository [here](https://github.com/kartoza/cplus-core).
+
+
 ## 🤝 Contributing
 Contributions are welcome! Please read our contributing guide to learn how you can get involved and help improve this project.
 
