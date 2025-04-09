@@ -73,6 +73,33 @@ We can run the API using runner configration in VSCode `Django: Run server`.
 3. Optional - Set DEBUG to true (2) 
 
 
+#### Syncing Default Layers
+
+CPLUS API needs default layers for online processing. The layers are provided by the CI Team and it's uploaded to AWS S3 bucket. The other layer type is Nature Base layers which are downloaded by cron job.
+
+For CPLUS layers, we need to upload the layers in Minio `cplus` bucket with below structures:
+
+```
+common_layers/
+├── ncs_carbon/
+│   ├── cplus/
+│   │   └── Bou_SOC_norm_inverse.tif  
+│   └── naturebase/
+├── ncs_pathway/
+│   ├── cplus/
+│   │   └── Agroforestry_Priority_norm.tif
+│   └── naturebase/
+└── priority_layer/
+│   ├── cplus/
+│   │   └── Biodiversity.tif
+│   └── naturebase/
+```
+
+Then we can trigger below task to sync into InputLayers table.
+
+![Sync Defeault Layer Task](docs/assets/cplus_api_task_1.png)
+
+
 ## 🤝 Contributing
 Contributions are welcome! Please read our contributing guide to learn how you can get involved and help improve this project.
 
