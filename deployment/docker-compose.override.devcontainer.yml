@@ -14,7 +14,7 @@ services:
   worker:
     image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_worker_dev
     build:
-      context: ../
+      context: ${PWD}/
       dockerfile: deployment/docker/Dockerfile
       target: worker
     volumes:
@@ -26,7 +26,7 @@ services:
   celery_beat:
     image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_worker_dev
     build:
-      context: ../
+      context: ${PWD}/
       dockerfile: deployment/docker/Dockerfile
       target: worker
     volumes:
@@ -36,7 +36,7 @@ services:
   dev:
     image: kartoza/${COMPOSE_PROJECT_NAME:-django_project}_dev
     build:
-      context: ../
+      context: ${PWD}/
       dockerfile: deployment/docker/Dockerfile
       target: vscode
     entrypoint: []
