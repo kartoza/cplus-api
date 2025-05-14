@@ -66,6 +66,14 @@ LAYER_SCHEMA_FIELDS = {
             title='ID given by client',
             type=openapi.TYPE_STRING,
         ),
+        'license': openapi.Schema(
+            title='Layer License',
+            type=openapi.TYPE_STRING
+        ),
+        'version': openapi.Schema(
+            title='Layer Version',
+            type=openapi.TYPE_STRING
+        ),
     },
     'required': [
         'filename', 'size', 'uuid', 'layer_type',
@@ -81,7 +89,9 @@ LAYER_SCHEMA_FIELDS = {
         'created_by': 'admin@admin.com',
         'created_on': '2022-08-15T08:09:15.049806Z',
         'url': '',
-        'client_id': ''
+        'client_id': '',
+        'license': 'CC BY 4.0',
+        'version': '1.0.0'
     }
 }
 
@@ -188,7 +198,8 @@ class InputLayerSerializer(serializers.ModelSerializer):
             'uuid', 'filename', 'created_on',
             'created_by', 'layer_type', 'size',
             'url', 'component_type', 'privacy_type',
-            'client_id', 'metadata', 'description'
+            'client_id', 'metadata', 'description', 
+            'license', 'version'
         ]
 
 
@@ -287,6 +298,10 @@ class UploadLayerSerializer(serializers.Serializer):
                     title='Layer file name',
                     type=openapi.TYPE_STRING
                 ),
+                'description': openapi.Schema(
+                    title='Layer description',
+                    type=openapi.TYPE_STRING
+                ),
                 'size': openapi.Schema(
                     title='Layer file size',
                     type=openapi.TYPE_INTEGER
@@ -299,7 +314,7 @@ class UploadLayerSerializer(serializers.Serializer):
             },
             'required': [
                 'layer_type', 'component_type', 'privacy_type',
-                'name', 'size'
+                'name', 'size', 'description'
             ]
         }
 
@@ -416,3 +431,52 @@ class PaginatedOutputLayerSerializer(serializers.Serializer):
 
 class OutputLayerListSerializer(serializers.ListSerializer):
     child = OutputLayerSerializer()
+
+
+class UpdateLayerInputSerializer(serializers.ModelSerializer):
+    class Meta:
+        swagger_schema_fields = copy.deepcopy(LAYER_SCHEMA_FIELDS)
+        swagger_schema_fields.update({
+            "required": [], 
+            'example': {
+                'name': 'Final Alien Invasive Plant priority norm',
+                'description': 'Description for Final Alien Invasive Plant priority norm',
+                'layer_type': 0,
+                'component_type': 'ncs_pathway',
+                'privacy_type': 'common',
+                'client_id': '',
+                'license': 'CC BY 4.0',
+                'version': '1.0.0'
+            }
+        })
+        # Remove filename from the schema and rename it to name
+        swagger_schema_fields['properties'].pop('filename')
+        swagger_schema_fields['properties'].update({
+            'name': openapi.Schema(
+                title='Layer Name',
+                type=openapi.TYPE_STRING
+            ),
+            'description': openapi.Schema(
+                title='Layer Name',
+                type=openapi.TYPE_STRING
+            )
+        })
+        """ Remove url, size from the schema since they dependent on the file
+            and not needed for update 
+        """
+        swagger_schema_fields['properties'].pop('url')
+        swagger_schema_fields['properties'].pop('size')
+
+        """ Remove created_on, created_by from the schema since they are 
+            not needed for update
+        """
+        swagger_schema_fields['properties'].pop('uuid')
+        swagger_schema_fields['properties'].pop('created_on')
+        swagger_schema_fields['properties'].pop('created_by')
+
+        model = InputLayer
+        fields = [
+            'name', 'layer_type', 'component_type', 'privacy_type',
+            'description', 'license', 'version'
+        ]
+
