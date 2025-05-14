@@ -317,7 +317,7 @@ class UploadLayerSerializer(serializers.Serializer):
             },
             'required': [
                 'layer_type', 'component_type', 'privacy_type',
-                'name', 'size', 'description'
+                'name', 'size'
             ]
         }
 
