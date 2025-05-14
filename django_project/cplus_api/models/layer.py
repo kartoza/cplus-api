@@ -169,9 +169,8 @@ class InputLayer(BaseLayer):
     )
 
     license = models.TextField(
-        null=False,
-        blank=True,
-        default=''
+        null=True,
+        blank=True
     )
 
     def __str__(self):
