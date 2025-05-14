@@ -252,6 +252,10 @@ class UploadLayerSerializer(serializers.Serializer):
 
     description = serializers.CharField(required=False, allow_blank=True,
                                         allow_null=True)
+    license = serializers.CharField(required=False, allow_blank=True,
+                                    allow_null=True)
+    version = serializers.CharField(required=False, allow_blank=True,
+                                    allow_null=True)
 
     class Meta:
         swagger_schema_fields = {
@@ -313,7 +317,15 @@ class UploadLayerSerializer(serializers.Serializer):
                     title='Number of parts for multipart upload.',
                     type=openapi.TYPE_INTEGER,
                     default=0
-                )
+                ),
+                'license': openapi.Schema(
+                    title='Layer License',
+                    type=openapi.TYPE_STRING
+                ),
+                'version': openapi.Schema(
+                    title='Layer Version',
+                    type=openapi.TYPE_STRING
+                ),
             },
             'required': [
                 'layer_type', 'component_type', 'privacy_type',
