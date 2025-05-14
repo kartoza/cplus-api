@@ -250,6 +250,9 @@ class UploadLayerSerializer(serializers.Serializer):
     size = serializers.IntegerField(required=True, min_value=1)
     number_of_parts = serializers.IntegerField(required=False, default=0)
 
+    description = serializers.CharField(required=False, allow_blank=True,
+                                        allow_null=True)
+
     class Meta:
         swagger_schema_fields = {
             'type': openapi.TYPE_OBJECT,
