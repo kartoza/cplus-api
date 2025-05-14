@@ -74,6 +74,10 @@ LAYER_SCHEMA_FIELDS = {
             title='Layer Version',
             type=openapi.TYPE_STRING
         ),
+        'description': openapi.Schema(
+            title='Layer Description',
+            type=openapi.TYPE_STRING
+        ),
     },
     'required': [
         'filename', 'size', 'uuid', 'layer_type',
@@ -81,6 +85,7 @@ LAYER_SCHEMA_FIELDS = {
     ],
     'example': {
         'filename': 'Final_Alien_Invasive_Plant_priority_norm.tif',
+        'description': 'Description for layer',
         'size': 100000000,
         'uuid': '8c4582ab-15b1-4ed0-b8e4-00640ec10a65',
         'layer_type': 0,
@@ -468,10 +473,6 @@ class UpdateLayerInputSerializer(serializers.ModelSerializer):
         swagger_schema_fields['properties'].pop('filename')
         swagger_schema_fields['properties'].update({
             'name': openapi.Schema(
-                title='Layer Name',
-                type=openapi.TYPE_STRING
-            ),
-            'description': openapi.Schema(
                 title='Layer Name',
                 type=openapi.TYPE_STRING
             )
