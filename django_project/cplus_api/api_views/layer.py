@@ -659,10 +659,10 @@ class LayerDetail(APIView):
                 f"You are not allowed to delete layer {layer_uuid}!")
         input_layer.delete()
         return Response(status=204)
-    
+
     @swagger_auto_schema(
         operation_id='layer-update-partial',
-        operation_description='API to update input layer properties partially.',
+        operation_description='Partially Update InputLayer.',
         tags=[LAYER_API_TAG],
         manual_parameters=[PARAM_LAYER_UUID_IN_PATH],
         request_body=UpdateLayerInputSerializer,
@@ -681,7 +681,7 @@ class LayerDetail(APIView):
             raise PermissionDenied(
                 f"You are not allowed to update layer {layer_uuid}!"
             )
-        
+
         layer_param = UpdateLayerInputSerializer(
             data=request.data, partial=True
         )
@@ -692,7 +692,10 @@ class LayerDetail(APIView):
             update_fields.append(field)
 
         input_layer.save(update_fields=update_fields)
-        return Response(status=200, data=InputLayerSerializer(input_layer).data)
+        return Response(
+            status=200,
+            data=InputLayerSerializer(input_layer).data
+        )
 
 
 class CheckLayer(APIView):

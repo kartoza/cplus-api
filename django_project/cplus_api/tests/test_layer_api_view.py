@@ -304,7 +304,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         self.assertEqual(response.status_code, 200)
         input_layer.refresh_from_db()
         self.assertEqual(input_layer.name, 'test_name')
-    
+
     def test_layer_upload(self):
         view = LayerUpload.as_view()
         file_path = absolute_path(

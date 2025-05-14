@@ -198,7 +198,7 @@ class InputLayerSerializer(serializers.ModelSerializer):
             'uuid', 'filename', 'created_on',
             'created_by', 'layer_type', 'size',
             'url', 'component_type', 'privacy_type',
-            'client_id', 'metadata', 'description', 
+            'client_id', 'metadata', 'description',
             'license', 'version'
         ]
 
@@ -437,10 +437,10 @@ class UpdateLayerInputSerializer(serializers.ModelSerializer):
     class Meta:
         swagger_schema_fields = copy.deepcopy(LAYER_SCHEMA_FIELDS)
         swagger_schema_fields.update({
-            "required": [], 
+            "required": [],
             'example': {
                 'name': 'Final Alien Invasive Plant priority norm',
-                'description': 'Description for Final Alien Invasive Plant priority norm',
+                'description': 'Description for layer',
                 'layer_type': 0,
                 'component_type': 'ncs_pathway',
                 'privacy_type': 'common',
@@ -462,12 +462,12 @@ class UpdateLayerInputSerializer(serializers.ModelSerializer):
             )
         })
         """ Remove url, size from the schema since they dependent on the file
-            and not needed for update 
+            and not needed for update
         """
         swagger_schema_fields['properties'].pop('url')
         swagger_schema_fields['properties'].pop('size')
 
-        """ Remove created_on, created_by from the schema since they are 
+        """ Remove created_on, created_by from the schema since they are
             not needed for update
         """
         swagger_schema_fields['properties'].pop('uuid')
@@ -479,4 +479,3 @@ class UpdateLayerInputSerializer(serializers.ModelSerializer):
             'name', 'layer_type', 'component_type', 'privacy_type',
             'description', 'license', 'version'
         ]
-
