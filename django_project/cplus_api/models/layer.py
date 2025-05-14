@@ -87,7 +87,7 @@ class BaseLayer(models.Model):
 
     layer_type = models.IntegerField(choices=LayerTypes.choices)
 
-    size = models.IntegerField(
+    size = models.BigIntegerField(
         null=True,
         blank=True,
         default=0
@@ -359,7 +359,7 @@ class TemporaryLayer(models.Model):
         max_length=512,
         help_text='File name that is stored in TEMPORARY_LAYER_DIR.'
     )
-    size = models.IntegerField()
+    size = models.BigIntegerField()
     created_on = models.DateTimeField(auto_now_add=True)
 
 
