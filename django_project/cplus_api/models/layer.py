@@ -162,6 +162,17 @@ class InputLayer(BaseLayer):
         default=LayerSources.CPLUS
     )
 
+    version = models.CharField(
+        max_length=512,
+        null=True,
+        blank=True
+    )
+
+    license = models.TextField(
+        null=True,
+        blank=True
+    )
+
     def __str__(self):
         return f"{self.name} - {self.component_type}"
 

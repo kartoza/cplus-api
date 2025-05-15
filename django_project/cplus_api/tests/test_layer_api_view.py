@@ -270,6 +270,41 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         )
         self.assertFalse(input_layer.is_available())
 
+    def test_layer_update_partial(self):
+        view = LayerDetail.as_view()
+        input_layer = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.PRIVATE
+        )
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'models', 'test_model_1.tif'
+        )
+        self.store_layer_file(input_layer, file_path)
+        layer_uuid = input_layer.uuid
+        kwargs = {
+            'layer_uuid': str(layer_uuid)
+        }
+        # forbidden
+        request = self.factory.patch(
+            reverse('v1:layer-detail', kwargs=kwargs),
+            data={'name': 'test_name'}
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 403)
+        # successful
+        request = self.factory.patch(
+            reverse('v1:layer-detail', kwargs=kwargs),
+            data={'name': 'test_name'}
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 200)
+        input_layer.refresh_from_db()
+        self.assertEqual(input_layer.name, 'test_name')
+
     def test_layer_upload(self):
         view = LayerUpload.as_view()
         file_path = absolute_path(

@@ -22,6 +22,7 @@ from cplus_api.serializers.layer import (
     InputLayerSerializer,
     PaginatedInputLayerSerializer,
     UploadLayerSerializer,
+    UpdateLayerInputSerializer,
     FinishUploadLayerSerializer,
     LAYER_SCHEMA_FIELDS,
     InputLayerListSerializer
@@ -208,10 +209,18 @@ class BaseLayerUpload(APIView):
             )
             input_layer.client_id = upload_param.validated_data.get(
                 'client_id', None)
+            input_layer.version = upload_param.validated_data.get(
+                'version',
+                None
+            )
+            input_layer.license = upload_param.validated_data.get(
+                'license',
+                None
+            )
             input_layer.save(update_fields=[
                 'name', 'created_on', 'owner', 'layer_type',
                 'size', 'component_type', 'privacy_type',
-                'client_id'
+                'client_id', 'version', 'license'
             ])
         else:
             input_layer = InputLayer.objects.create(
@@ -222,7 +231,9 @@ class BaseLayerUpload(APIView):
                 size=upload_param.validated_data['size'],
                 component_type=upload_param.validated_data['component_type'],
                 privacy_type=upload_param.validated_data['privacy_type'],
-                client_id=upload_param.validated_data.get('client_id', None)
+                client_id=upload_param.validated_data.get('client_id', None),
+                version=upload_param.validated_data.get('version', None),
+                license=upload_param.validated_data.get('license', None)
             )
         return input_layer, is_new
 
@@ -648,6 +659,43 @@ class LayerDetail(APIView):
                 f"You are not allowed to delete layer {layer_uuid}!")
         input_layer.delete()
         return Response(status=204)
+
+    @swagger_auto_schema(
+        operation_id='layer-update-partial',
+        operation_description='Partially Update InputLayer.',
+        tags=[LAYER_API_TAG],
+        manual_parameters=[PARAM_LAYER_UUID_IN_PATH],
+        request_body=UpdateLayerInputSerializer,
+        responses={
+            200: UpdateLayerInputSerializer,
+            400: APIErrorSerializer,
+            403: APIErrorSerializer,
+            404: APIErrorSerializer
+        }
+    )
+    def patch(self, request, *args, **kwargs):
+        layer_uuid = kwargs.get('layer_uuid')
+        input_layer = get_object_or_404(
+            InputLayer, uuid=layer_uuid)
+        if not validate_layer_access(input_layer, request.user):
+            raise PermissionDenied(
+                f"You are not allowed to update layer {layer_uuid}!"
+            )
+
+        layer_param = UpdateLayerInputSerializer(
+            data=request.data, partial=True
+        )
+        layer_param.is_valid(raise_exception=True)
+        update_fields = []
+        for field, value in layer_param.validated_data.items():
+            setattr(input_layer, field, value)
+            update_fields.append(field)
+
+        input_layer.save(update_fields=update_fields)
+        return Response(
+            status=200,
+            data=InputLayerSerializer(input_layer).data
+        )
 
 
 class CheckLayer(APIView):
