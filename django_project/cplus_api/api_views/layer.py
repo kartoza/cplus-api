@@ -83,6 +83,21 @@ def validate_layer_access(input_layer: InputLayer, user):
     return input_layer.owner == user
 
 
+def validate_layer_manage(input_layer: InputLayer, user):
+    """Validate if user can manage(edit/delete) layer.
+
+    :param input_layer: input layer object
+    :type input_layer: InputLayer
+    :param user: user object
+    :type user: User
+    :return: True if user has permission to manage the layer
+    :rtype: bool
+    """
+    # Super user / owner / internal user can manage layer
+    return user.is_superuser or input_layer.owner == user \
+        or is_internal_user(user)
+
+
 class LayerList(APIView):
     """API to return available layers."""
     permission_classes = [IsAuthenticated]
@@ -654,9 +669,10 @@ class LayerDetail(APIView):
         layer_uuid = kwargs.get('layer_uuid')
         input_layer = get_object_or_404(
             InputLayer, uuid=layer_uuid)
-        if not validate_layer_access(input_layer, request.user):
+        if not validate_layer_manage(input_layer, request.user):
             raise PermissionDenied(
-                f"You are not allowed to delete layer {layer_uuid}!")
+                f"You are not allowed to delete layer {layer_uuid}!"
+            )
         input_layer.delete()
         return Response(status=204)
 
@@ -677,7 +693,7 @@ class LayerDetail(APIView):
         layer_uuid = kwargs.get('layer_uuid')
         input_layer = get_object_or_404(
             InputLayer, uuid=layer_uuid)
-        if not validate_layer_access(input_layer, request.user):
+        if not validate_layer_manage(input_layer, request.user):
             raise PermissionDenied(
                 f"You are not allowed to update layer {layer_uuid}!"
             )
