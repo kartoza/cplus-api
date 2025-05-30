@@ -171,9 +171,6 @@ class PriorityLayerSerializer(BaseLayerSerializer):
 
 
 class PathwaySerializer(BaseLayerSerializer):
-    carbon_uuids = serializers.ListField(
-        child=serializers.UUIDField()
-    )
 
     class Meta:
         swagger_schema_fields = {
@@ -181,13 +178,6 @@ class PathwaySerializer(BaseLayerSerializer):
             'title': 'Pathway',
             'properties': {
                 **BaseLayerSerializer.Meta.properties_fields,
-                'carbon_uuids': openapi.Schema(
-                    title='List of carbon layer UUID',
-                    type=openapi.TYPE_ARRAY,
-                    items=openapi.Items(
-                        type=openapi.TYPE_STRING
-                    )
-                ),
             }
         }
 
