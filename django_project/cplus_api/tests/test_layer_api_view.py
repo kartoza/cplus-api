@@ -1039,7 +1039,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
             privacy_type=InputLayer.PrivacyTypes.COMMON,
             component_type=InputLayer.ComponentTypes.REFERENCE_LAYER
         )
-        
+
         file_path = absolute_path(
             'cplus_api', 'tests', 'data',
             'priority_layer.tif'
