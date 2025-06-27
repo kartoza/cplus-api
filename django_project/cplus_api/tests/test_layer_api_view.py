@@ -1052,11 +1052,15 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         }
 
         request = self.factory.get(
-            f"{reverse('v1:default-priority-layer-download')}?bbox={bbox}",
-            kwargs=kwargs,
+            f"""{
+                reverse(
+                    'v1:default-priority-layer-download',
+                    kwargs=kwargs
+                )}?bbox={bbox}""",
             format='json'
         )
         request.resolver_match = FakeResolverMatchV1
+        request.user = self.user_1
         response = view(request)
         self.assertEqual(response.status_code, 200)
         self.assertIn('X-Accel-Redirect', response.headers)
