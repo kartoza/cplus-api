@@ -1037,7 +1037,7 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         view = DefaultLayerDownload.as_view()
         priority_layer = InputLayerF.create(
             privacy_type=InputLayer.PrivacyTypes.COMMON,
-            component_type=InputLayer.ComponentTypes.REFERENCE_LAYER
+            component_type=InputLayer.ComponentTypes.PRIORITY_LAYER
         )
 
         file_path = absolute_path(
@@ -1052,16 +1052,14 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         }
 
         request = self.factory.get(
-            f"""{
-                reverse(
+            f"""{reverse(
                     'v1:default-priority-layer-download',
                     kwargs=kwargs
-                )}?bbox={bbox}""",
-            format='json'
+                )}?bbox={bbox}"""
         )
         request.resolver_match = FakeResolverMatchV1
-        request.user = self.user_1
-        response = view(request)
+        request.user = self.superuser
+        response = view(request, **kwargs)
         self.assertEqual(response.status_code, 200)
         self.assertIn('X-Accel-Redirect', response.headers)
         file_path = os.path.join(
