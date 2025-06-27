@@ -26,7 +26,8 @@ from cplus_api.api_views.layer import (
     LayerUploadAbort,
     FetchLayerByClientId,
     DefaultLayerList,
-    ReferenceLayerDownload
+    ReferenceLayerDownload,
+    DefaultLayerDownload
 )
 from cplus_api.models.profile import UserProfile
 from cplus_api.utils.api_helper import convert_size
@@ -1023,6 +1024,52 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
 
         with rasterio.open(file_path) as dataset:
             expected_area = 0.01331516565230782
+            bbox_polygon = Polygon.from_bbox(dataset.bounds)
+            self.assertAlmostEqual(
+                bbox_polygon.area,
+                expected_area,
+                places=3
+            )
+        os.remove(file_path)
+
+    def test_pwl_layer_download(self):
+        bbox = '29.134295060,-31.158062261,29.279926683,-31.094568889'
+        view = DefaultLayerDownload.as_view()
+        priority_layer = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.COMMON,
+            component_type=InputLayer.ComponentTypes.REFERENCE_LAYER
+        )
+        
+        file_path = absolute_path(
+            'cplus_api', 'tests', 'data',
+            'priority_layer.tif'
+        )
+        self.store_layer_file(
+            priority_layer, file_path, priority_layer.name)
+
+        kwargs = {
+            'layer_uuid': str(priority_layer.uuid)
+        }
+
+        request = self.factory.get(
+            f"{reverse('v1:default-priority-layer-download')}?bbox={bbox}",
+            kwargs=kwargs,
+            format='json'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        response = view(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('X-Accel-Redirect', response.headers)
+        file_path = os.path.join(
+            settings.TEMPORARY_LAYER_DIR,
+            response.headers['X-Accel-Redirect'].replace('/userfiles/', '')
+        )
+        self.assertTrue(os.path.exists(file_path))
+        # Test the streamed content
+        import rasterio
+
+        with rasterio.open(file_path) as dataset:
+            expected_area = 0.00924664281410274
             bbox_polygon = Polygon.from_bbox(dataset.bounds)
             self.assertAlmostEqual(
                 bbox_polygon.area,
