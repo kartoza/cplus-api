@@ -1051,12 +1051,8 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
             'layer_uuid': str(priority_layer.uuid)
         }
 
-        request = self.factory.get(
-            f"""{reverse(
-                    'v1:default-priority-layer-download',
-                    kwargs=kwargs
-                )}?bbox={bbox}"""
-        )
+        endpoint = reverse('v1:default-priority-layer-download', kwargs=kwargs)
+        request = self.factory.get(f"""{endpoint}?bbox={bbox}""")
         request.resolver_match = FakeResolverMatchV1
         request.user = self.superuser
         response = view(request, **kwargs)
