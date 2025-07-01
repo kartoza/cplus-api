@@ -1075,3 +1075,29 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
                 places=3
             )
         os.remove(file_path)
+
+        # Test with non-overlapping bbox
+        non_overlapping_bbox = (
+            '28.1,-1.1,28.2,-1.0'
+        )
+        endpoint = reverse('v1:default-priority-layer-download', kwargs=kwargs)
+        request = self.factory.get(
+            f"""{endpoint}?bbox={non_overlapping_bbox}"""
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 400)
+
+        # Test with invalid bbox
+        invalid_bbox = (
+            '29.279926683,-31.094568889'
+        )
+        endpoint = reverse('v1:default-priority-layer-download', kwargs=kwargs)
+        request = self.factory.get(
+            f"""{endpoint}?bbox={invalid_bbox}"""
+        )
+        request.resolver_match = FakeResolverMatchV1
+        request.user = self.superuser
+        response = view(request, **kwargs)
+        self.assertEqual(response.status_code, 400)
