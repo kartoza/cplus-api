@@ -69,7 +69,7 @@ class APITaskConfig(object):
     landuse_weighted = DEFAULT_VALUES.landuse_weighted
     highest_position = DEFAULT_VALUES.highest_position
 
-    def __init__(self, scenario_name, scenario_desc, extent,
+    def __init__(self, scenario_name, scenario_desc, extent, analysis_crs,
                  analysis_activities, priority_layers,
                  priority_layer_groups,
                  snapping_enabled=False, snap_layer_uuid='',
@@ -94,6 +94,8 @@ class APITaskConfig(object):
         :type scenario_desc: str
         :param extent: scenario extent
         :type extent: List[float]
+        :param analysis_crs: scenario analysis CRS
+        :type analysis_crs: str
         :param analysis_activities: scenario activities
         :type analysis_activities: List[Activity]
         :param priority_layers: list of priority layer dict
@@ -146,7 +148,7 @@ class APITaskConfig(object):
         self.scenario_desc = scenario_desc
         if scenario_uuid:
             self.scenario_uuid = uuid.UUID(scenario_uuid)
-        self.analysis_extent = SpatialExtent(bbox=extent)
+        self.analysis_extent = SpatialExtent(bbox=extent, crs=analysis_crs)
         self.analysis_activities = analysis_activities
         self.priority_layers = priority_layers
         self.priority_layer_groups = priority_layer_groups
@@ -299,7 +301,7 @@ class APITaskConfig(object):
         """
         config = APITaskConfig(
             data.get('scenario_name', ''), data.get('scenario_desc', ''),
-            data.get('extent', []), [], [], []
+            data.get('extent', []), data.get('analysis_crs'), [], [], []
         )
         config.priority_layers = data.get('priority_layers', [])
         config.priority_layer_groups = data.get('priority_layer_groups', [])
