@@ -98,6 +98,20 @@ def validate_layer_manage(input_layer: InputLayer, user):
         or is_internal_user(user)
 
 
+def validate_bbox(bbox):
+    """Validate the bounding box format."""
+    if not bbox:
+        raise ValidationError('Bounding box is required.')
+    bbox = bbox.replace(' ', '').split(',')
+    if len(bbox) != 4:
+        raise ValidationError('Bounding box must have 4 values.')
+    try:
+        bbox = [float(b) for b in bbox]
+    except ValueError:
+        raise ValidationError('Bounding box values must be numbers.')
+    return bbox
+
+
 class LayerList(APIView):
     """API to return available layers."""
     permission_classes = [IsAuthenticated]
@@ -898,9 +912,7 @@ class ReferenceLayerDownload(APIView):
             file_name = basename
 
             if 'bbox' in request.query_params:
-                bbox = request.query_params.get('bbox')
-                bbox = bbox.replace(' ', '').split(',')
-                bbox = [float(b) for b in bbox]
+                bbox = validate_bbox(request.query_params.get('bbox'))
 
                 # Calculate the width and height of the bounding box
                 width = bbox[2] - bbox[0]
@@ -992,9 +1004,7 @@ class DefaultLayerDownload(APIView):
             file_name = basename
 
             if 'bbox' in request.query_params:
-                bbox = request.query_params.get('bbox')
-                bbox = bbox.replace(' ', '').split(',')
-                bbox = [float(b) for b in bbox]
+                bbox = validate_bbox(request.query_params.get('bbox'))
 
                 # Convert the bounding box to a Polygon
                 polygon = Polygon.from_bbox(bbox)
