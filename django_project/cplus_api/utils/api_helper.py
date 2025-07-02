@@ -11,6 +11,7 @@ from uuid import UUID
 import boto3
 import math
 import rasterio
+from rasterio.coords import BoundingBox
 import requests
 from botocore.client import Config
 from botocore.exceptions import ClientError
@@ -411,6 +412,25 @@ def clip_raster(file_path: str, bbox: typing.List[float], temp_dir) -> str:
     minx, miny, maxx, maxy = bbox
 
     with rasterio.open(file_path) as src:
+        # Verify if the bounding box overlaps the raster extent
+        raster_bounds = src.bounds
+        raster_bbox = BoundingBox(*raster_bounds)
+
+        input_bbox = BoundingBox(*bbox)
+
+        # Check if bbox intersects raster
+        intersects = not (
+            input_bbox.right <= raster_bbox.left or
+            input_bbox.left >= raster_bbox.right or
+            input_bbox.top <= raster_bbox.bottom or
+            input_bbox.bottom >= raster_bbox.top
+        )
+
+        if not intersects:
+            raise ValueError(
+                "The bounding box does not overlap the raster extent."
+            )
+
         # Convert bbox coordinates to pixel indices
         row_start, col_start = src.index(minx, maxy)
         row_stop, col_stop = src.index(maxx, miny)

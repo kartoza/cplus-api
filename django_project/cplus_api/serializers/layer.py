@@ -78,6 +78,14 @@ LAYER_SCHEMA_FIELDS = {
             title='Layer Description',
             type=openapi.TYPE_STRING
         ),
+        'source': openapi.Schema(
+            title='Layer Source',
+            type=openapi.TYPE_STRING,
+            enum=[
+                InputLayer.LayerSources.CPLUS,
+                InputLayer.LayerSources.NATURE_BASE
+            ]
+        ),
     },
     'required': [
         'filename', 'size', 'uuid', 'layer_type',
@@ -96,7 +104,8 @@ LAYER_SCHEMA_FIELDS = {
         'url': '',
         'client_id': '',
         'license': 'CC BY 4.0',
-        'version': '1.0.0'
+        'version': '1.0.0',
+        'source': InputLayer.LayerSources.NATURE_BASE
     }
 }
 
@@ -204,7 +213,7 @@ class InputLayerSerializer(serializers.ModelSerializer):
             'created_by', 'layer_type', 'size',
             'url', 'component_type', 'privacy_type',
             'client_id', 'metadata', 'description',
-            'license', 'version'
+            'license', 'version', 'source'
         ]
 
 

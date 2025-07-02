@@ -98,6 +98,20 @@ def validate_layer_manage(input_layer: InputLayer, user):
         or is_internal_user(user)
 
 
+def validate_bbox(bbox):
+    """Validate the bounding box format."""
+    if not bbox:
+        raise ValidationError('Bounding box is required.')
+    bbox = bbox.replace(' ', '').split(',')
+    if len(bbox) != 4:
+        raise ValidationError('Bounding box must have 4 values.')
+    try:
+        bbox = [float(b) for b in bbox]
+    except ValueError:
+        raise ValidationError('Bounding box values must be numbers.')
+    return bbox
+
+
 class LayerList(APIView):
     """API to return available layers."""
     permission_classes = [IsAuthenticated]
@@ -898,9 +912,7 @@ class ReferenceLayerDownload(APIView):
             file_name = basename
 
             if 'bbox' in request.query_params:
-                bbox = request.query_params.get('bbox')
-                bbox = bbox.replace(' ', '').split(',')
-                bbox = [float(b) for b in bbox]
+                bbox = validate_bbox(request.query_params.get('bbox'))
 
                 # Calculate the width and height of the bounding box
                 width = bbox[2] - bbox[0]
@@ -951,5 +963,81 @@ class ReferenceLayerDownload(APIView):
 
         return Response(
             data={'detail': 'Reference layer is not available.'},
+            status=404
+        )
+
+
+class DefaultLayerDownload(APIView):
+    """API to crop and download priority layer."""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    @swagger_auto_schema(
+        operation_id='default-priority-layer-download',
+        operation_description='API to crop and download priority layer.',
+        tags=[LAYER_API_TAG],
+        manual_parameters=[PARAM_LAYER_UUID_IN_PATH, PARAM_BBOX_IN_QUERY],
+        responses={
+            200: openapi.Response(description='Binary response'),
+            404: APIErrorSerializer
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        layer_uuid = kwargs.get('layer_uuid')
+        default_layer = get_object_or_404(
+            InputLayer,
+            uuid=layer_uuid,
+            component_type=InputLayer.ComponentTypes.PRIORITY_LAYER
+        )
+        if default_layer.is_available():
+            basename = os.path.basename(default_layer.file.name)
+            file_path = os.path.join(
+                settings.TEMPORARY_LAYER_DIR,
+                'default_layer',
+                basename
+            )
+            if not os.path.exists(file_path):
+                file_path = default_layer.download_to_working_directory(
+                    settings.TEMPORARY_LAYER_DIR
+                )
+            x_accel_redirect = os.path.join('default_layer', basename)
+            file_name = basename
+
+            if 'bbox' in request.query_params:
+                bbox = validate_bbox(request.query_params.get('bbox'))
+
+                # Convert the bounding box to a Polygon
+                polygon = Polygon.from_bbox(bbox)
+
+                # Clip the raster
+                file_path = clip_raster(
+                    file_path,
+                    polygon.extent,
+                    settings.TEMPORARY_LAYER_DIR
+                )
+
+                # Create temporary layer object
+                TemporaryLayer.objects.create(
+                    file_name=os.path.basename(file_path),
+                    size=os.path.getsize(file_path)
+                )
+                file_name = os.path.basename(file_path)
+                x_accel_redirect = file_name
+
+            # fix issue nginx unable to read file
+            os.chmod(file_path, 0o644)
+            response = Response(status=200)
+            response['Content-type'] = "application/octet-stream"
+            response['X-Accel-Redirect'] = (
+                f'/userfiles/{x_accel_redirect}'
+            )
+            response['Content-Disposition'] = (
+                f'attachment; filename="{file_name}"'
+            )
+
+            return response
+
+        return Response(
+            data={'detail': 'Default layer is not available.'},
             status=404
         )
