@@ -1084,7 +1084,8 @@ class WorkerScenarioAnalysisTask(object):
             self.task_config.get_value(
                 Settings.HIGHEST_POSITION, default=True
             ),
-            self.scenario_task.get_resources_path()
+            self.scenario_task.get_resources_path(),
+            self.task_config.nodata_value
         )
 
         # create analysis task
