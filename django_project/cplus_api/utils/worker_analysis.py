@@ -85,7 +85,8 @@ class APITaskConfig(object):
                  landuse_project=DEFAULT_VALUES.landuse_project,
                  landuse_normalized=DEFAULT_VALUES.landuse_normalized,
                  landuse_weighted=DEFAULT_VALUES.landuse_weighted,
-                 highest_position=DEFAULT_VALUES.highest_position) -> None:
+                 highest_position=DEFAULT_VALUES.highest_position,
+                 nodata_value=DEFAULT_VALUES.nodata_value) -> None:
         """Initialize APITaskConfig class.
 
         :param scenario_name: name of the scenario
@@ -143,6 +144,9 @@ class APITaskConfig(object):
         :param highest_position: Enable output highest position,
             defaults to DEFAULT_VALUES.highest_position
         :type highest_position: bool, optional
+        :param nodata_value: No data value for raster layers,
+            defaults to DEFAULT_VALUES.nodata_value
+        :type nodata_value: float, optional
         """
         self.scenario_name = scenario_name
         self.scenario_desc = scenario_desc
@@ -177,6 +181,7 @@ class APITaskConfig(object):
         self.landuse_normalized = landuse_normalized
         self.landuse_weighted = landuse_weighted
         self.highest_position = highest_position
+        self.nodata_value = nodata_value
 
     def get_activity(
         self, activity_uuid: str
@@ -335,6 +340,9 @@ class APITaskConfig(object):
             'landuse_weighted', DEFAULT_VALUES.landuse_weighted)
         config.highest_position = data.get(
             'highest_position', DEFAULT_VALUES.highest_position)
+        config.nodata_value = data.get(
+            'nodata_value', DEFAULT_VALUES.nodata_value
+        )
 
         # store dict of <layer_uuid, list of obj identifier>
         config.priority_uuid_layers = {}
@@ -1076,7 +1084,8 @@ class WorkerScenarioAnalysisTask(object):
             self.task_config.get_value(
                 Settings.HIGHEST_POSITION, default=True
             ),
-            self.scenario_task.get_resources_path()
+            self.scenario_task.get_resources_path(),
+            self.task_config.nodata_value
         )
 
         # create analysis task
