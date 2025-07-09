@@ -154,7 +154,7 @@ class APITaskConfig(object):
         :param nodata_value: No data value for raster layers,
             defaults to DEFAULT_VALUES.nodata_value
         :type nodata_value: float, optional
-        :param clip_to_studyarea: enable clipping to studyarea layer, 
+        :param clip_to_studyarea: enable clipping to studyarea layer,
             defaults to False
         :type clip_to_studyarea: bool, optional
         :param studyarea_layer_uuid: Layer UUID for study area layer,
