@@ -69,6 +69,10 @@ class APITaskConfig(object):
     landuse_weighted = DEFAULT_VALUES.landuse_weighted
     highest_position = DEFAULT_VALUES.highest_position
 
+    clip_to_studyarea: bool = DEFAULT_VALUES.clip_to_studyarea
+    studyarea_path = ''
+    studyarea_layer_uuid = ''
+
     def __init__(self, scenario_name, scenario_desc, extent, analysis_crs,
                  analysis_activities, priority_layers,
                  priority_layer_groups,
@@ -86,7 +90,10 @@ class APITaskConfig(object):
                  landuse_normalized=DEFAULT_VALUES.landuse_normalized,
                  landuse_weighted=DEFAULT_VALUES.landuse_weighted,
                  highest_position=DEFAULT_VALUES.highest_position,
-                 nodata_value=DEFAULT_VALUES.nodata_value) -> None:
+                 nodata_value=DEFAULT_VALUES.nodata_value,
+                 clip_to_studyarea=DEFAULT_VALUES.clip_to_studyarea,
+                 studyarea_layer_uuid=''
+                 ) -> None:
         """Initialize APITaskConfig class.
 
         :param scenario_name: name of the scenario
@@ -147,6 +154,12 @@ class APITaskConfig(object):
         :param nodata_value: No data value for raster layers,
             defaults to DEFAULT_VALUES.nodata_value
         :type nodata_value: float, optional
+        :param clip_to_studyarea: enable clipping to studyarea layer,
+            defaults to False
+        :type clip_to_studyarea: bool, optional
+        :param studyarea_layer_uuid: Layer UUID for study area layer,
+            defaults to ''
+        :type studyarea_layer_uuid: str, optional
         """
         self.scenario_name = scenario_name
         self.scenario_desc = scenario_desc
@@ -182,6 +195,9 @@ class APITaskConfig(object):
         self.landuse_weighted = landuse_weighted
         self.highest_position = highest_position
         self.nodata_value = nodata_value
+
+        self.clip_to_studyarea = clip_to_studyarea
+        self.studyarea_layer_uuid = studyarea_layer_uuid
 
     def get_activity(
         self, activity_uuid: str
@@ -269,7 +285,11 @@ class APITaskConfig(object):
             'landuse_project': self.landuse_project,
             'landuse_normalized': self.landuse_normalized,
             'landuse_weighted': self.landuse_weighted,
-            'highest_position': self.highest_position
+            'highest_position': self.highest_position,
+            'nodata_value': self.nodata_value,
+            'clip_to_studyarea': self.clip_to_studyarea,
+            'studyarea_path': self.studyarea_path,
+            'studyarea_layer_uuid': self.studyarea_layer_uuid
         }
         for activity in self.analysis_activities:
             activity_dict = {
@@ -342,6 +362,13 @@ class APITaskConfig(object):
             'highest_position', DEFAULT_VALUES.highest_position)
         config.nodata_value = data.get(
             'nodata_value', DEFAULT_VALUES.nodata_value
+        )
+        config.studyarea_layer_uuid = data.get(
+            'studyarea_layer_uuid', ''
+        )
+        config.clip_to_studyarea = data.get(
+            'clip_to_studyarea',
+            DEFAULT_VALUES.clip_to_studyarea
         )
 
         # store dict of <layer_uuid, list of obj identifier>
@@ -590,6 +617,21 @@ class WorkerScenarioAnalysisTask(object):
                     self.downloaded_layers.update(layer_paths)
             else:
                 self.task_config.snap_layer = self.downloaded_layers[
+                    layer_uuid
+                ]
+
+        # init study area layer path
+        if self.task_config.studyarea_layer_uuid:
+            layer_uuid = self.task_config.studyarea_layer_uuid
+            if layer_uuid not in self.downloaded_layers:
+                layer_paths = self.copy_input_layers_by_uuids(
+                    None, [layer_uuid], scenario_path
+                )
+                if layer_uuid in layer_paths:
+                    self.task_config.studyarea_path = layer_paths[layer_uuid]
+                    self.downloaded_layers.update(layer_paths)
+            else:
+                self.task_config.studyarea_path = self.downloaded_layers[
                     layer_uuid
                 ]
 
@@ -1085,7 +1127,9 @@ class WorkerScenarioAnalysisTask(object):
                 Settings.HIGHEST_POSITION, default=True
             ),
             self.scenario_task.get_resources_path(),
-            self.task_config.nodata_value
+            self.task_config.nodata_value,
+            self.task_config.studyarea_path,
+            self.task_config.clip_to_studyarea
         )
 
         # create analysis task
