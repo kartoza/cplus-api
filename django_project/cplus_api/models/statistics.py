@@ -13,7 +13,7 @@ class ZonalStatisticsTask(BaseTaskRequest):
     bbox_maxx = models.FloatField()
     bbox_maxy = models.FloatField()
 
-    # List of { uuid, layer_name, mean_value } for each naturebase layer
+    # List of {uuid, layer_name, mean_value} for each naturebase layer
     result = models.JSONField(null=True, blank=True)
 
     error_message = models.TextField(null=True, blank=True)

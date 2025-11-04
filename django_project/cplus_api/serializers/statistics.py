@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.utils import timezone
 from cplus_api.api_views.layer import validate_bbox
-from cplus_api.models.zonal_statistics import ZonalStatisticsTask
+from cplus_api.models.statistics import ZonalStatisticsTask
 
 class ZonalStatisticsRequestSerializer(serializers.Serializer):
     """bbox expected to be in 'minx,miny,maxx,maxy' form."""

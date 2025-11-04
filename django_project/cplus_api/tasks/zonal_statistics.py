@@ -113,6 +113,7 @@ def calculate_zonal_statistics(zonal_task_id):
         # Capture error and logs
         tb = traceback.format_exc()
         logger.exception("Zonal stats task failed: %s", exc)
+        zonal_task.error_message = str(exc)
         zonal_task.stack_trace_errors = tb
         zonal_task.task_on_errors(exception=exc, traceback=tb)
         zonal_task.save()

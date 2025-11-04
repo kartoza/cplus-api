@@ -94,7 +94,6 @@ class TemporaryLayerAdmin(admin.ModelAdmin):
     get_file_size.admin_order_field = 'size'
 
 
-@admin.register(ZonalStatisticsTask)
 class ZonalStatisticsTaskAdmin(admin.ModelAdmin):
     list_display = ('uuid', 'submitted_by', 'status', 'progress', 'submitted_on', 'last_update')
     readonly_fields = ('uuid', 'submitted_on', 'started_at', 'finished_at', 'last_update')
