@@ -18,6 +18,10 @@ from cplus_api.api_views.scenario import (
     ScenarioAnalysisHistory,
     ScenarioAnalysisTaskDetail
 )
+from cplus_api.api_views.statistics import (
+    ZonalStatisticsView, 
+    ZonalStatisticsProgressView
+)
 from cplus_api.api_views.output import (
     UserScenarioAnalysisOutput,
     FetchScenarioAnalysisOutput
@@ -145,8 +149,23 @@ scenario_output_urls = [
     ),
 ]
 
+# Statistics API
+layer_statistics_urls = [
+    path(
+        'zonal-statistics/', 
+        ZonalStatisticsView.as_view(), 
+        name='zonal-statistics'
+    ),
+    path(
+        'zonal-statistics/<uuid:task_uuid>/progress/', 
+        ZonalStatisticsProgressView.as_view(), 
+        name='zonal-statistics-progress'
+    ),
+]
+
 urlpatterns = []
 urlpatterns += user_urls
 urlpatterns += layer_urls
 urlpatterns += scenario_urls
 urlpatterns += scenario_output_urls
+urlpatterns += layer_statistics_urls
