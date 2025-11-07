@@ -9,10 +9,39 @@ class ZonalStatisticsRequestSerializer(serializers.Serializer):
     bbox = serializers.CharField(required=True)
 
     def validate_bbox(self, value):
-        return validate_bbox(value)
+        # normalize list/tuple or string to eventually return a string
+        if isinstance(value, (list, tuple)):
+            if len(value) == 0:
+                raise serializers.ValidationError('Bounding box is required.')
+            
+            if len(value) == 4:
+                value = ','.join(str(v) for v in value)
+
+            else:
+                value = value[0] if len(value) == 1 else ','.join(str(v) for v in value)
+
+        if value is None or (isinstance(value, str) and value.strip() == ''):
+            raise serializers.ValidationError('Bounding box is required.')
+        
+        return value
 
     def validate(self, data):
-        data['bbox_list'] = self.validate_bbox(data['bbox'])
+        try:
+            normalized_bbox = self.validate_bbox(data.get('bbox'))
+        except serializers.ValidationError:
+            raise
+        except Exception as exc:
+            raise serializers.ValidationError(str(exc))
+        
+        # Handle using layer validator especially for data type
+        try:
+            bbox_list = validate_bbox(normalized_bbox)
+        except Exception as exc:
+            raise serializers.ValidationError(str(exc))
+
+        data['bbox_list'] = bbox_list
+        data['bbox'] = normalized_bbox
+
         return data
 
 
@@ -38,7 +67,6 @@ class ZonalStatisticsTaskSerializer(serializers.ModelSerializer):
             'results',
             'error_message',
             'submitted_on',
-            'submitted_by',
             'started_at',
             'finished_at',
             'last_update',

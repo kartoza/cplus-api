@@ -1,7 +1,9 @@
+import logging
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_yasg import openapi
@@ -16,6 +18,7 @@ from cplus_api.serializers.common import APIErrorSerializer
 from cplus_api.tasks.zonal_statistics import calculate_zonal_statistics
 from cplus_api.utils.api_helper import LAYER_API_TAG
 
+logger = logging.getLogger(__name__)
 
 class ZonalStatisticsView(APIView):
     """
@@ -26,7 +29,7 @@ class ZonalStatisticsView(APIView):
     @swagger_auto_schema(
         operation_id='zonal-statistics-calculate',
         operation_description=(
-            'Initiate calculation of mean zonal statistics for all nature base layers '
+            'Initiate the calculation of mean zonal statistics for all nature base layers '
             'within the specified bounding box in WGS84 coordinates.'
         ),
         tags=[LAYER_API_TAG],
@@ -69,7 +72,7 @@ class ZonalStatisticsView(APIView):
         
         task = ZonalStatisticsTask.objects.create(
             submitted_on=timezone.now(),
-            submitted_by=request.user,
+            submitted_by=request_user,
             parameters=bbox_str,
             bbox_minx=bbox_list[0],
             bbox_miny=bbox_list[1],
@@ -83,10 +86,13 @@ class ZonalStatisticsView(APIView):
         task.task_name = calculate_zonal_statistics.name
         task.save(update_fields=['task_id', 'task_name'])
 
-        return Response({
-            'task_uuid': str(task.uuid),
-            'message': 'Zonal statistics calculation started'
-        }, status=status.HTTP_202_ACCEPTED)
+        return Response(
+            {
+                'task_uuid': str(task.uuid),
+                'message': 'Zonal statistics calculation started'
+            }, 
+            status=status.HTTP_202_ACCEPTED
+        )
 
 
 class ZonalStatisticsProgressView(APIView):
@@ -121,4 +127,4 @@ class ZonalStatisticsProgressView(APIView):
         return Response(
             serializer.data, 
             status=status.HTTP_200_OK
-            )
+        )

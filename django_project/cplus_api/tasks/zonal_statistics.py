@@ -16,18 +16,18 @@ logger = logging.getLogger(__name__)
 
 @shared_task(name="calculate_zonal_statistics")
 def calculate_zonal_statistics(zonal_task_id):
-    """Celery worker for calculating zonal statistics of Naturebase layers."""
+    """Worker for calculating zonal statistics of Naturebase layers."""
     try:
         zonal_task = ZonalStatisticsTask.objects.get(id=zonal_task_id)
     except ZonalStatisticsTask.DoesNotExist:
-        logger.error("ZonalStatisticsTask not found: %s", zonal_task_id)
+        logger.error("ZonalStatisticsTask object not found: %s", zonal_task_id)
         return
     
     zonal_task.task_on_started()
 
     try:
-        with qgis_application():
-            from qgis.core import QgsRectangle, QgsRasterLayer, QgsVectorLayer
+        with qgis_application() as qgs_app:
+            from qgis.core import QgsRectangle, QgsRasterLayer
             from qgis.analysis import QgsZonalStatistics
 
             start_time = time.time()
@@ -44,14 +44,15 @@ def calculate_zonal_statistics(zonal_task_id):
             nature_base_layers = InputLayer.objects.filter(source=InputLayer.LayerSources.NATURE_BASE)
             total = nature_base_layers.count()
             if total == 0:
+                logger.warning("No naturebase layers found.")
                 zonal_task.result = []
                 zonal_task.save(update_fields=['result'])
-                # Use base class func to update the other fields
                 zonal_task.task_on_completed()
                 return
 
             results = []
-            attribute_prefix = "zs_"
+            prefix = "zs_"
+            field_name = f"{prefix}{QgsZonalStatistics.shortName(QgsZonalStatistics.Statistic.Mean)}"
             for idx, layer in enumerate(nature_base_layers):
                 try:
                     if not layer.is_available():
@@ -76,26 +77,34 @@ def calculate_zonal_statistics(zonal_task_id):
                     zonal_stats = QgsZonalStatistics(
                         reference_layer, 
                         nature_base_raster, 
-                        attribute_prefix, 
+                        prefix, 
                         1,
                         QgsZonalStatistics.Statistic.Mean
                     )
-                    zonal_stats.calculateStatistics(None)
 
-                    feature = next(reference_layer.getFeatures())
-                    mean_value = feature.attribute('_mean')
+                    result = zonal_stats.calculateStatistics(None)
+
+                    if result == QgsZonalStatistics.Result.Success:
+                        feature = next(reference_layer.getFeatures())
+                        mean_value = float(feature.attribute(field_name))
+                    else:
+                        mean_value = None
 
                     results.append(
-                        {'uuid': str(layer.uuid), 
-                         'layer_name': layer.name, 
-                         'mean_value': float(mean_value) if mean_value is not None else None}
+                        {
+                            'uuid': str(layer.uuid), 
+                            'layer_name': layer.name, 
+                            'mean_value': mean_value
+                        }
                     )
                 except Exception as ex_layer:
                     logger.exception("Error processing zonal statistics for layer %s", layer.name)
                     results.append(
-                        {'uuid': str(layer.uuid), 
-                         'layer_name': layer.name, 
-                         'mean_value': None}
+                        {
+                            'uuid': str(layer.uuid), 
+                            'layer_name': layer.name, 
+                            'mean_value': None
+                        }
                     )
 
                 # Update progress
@@ -112,7 +121,7 @@ def calculate_zonal_statistics(zonal_task_id):
     except Exception as exc:
         # Capture error and logs
         tb = traceback.format_exc()
-        logger.exception("Zonal stats task failed: %s", exc)
+        logger.exception("Zonal statistics task failed: %s", exc)
         zonal_task.error_message = str(exc)
         zonal_task.stack_trace_errors = tb
         zonal_task.task_on_errors(exception=exc, traceback=tb)
