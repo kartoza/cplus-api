@@ -95,8 +95,10 @@ class TemporaryLayerAdmin(admin.ModelAdmin):
 
 
 class ZonalStatisticsTaskAdmin(admin.ModelAdmin):
-    list_display = ('uuid', 'submitted_by', 'status', 'progress', 'submitted_on', 'last_update')
-    readonly_fields = ('uuid', 'submitted_on', 'started_at', 'finished_at', 'last_update')
+    list_display = ('uuid', 'submitted_by', 'status', 'progress',
+                    'submitted_on', 'last_update')
+    readonly_fields = ('uuid', 'submitted_on', 'started_at',
+                       'finished_at', 'last_update')
     search_fields = ('submitted_by__email', 'uuid')
 
 

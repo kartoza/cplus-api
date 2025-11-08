@@ -3,7 +3,7 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_yasg import openapi
@@ -20,24 +20,28 @@ from cplus_api.utils.api_helper import LAYER_API_TAG
 
 logger = logging.getLogger(__name__)
 
+
 class ZonalStatisticsView(APIView):
     """
-    GET endpoint to initiate zonal statistics calculation for NatureBase layers.
+    GET endpoint to initiate zonal statistics calculation
+     for NatureBase layers.
     """
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
         operation_id='zonal-statistics-calculate',
         operation_description=(
-            'Initiate the calculation of mean zonal statistics for all nature base layers '
-            'within the specified bounding box in WGS84 coordinates.'
+            'Initiate the calculation of mean zonal statistics for all '
+            'nature base layers within the specified bounding box '
+            'in WGS84 coordinates.'
         ),
         tags=[LAYER_API_TAG],
         manual_parameters=[
             openapi.Parameter(
                 'bbox',
                 openapi.IN_QUERY,
-                description='Bounding box in format: minx,miny,maxx,maxy (WGS84)',
+                description='Bounding box in format:'
+                ' minx,miny,maxx,maxy (WGS84)',
                 type=openapi.TYPE_STRING,
                 required=True,
                 example='28.0,-26.0,29.0,-25.0'
@@ -69,17 +73,15 @@ class ZonalStatisticsView(APIView):
         serializer.is_valid(raise_exception=True)
         bbox_list = serializer.validated_data['bbox_list']
         bbox_str = serializer.validated_data['bbox']
-        
         task = ZonalStatisticsTask.objects.create(
             submitted_on=timezone.now(),
-            submitted_by=request_user,
+            submitted_by=request.user,
             parameters=bbox_str,
             bbox_minx=bbox_list[0],
             bbox_miny=bbox_list[1],
             bbox_maxx=bbox_list[2],
             bbox_maxy=bbox_list[3]
         )
-
         # Queue calculation worker
         submit_result = calculate_zonal_statistics.delay(task.id)
         task.task_id = submit_result.id
@@ -90,7 +92,7 @@ class ZonalStatisticsView(APIView):
             {
                 'task_uuid': str(task.uuid),
                 'message': 'Zonal statistics calculation started'
-            }, 
+            },
             status=status.HTTP_202_ACCEPTED
         )
 
@@ -103,7 +105,8 @@ class ZonalStatisticsProgressView(APIView):
 
     @swagger_auto_schema(
         operation_id='zonal-statistics-progress',
-        operation_description='Check the progress and status of a zonal statistics task.',
+        operation_description='Check the progress and status of a '
+        'zonal statistics task.',
         tags=[LAYER_API_TAG],
         manual_parameters=[
             openapi.Parameter(
@@ -125,6 +128,6 @@ class ZonalStatisticsProgressView(APIView):
         serializer = ZonalStatisticsTaskSerializer(task)
 
         return Response(
-            serializer.data, 
+            serializer.data,
             status=status.HTTP_200_OK
         )
