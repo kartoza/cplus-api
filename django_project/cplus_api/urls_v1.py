@@ -136,12 +136,12 @@ scenario_output_urls = [
 # Statistics API
 layer_statistics_urls = [
     path(
-        "zonal-statistics/",
+        "zonal_statistics/",
         ZonalStatisticsView.as_view(),
         name="zonal-statistics",
     ),
     path(
-        "zonal-statistics/<uuid:task_uuid>/progress/",
+        "zonal_statistics/<uuid:task_uuid>/progress/",
         ZonalStatisticsProgressView.as_view(),
         name="zonal-statistics-progress",
     ),
