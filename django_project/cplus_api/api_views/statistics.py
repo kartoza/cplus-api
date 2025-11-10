@@ -1,5 +1,3 @@
-import logging
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -17,8 +15,6 @@ from cplus_api.serializers.statistics import (
 from cplus_api.serializers.common import APIErrorSerializer
 from cplus_api.tasks.zonal_statistics import calculate_zonal_statistics
 from cplus_api.utils.api_helper import LAYER_API_TAG
-
-logger = logging.getLogger(__name__)
 
 
 class ZonalStatisticsView(APIView):
@@ -124,7 +120,15 @@ class ZonalStatisticsProgressView(APIView):
         }
     )
     def get(self, request, task_uuid, *args, **kwargs):
-        task = get_object_or_404(ZonalStatisticsTask, uuid=task_uuid)
+        # Super users can view any task.
+        if request.user.is_superuser:
+            task = get_object_or_404(ZonalStatisticsTask, uuid=task_uuid)
+        else:
+            task = get_object_or_404(
+                ZonalStatisticsTask,
+                uuid=task_uuid, submitted_by=request.user
+            )
+
         serializer = ZonalStatisticsTaskSerializer(task)
 
         return Response(
