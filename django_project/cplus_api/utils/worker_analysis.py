@@ -73,6 +73,8 @@ class APITaskConfig(object):
     studyarea_path = ''
     studyarea_layer_uuid = ''
 
+    relative_impact_matrix: typing.Dict = {}
+
     def __init__(self, scenario_name, scenario_desc, extent, analysis_crs,
                  analysis_activities, priority_layers,
                  priority_layer_groups,
@@ -92,7 +94,8 @@ class APITaskConfig(object):
                  highest_position=DEFAULT_VALUES.highest_position,
                  nodata_value=DEFAULT_VALUES.nodata_value,
                  clip_to_studyarea=DEFAULT_VALUES.clip_to_studyarea,
-                 studyarea_layer_uuid=''
+                 studyarea_layer_uuid='',
+                 relative_impact_matrix={}
                  ) -> None:
         """Initialize APITaskConfig class.
 
@@ -160,6 +163,9 @@ class APITaskConfig(object):
         :param studyarea_layer_uuid: Layer UUID for study area layer,
             defaults to ''
         :type studyarea_layer_uuid: str, optional
+        :param relative_impact_matrix: Matrix of relative impact values
+            between pathways and PWLs, defaults to empty dictionary
+        :type relative_impact_matrix: typing.Dict, optional
         """
         self.scenario_name = scenario_name
         self.scenario_desc = scenario_desc
@@ -198,6 +204,8 @@ class APITaskConfig(object):
 
         self.clip_to_studyarea = clip_to_studyarea
         self.studyarea_layer_uuid = studyarea_layer_uuid
+
+        self.relative_impact_matrix = relative_impact_matrix
 
     def get_activity(
         self, activity_uuid: str
@@ -289,7 +297,8 @@ class APITaskConfig(object):
             'nodata_value': self.nodata_value,
             'clip_to_studyarea': self.clip_to_studyarea,
             'studyarea_path': self.studyarea_path,
-            'studyarea_layer_uuid': self.studyarea_layer_uuid
+            'studyarea_layer_uuid': self.studyarea_layer_uuid,
+            'relative_impact_matrix': self.relative_impact_matrix
         }
         for activity in self.analysis_activities:
             activity_dict = {
@@ -369,6 +378,10 @@ class APITaskConfig(object):
         config.clip_to_studyarea = data.get(
             'clip_to_studyarea',
             DEFAULT_VALUES.clip_to_studyarea
+        )
+        config.relative_impact_matrix = data.get(
+            'relative_impact_matrix',
+            {}
         )
 
         # store dict of <layer_uuid, list of obj identifier>
@@ -1129,7 +1142,8 @@ class WorkerScenarioAnalysisTask(object):
             self.scenario_task.get_resources_path(),
             self.task_config.nodata_value,
             self.task_config.studyarea_path,
-            self.task_config.clip_to_studyarea
+            self.task_config.clip_to_studyarea,
+            self.task_config.relative_impact_matrix
         )
 
         # create analysis task
