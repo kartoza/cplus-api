@@ -1,13 +1,17 @@
 from django.urls import path
 from cplus_api.api_views.user import UserInfo
 from cplus_api.api_views.layer import (
-    LayerList, LayerDetail, LayerUpload,
-    LayerUploadStart, LayerUploadFinish,
-    CheckLayer, LayerUploadAbort,
+    LayerList,
+    LayerDetail,
+    LayerUpload,
+    LayerUploadStart,
+    LayerUploadFinish,
+    CheckLayer,
+    LayerUploadAbort,
     FetchLayerByClientId,
     DefaultLayerList,
     ReferenceLayerDownload,
-    DefaultLayerDownload
+    DefaultLayerDownload,
 )
 from cplus_api.api_views.scenario import (
     ScenarioAnalysisSubmit,
@@ -16,132 +20,130 @@ from cplus_api.api_views.scenario import (
     ScenarioAnalysisTaskStatus,
     ScenarioAnalysisTaskLogs,
     ScenarioAnalysisHistory,
-    ScenarioAnalysisTaskDetail
+    ScenarioAnalysisTaskDetail,
+)
+from cplus_api.api_views.statistics import (
+    ZonalStatisticsView,
+    ZonalStatisticsProgressView,
 )
 from cplus_api.api_views.output import (
     UserScenarioAnalysisOutput,
-    FetchScenarioAnalysisOutput
+    FetchScenarioAnalysisOutput,
 )
 
 
 # USER API
 user_urls = [
-    path(
-        'user/me',
-        UserInfo.as_view(),
-        name='user-info'
-    ),
+    path("user/me", UserInfo.as_view(), name="user-info"),
 ]
 
 # LAYER API
 layer_urls = [
     path(
-        'layer/default/',
-        DefaultLayerList.as_view(),
-        name='layer-default-list'
+        "layer/default/", DefaultLayerList.as_view(), name="layer-default-list"
     ),
+    path("layer/list/", LayerList.as_view(), name="layer-list"),
     path(
-        'layer/list/',
-        LayerList.as_view(),
-        name='layer-list'
-    ),
-    path(
-        'layer/filter/client_id/',
+        "layer/filter/client_id/",
         FetchLayerByClientId.as_view(),
-        name='fetch-layer-by-client-id'
+        name="fetch-layer-by-client-id",
     ),
     path(
-        'layer/upload/start/',
+        "layer/upload/start/",
         LayerUploadStart.as_view(),
-        name='layer-upload-start'
+        name="layer-upload-start",
     ),
     path(
-        'layer/upload/<uuid:layer_uuid>/finish/',
+        "layer/upload/<uuid:layer_uuid>/finish/",
         LayerUploadFinish.as_view(),
-        name='layer-upload-finish'
+        name="layer-upload-finish",
     ),
     path(
-        'layer/upload/<uuid:layer_uuid>/abort/',
+        "layer/upload/<uuid:layer_uuid>/abort/",
         LayerUploadAbort.as_view(),
-        name='layer-upload-abort'
+        name="layer-upload-abort",
+    ),
+    path("layer/upload/", LayerUpload.as_view(), name="layer-upload"),
+    path("layer/check/", CheckLayer.as_view(), name="layer-check"),
+    path(
+        "layer/<uuid:layer_uuid>/", LayerDetail.as_view(), name="layer-detail"
     ),
     path(
-        'layer/upload/',
-        LayerUpload.as_view(),
-        name='layer-upload'
-    ),
-    path(
-        'layer/check/',
-        CheckLayer.as_view(),
-        name='layer-check'
-    ),
-    path(
-        'layer/<uuid:layer_uuid>/',
-        LayerDetail.as_view(),
-        name='layer-detail'
-    ),
-    path(
-        'reference_layer/carbon_calculation/',
+        "reference_layer/carbon_calculation/",
         ReferenceLayerDownload.as_view(),
-        name='reference-layer-download'
+        name="reference-layer-download",
     ),
     path(
-        'priority_layer/<uuid:layer_uuid>/download/',
+        "priority_layer/<uuid:layer_uuid>/download/",
         DefaultLayerDownload.as_view(),
-        name='default-priority-layer-download'
+        name="default-priority-layer-download",
     ),
 ]
 
 # SCENARIO ANALYSIS API
 scenario_urls = [
     path(
-        'scenario/submit/',
+        "scenario/submit/",
         ScenarioAnalysisSubmit.as_view(),
-        name='scenario-submit'
+        name="scenario-submit",
     ),
     path(
-        'scenario/<uuid:scenario_uuid>/execute/',
+        "scenario/<uuid:scenario_uuid>/execute/",
         ExecuteScenarioAnalysis.as_view(),
-        name='scenario-execute'
+        name="scenario-execute",
     ),
     path(
-        'scenario/<uuid:scenario_uuid>/cancel/',
+        "scenario/<uuid:scenario_uuid>/cancel/",
         CancelScenarioAnalysisTask.as_view(),
-        name='scenario-cancel'
+        name="scenario-cancel",
     ),
     path(
-        'scenario/<uuid:scenario_uuid>/status/',
+        "scenario/<uuid:scenario_uuid>/status/",
         ScenarioAnalysisTaskStatus.as_view(),
-        name='scenario-status'
+        name="scenario-status",
     ),
     path(
-        'scenario/<uuid:scenario_uuid>/logs/',
+        "scenario/<uuid:scenario_uuid>/logs/",
         ScenarioAnalysisTaskLogs.as_view(),
-        name='scenario-logs'
+        name="scenario-logs",
     ),
     path(
-        'scenario/history/',
+        "scenario/history/",
         ScenarioAnalysisHistory.as_view(),
-        name='scenario-history'
+        name="scenario-history",
     ),
     path(
-        'scenario/<uuid:scenario_uuid>/detail/',
+        "scenario/<uuid:scenario_uuid>/detail/",
         ScenarioAnalysisTaskDetail.as_view(),
-        name='scenario-detail'
+        name="scenario-detail",
     ),
 ]
 
 # SCENARIO OUTPUTS API
 scenario_output_urls = [
     path(
-        'scenario_output/<uuid:scenario_uuid>/list/',
+        "scenario_output/<uuid:scenario_uuid>/list/",
         UserScenarioAnalysisOutput.as_view(),
-        name='scenario-output-list'
+        name="scenario-output-list",
     ),
     path(
-        'scenario_output/<uuid:scenario_uuid>/filter/',
+        "scenario_output/<uuid:scenario_uuid>/filter/",
         FetchScenarioAnalysisOutput.as_view(),
-        name='scenario-output-list-by-uuids'
+        name="scenario-output-list-by-uuids",
+    ),
+]
+
+# Statistics API
+layer_statistics_urls = [
+    path(
+        "zonal_statistics/",
+        ZonalStatisticsView.as_view(),
+        name="zonal-statistics",
+    ),
+    path(
+        "zonal_statistics/<uuid:task_uuid>/progress/",
+        ZonalStatisticsProgressView.as_view(),
+        name="zonal-statistics-progress",
     ),
 ]
 
@@ -150,3 +152,4 @@ urlpatterns += user_urls
 urlpatterns += layer_urls
 urlpatterns += scenario_urls
 urlpatterns += scenario_output_urls
+urlpatterns += layer_statistics_urls

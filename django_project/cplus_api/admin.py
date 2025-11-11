@@ -6,6 +6,7 @@ from cplus_api.models.layer import (
     TemporaryLayer
 )
 from cplus_api.models.profile import UserProfile, UserRoleType
+from cplus_api.models.statistics import ZonalStatisticsTask
 from cplus_api.tasks.verify_input_layer import verify_input_layer
 from cplus_api.utils.api_helper import convert_size
 
@@ -93,6 +94,14 @@ class TemporaryLayerAdmin(admin.ModelAdmin):
     get_file_size.admin_order_field = 'size'
 
 
+class ZonalStatisticsTaskAdmin(admin.ModelAdmin):
+    list_display = ('uuid', 'submitted_by', 'status', 'progress',
+                    'submitted_on', 'last_update')
+    readonly_fields = ('uuid', 'submitted_on', 'started_at',
+                       'finished_at', 'last_update')
+    search_fields = ('submitted_by__email', 'uuid')
+
+
 admin.site.register(ScenarioTask, ScenarioTaskAdmin)
 admin.site.register(InputLayer, InputLayerAdmin)
 admin.site.register(OutputLayer, OutputLayerAdmin)
@@ -100,3 +109,4 @@ admin.site.register(UserRoleType, UserRoleTypeAdmin)
 admin.site.register(UserProfile, UserProfileAdmin)
 admin.site.register(TemporaryLayer, TemporaryLayerAdmin)
 admin.site.register(MultipartUpload)
+admin.site.register(ZonalStatisticsTask, ZonalStatisticsTaskAdmin)
