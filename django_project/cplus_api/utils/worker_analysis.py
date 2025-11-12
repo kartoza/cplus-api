@@ -74,6 +74,8 @@ class APITaskConfig(object):
     studyarea_layer_uuid = ''
 
     relative_impact_matrix: typing.Dict = {}
+    activity_constant_rasters: typing.Dict = {}
+    constant_rasters_uuids = typing.Dict = {}
 
     def __init__(self, scenario_name, scenario_desc, extent, analysis_crs,
                  analysis_activities, priority_layers,
@@ -95,7 +97,8 @@ class APITaskConfig(object):
                  nodata_value=DEFAULT_VALUES.nodata_value,
                  clip_to_studyarea=DEFAULT_VALUES.clip_to_studyarea,
                  studyarea_layer_uuid='',
-                 relative_impact_matrix={}
+                 relative_impact_matrix={},
+                 constant_rasters_uuids={}
                  ) -> None:
         """Initialize APITaskConfig class.
 
@@ -166,6 +169,9 @@ class APITaskConfig(object):
         :param relative_impact_matrix: Matrix of relative impact values
             between pathways and PWLs, defaults to empty dictionary
         :type relative_impact_matrix: typing.Dict, optional
+        :param constant_rasters_uuids: Layer UUIDs for Constant rasters,
+            defaults to empty dictionary
+        :type constant_rasters_uuids: typing.Dict, optional
         """
         self.scenario_name = scenario_name
         self.scenario_desc = scenario_desc
@@ -206,6 +212,7 @@ class APITaskConfig(object):
         self.studyarea_layer_uuid = studyarea_layer_uuid
 
         self.relative_impact_matrix = relative_impact_matrix
+        self.constant_rasters_uuids = constant_rasters_uuids
 
     def get_activity(
         self, activity_uuid: str
@@ -298,7 +305,8 @@ class APITaskConfig(object):
             'clip_to_studyarea': self.clip_to_studyarea,
             'studyarea_path': self.studyarea_path,
             'studyarea_layer_uuid': self.studyarea_layer_uuid,
-            'relative_impact_matrix': self.relative_impact_matrix
+            'relative_impact_matrix': self.relative_impact_matrix,
+            'activity_constant_rasters': self.activity_constant_rasters
         }
         for activity in self.analysis_activities:
             activity_dict = {
@@ -383,6 +391,10 @@ class APITaskConfig(object):
             'relative_impact_matrix',
             {}
         )
+        config.activity_constant_rasters = data.get(
+            'activity_constant_rasters',
+            {}
+        )
 
         # store dict of <layer_uuid, list of obj identifier>
         config.priority_uuid_layers = {}
@@ -441,7 +453,8 @@ class APITaskConfig(object):
                 user_defined=activity.get('user_defined', False),
                 pathways=[],
                 layer_styles=activity.get('layer_styles', {}),
-                mask_paths=activity.get('mask_uuids', [])
+                mask_paths=activity.get('mask_uuids', []),
+                constant_rasters=[]
             )
 
             # create pathways
@@ -470,6 +483,20 @@ class APITaskConfig(object):
                         config.pathway_uuid_layers[pw_layer_uuid] = [
                             str(pw_uuid)
                         ]
+
+            # Create constant rasters
+            for constant_raster in config.activity_constant_rasters.get(
+                uuid_str):
+                activity_obj.constant_rasters.append(constant_raster)
+
+                layer_uuid_str = constant_raster.get('uuid', None)
+                if layer_uuid_str in config.constant_rasters_uuids:
+                    config.constant_rasters_uuids[layer_uuid_str].append(
+                        str(layer_uuid_str))
+                else:
+                    config.constant_rasters_uuids[layer_uuid_str] = [
+                            str(layer_uuid_str)]
+
 
             # create activity mask paths
             mask_uuids = activity.get('mask_uuids', [])
@@ -500,7 +527,8 @@ class APITaskConfig(object):
         config.total_input_layers = (
             len(config.pathway_uuid_layers) +
             len(config.priority_uuid_layers) +
-            len(config.carbon_uuid_layers)
+            len(config.carbon_uuid_layers) +
+            len(config.constant_rasters_uuids)
         )
         if config.snap_layer_uuid:
             config.total_input_layers += 1
@@ -591,6 +619,25 @@ class WorkerScenarioAnalysisTask(object):
                 if key in pathway_uuids
             })
 
+        # Init constant raster layers
+        constant_layer_paths = {}
+        constant_layer_uuids = self.task_config.constant_rasters_uuids.keys()
+        if constant_layer_uuids:
+            constant_layer_uuids_to_download = [
+                p_uuid for p_uuid in constant_layer_uuids if
+                str(p_uuid) not in self.downloaded_layers
+            ]
+            constant_layer_paths = self.copy_input_layers_by_uuids(
+                None,
+                constant_layer_uuids_to_download,
+                scenario_path
+            )
+            self.downloaded_layers.update(constant_layer_paths)
+            constant_layer_paths.update({
+                key: val for key, val in self.downloaded_layers.items()
+                if key in constant_layer_uuids
+            })
+
         # init activity mask layers
         activity_mask_paths = {}
         for mask_layer in self.task_config.activity_mask_uuid_layers:
@@ -615,7 +662,8 @@ class WorkerScenarioAnalysisTask(object):
         self.patch_layer_path_to_activities(
             priority_layer_paths,
             pathway_layer_paths,
-            activity_mask_paths
+            activity_mask_paths,
+            constant_layer_paths
         )
 
         # init snap layer
@@ -742,7 +790,8 @@ class WorkerScenarioAnalysisTask(object):
     def patch_layer_path_to_activities(
             self, priority_layer_paths,
             pathway_layer_paths,
-            activity_mask_layer_paths: dict):
+            activity_mask_layer_paths: dict,
+            constant_layer_paths: dict):
         """Patch/Fix layer_path into activities.
 
         :param priority_layer_paths: Dictionary of Layer UUID and
@@ -761,6 +810,9 @@ class WorkerScenarioAnalysisTask(object):
             self.task_config.pathway_uuid_layers, pathway_layer_paths)
         priority_uuid_mapped = self.transform_uuid_layer_paths(
             self.task_config.priority_uuid_layers, priority_layer_paths
+        )
+        constant_raster_uuid_mapped = self.transform_uuid_layer_paths(
+            self.task_config.constant_rasters_uuids, constant_layer_paths
         )
         # iterate activities
         for activity in self.task_config.analysis_activities:
@@ -781,6 +833,13 @@ class WorkerScenarioAnalysisTask(object):
 
                 activity.mask_paths = list(activity_mask_layer_paths.values())
                 # self.log_message(activity)
+
+            for constant_raster in activity.constant_rasters:
+                constant_raster_uuid = str(constant_raster.get("uuid"))
+                if constant_raster_uuid in constant_raster_uuid_mapped:
+                    constant_raster["path"] = constant_raster_uuid_mapped[
+                        constant_raster_uuid
+                    ]
 
         # update reference object
         self.scenario.activities = self.task_config.analysis_activities
