@@ -1217,7 +1217,9 @@ class WorkerScenarioAnalysisTask(object):
             self.task_config.studyarea_path,
             self.task_config.clip_to_studyarea,
             self.task_config.relative_impact_matrix,
-            self.task_config.pixel_connectivity_enabled
+            pixel_connectivity_enabled=(
+                self.task_config.pixel_connectivity_enabled
+            )
         )
 
         # create analysis task
