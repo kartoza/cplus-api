@@ -76,6 +76,9 @@ class APITaskConfig(object):
     relative_impact_matrix: typing.Dict = {}
     activity_constant_rasters: typing.Dict = {}
     constant_rasters_uuids = typing.Dict = {}
+    pixel_connectivity_enabled: bool = (
+        DEFAULT_VALUES.pixel_connectivity_enabled
+    )
 
     def __init__(self, scenario_name, scenario_desc, extent, analysis_crs,
                  analysis_activities, priority_layers,
@@ -98,7 +101,8 @@ class APITaskConfig(object):
                  clip_to_studyarea=DEFAULT_VALUES.clip_to_studyarea,
                  studyarea_layer_uuid='',
                  relative_impact_matrix={},
-                 constant_rasters_uuids={}
+                 constant_rasters_uuids={},
+                 pixel_connectivity_enabled=False
                  ) -> None:
         """Initialize APITaskConfig class.
 
@@ -172,6 +176,9 @@ class APITaskConfig(object):
         :param constant_rasters_uuids: Layer UUIDs for Constant rasters,
             defaults to empty dictionary
         :type constant_rasters_uuids: typing.Dict, optional
+        :param pixel_connectivity_enabled: Enable pixel connectivity analysis
+            defaults to True
+        :type pixel_connectivity_enabled: bool, optional
         """
         self.scenario_name = scenario_name
         self.scenario_desc = scenario_desc
@@ -213,6 +220,8 @@ class APITaskConfig(object):
 
         self.relative_impact_matrix = relative_impact_matrix
         self.constant_rasters_uuids = constant_rasters_uuids
+
+        self.pixel_connectivity_enabled = pixel_connectivity_enabled
 
     def get_activity(
         self, activity_uuid: str
@@ -306,7 +315,8 @@ class APITaskConfig(object):
             'studyarea_path': self.studyarea_path,
             'studyarea_layer_uuid': self.studyarea_layer_uuid,
             'relative_impact_matrix': self.relative_impact_matrix,
-            'activity_constant_rasters': self.activity_constant_rasters
+            'activity_constant_rasters': self.activity_constant_rasters,
+            'pixel_connectivity_enabled': self.pixel_connectivity_enabled
         }
         for activity in self.analysis_activities:
             activity_dict = {
@@ -394,6 +404,10 @@ class APITaskConfig(object):
         config.activity_constant_rasters = data.get(
             'activity_constant_rasters',
             {}
+        )
+        config.pixel_connectivity_enabled = data.get(
+            'pixel_connectivity_enabled',
+            DEFAULT_VALUES.pixel_connectivity_enabled
         )
 
         # store dict of <layer_uuid, list of obj identifier>
@@ -1202,7 +1216,10 @@ class WorkerScenarioAnalysisTask(object):
             self.task_config.nodata_value,
             self.task_config.studyarea_path,
             self.task_config.clip_to_studyarea,
-            self.task_config.relative_impact_matrix
+            self.task_config.relative_impact_matrix,
+            pixel_connectivity_enabled=(
+                self.task_config.pixel_connectivity_enabled
+            )
         )
 
         # create analysis task
