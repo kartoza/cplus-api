@@ -76,7 +76,7 @@ class APITaskConfig(object):
     relative_impact_matrix: typing.Dict = {}
     activity_constant_rasters: typing.Dict = {}
     constant_rasters_uuids = typing.Dict = {}
-    pixel_connectivity_enabled = DEFAULT_VALUES.pixel_connectivity_enabled
+    pixel_connectivity_enabled: bool = DEFAULT_VALUES.pixel_connectivity_enabled
 
     def __init__(self, scenario_name, scenario_desc, extent, analysis_crs,
                  analysis_activities, priority_layers,
@@ -100,7 +100,7 @@ class APITaskConfig(object):
                  studyarea_layer_uuid='',
                  relative_impact_matrix={},
                  constant_rasters_uuids={},
-                 pixel_connectivity_enabled=DEFAULT_VALUES.pixel_connectivity_enabled
+                 pixel_connectivity_enabled=False
                  ) -> None:
         """Initialize APITaskConfig class.
 
