@@ -337,7 +337,9 @@ class APITaskConfig(object):
                     'description': pathway.description,
                     'path': pathway.path,
                     'layer_type': pathway.layer_type,
-                    'priority_layers': pathway.priority_layers
+                    'priority_layers': pathway.priority_layers,
+                    'type_options': pathway.type_options,
+                    'pathway_type': pathway.pathway_type
                 })
             input_dict["activities"].append(activity_dict)
         return input_dict
@@ -485,7 +487,9 @@ class APITaskConfig(object):
                     description=pathway.get('description', ''),
                     path=pathway.get('path', ''),
                     layer_type=LayerType(pathway.get('layer_type', -1)),
-                    priority_layers=pathway.get("priority_layers", [])
+                    priority_layers=pathway.get("priority_layers", []),
+                    type_options=pathway.get("type_options", {}),
+                    pathway_type=pathway.get('pathway_type')
                 )
                 activity_obj.pathways.append(pathway_model)
                 pw_layer_uuid = pathway.get('layer_uuid', None)
