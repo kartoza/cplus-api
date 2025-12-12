@@ -45,7 +45,6 @@ class APITaskConfig(object):
     snapping_enabled: bool = DEFAULT_VALUES.snapping_enabled
     snap_layer = ''
     snap_layer_uuid = ''
-    pathway_suitability_index = DEFAULT_VALUES.pathway_suitability_index
     carbon_coefficient = DEFAULT_VALUES.carbon_coefficient
     snap_rescale: bool = DEFAULT_VALUES.snap_rescale
     snap_method = DEFAULT_VALUES.snap_method
@@ -84,7 +83,6 @@ class APITaskConfig(object):
                  analysis_activities, priority_layers,
                  priority_layer_groups,
                  snapping_enabled=False, snap_layer_uuid='',
-                 pathway_suitability_index=DEFAULT_VALUES.pathway_suitability_index,  # noqa
                  carbon_coefficient=DEFAULT_VALUES.carbon_coefficient,
                  snap_rescale=DEFAULT_VALUES.snap_rescale,
                  snap_method=DEFAULT_VALUES.snap_method,
@@ -124,9 +122,6 @@ class APITaskConfig(object):
         :type snapping_enabled: bool, optional
         :param snap_layer_uuid: Layer UUID of snap layer, defaults to ''
         :type snap_layer_uuid: str, optional
-        :param pathway_suitability_index: Pathway suitability index,
-            defaults to DEFAULT_VALUES.pathway_suitability_index
-        :type pathway_suitability_index: int, optional
         :param snap_rescale: Enable snap rescale,
             defaults to DEFAULT_VALUES.snap_rescale
         :type snap_rescale: bool, optional
@@ -190,7 +185,6 @@ class APITaskConfig(object):
         self.priority_layer_groups = priority_layer_groups
         self.snapping_enabled = snapping_enabled
         self.snap_layer_uuid = snap_layer_uuid
-        self.pathway_suitability_index = pathway_suitability_index
         self.carbon_coefficient = carbon_coefficient
         self.snap_rescale = snap_rescale
         self.snap_method = snap_method
@@ -289,7 +283,6 @@ class APITaskConfig(object):
             'extent': self.analysis_extent.bbox,
             'snapping_enabled': self.snapping_enabled,
             'snap_layer': self.snap_layer_uuid,
-            'pathway_suitability_index': self.pathway_suitability_index,
             'carbon_coefficient': self.carbon_coefficient,
             'snap_rescale': self.snap_rescale,
             'snap_method': self.snap_method,
@@ -339,7 +332,8 @@ class APITaskConfig(object):
                     'layer_type': pathway.layer_type,
                     'priority_layers': pathway.priority_layers,
                     'type_options': pathway.type_options,
-                    'pathway_type': pathway.pathway_type
+                    'pathway_type': pathway.pathway_type,
+                    'suitability_index': pathway.suitability_index
                 })
             input_dict["activities"].append(activity_dict)
         return input_dict
@@ -364,9 +358,6 @@ class APITaskConfig(object):
         config.snapping_enabled = data.get(
             'snapping_enabled', DEFAULT_VALUES.snapping_enabled)
         config.snap_layer_uuid = data.get('snap_layer_uuid', '')
-        config.pathway_suitability_index = data.get(
-            'pathway_suitability_index',
-            DEFAULT_VALUES.pathway_suitability_index)
         config.carbon_coefficient = data.get(
             'carbon_coefficient', DEFAULT_VALUES.carbon_coefficient)
         config.snap_rescale = data.get(
@@ -489,7 +480,8 @@ class APITaskConfig(object):
                     layer_type=LayerType(pathway.get('layer_type', -1)),
                     priority_layers=pathway.get("priority_layers", []),
                     type_options=pathway.get("type_options", {}),
-                    pathway_type=pathway.get('pathway_type')
+                    pathway_type=pathway.get('pathway_type'),
+                    suitability_index=pathway.get('suitability_index')
                 )
                 activity_obj.pathways.append(pathway_model)
                 pw_layer_uuid = pathway.get('layer_uuid', None)
@@ -1189,9 +1181,6 @@ class WorkerScenarioAnalysisTask(object):
                 Settings.RESCALE_VALUES, default=False
             ),
             self.task_config.get_value(Settings.RESAMPLING_METHOD, default=0),
-            self.task_config.get_value(
-                Settings.PATHWAY_SUITABILITY_INDEX, default=0
-            ),
             self.task_config.get_value(
                 Settings.CARBON_COEFFICIENT, default=0.0
             ),
