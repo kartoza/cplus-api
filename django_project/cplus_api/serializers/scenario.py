@@ -217,8 +217,6 @@ class ScenarioInputSerializer(serializers.Serializer):
     snap_layer_uuid = serializers.CharField(
         required=False, validators=[validate_layer_uuid], allow_blank=True
     )
-    pathway_suitability_index = serializers.IntegerField(
-        required=False, default=DEFAULT_VALUES.pathway_suitability_index)
     carbon_coefficient = serializers.FloatField(
         required=False, default=DEFAULT_VALUES.carbon_coefficient)
     snap_rescale = serializers.BooleanField(
@@ -285,11 +283,6 @@ class ScenarioInputSerializer(serializers.Serializer):
                 'snap_layer_uuid': openapi.Schema(
                     title='Snap layer UUID',
                     type=openapi.TYPE_STRING
-                ),
-                'pathway_suitability_index': openapi.Schema(
-                    title='Pathway suitability index',
-                    type=openapi.TYPE_INTEGER,
-                    default=DEFAULT_VALUES.pathway_suitability_index
                 ),
                 'carbon_coefficient': openapi.Schema(
                     title='Carbon coefficient',

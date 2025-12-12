@@ -1182,9 +1182,6 @@ class WorkerScenarioAnalysisTask(object):
             ),
             self.task_config.get_value(Settings.RESAMPLING_METHOD, default=0),
             self.task_config.get_value(
-                Settings.PATHWAY_SUITABILITY_INDEX, default=0
-            ),
-            self.task_config.get_value(
                 Settings.CARBON_COEFFICIENT, default=0.0
             ),
             self.task_config.get_value(

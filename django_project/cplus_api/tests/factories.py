@@ -43,7 +43,6 @@ class ScenarioTaskF(factory.django.DjangoModelFactory):
         ],
         "snap_layer": "",
         "snap_layer_uuid": "",
-        "pathway_suitability_index": 0,
         "snap_rescale": False,
         "snap_method": "0",
         "sieve_enabled": False,
@@ -197,7 +196,8 @@ class ScenarioTaskF(factory.django.DjangoModelFactory):
                             "Final_Alien_Invasive_Plant_priority_norm.tif"
                         ),
                         "layer_type": 0,
-                        "carbon_paths": []
+                        "carbon_paths": [],
+                        "suitability_index": 0.0
                     }
                 ],
                 "priority_layers": [
