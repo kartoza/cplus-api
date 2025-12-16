@@ -11,6 +11,7 @@ from uuid import UUID
 import boto3
 import math
 import rasterio
+import rasterio.warp
 from rasterio.coords import BoundingBox
 import requests
 from botocore.client import Config
