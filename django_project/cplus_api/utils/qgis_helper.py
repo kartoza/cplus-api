@@ -1,7 +1,9 @@
 """QGIS initialization utils for Celery tasks."""
 
-import logging
 from contextlib import contextmanager
+import logging
+import os
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -69,3 +71,82 @@ def create_bbox_vector_layer(extent):
     vector_layer.updateExtents()
 
     return vector_layer
+
+
+_processing_ready = False
+
+
+def _configure_processing():
+    """Initialize QGIS Processing providers once."""
+    global _processing_ready
+    if _processing_ready:
+        return
+
+    from qgis.core import QgsApplication
+    try:
+        import processing  # noqa: F401
+        from qgis.analysis import QgsNativeAlgorithms
+        QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
+        # Sdd GDAL provider 
+        try:
+            from processing.algs.gdal.GdalAlgorithmProvider import (
+                GdalAlgorithmProvider,
+            )
+            QgsApplication.processingRegistry().addProvider(
+                GdalAlgorithmProvider()
+            )
+        except Exception:
+            # If GDAL is already available, this is fine
+            pass
+        _processing_ready = True
+        logger.info("QGIS Processing initialized")
+    except Exception as exc:
+        logger.exception("Failed to initialize QGIS Processing: %s", exc)
+        raise
+
+
+def clip_raster_by_bbox_qgis(input_path: str, bbox, temp_dir: str) -> str:
+    """
+    Clip a raster using QGIS Processing - GDAL: cliprasterbyextent.
+
+    Note: This function must be called within a qgis_application() 
+    context.
+
+    :param input_path: path to input raster which should be in 
+    EPSG:4326.
+    :type input_path: str
+
+    :param bbox: minx, miny, maxx, maxy in EPSG:4326
+    :type bbox: iterable (tuple/list)
+
+    :param temp_dir: directory for output.
+    :type temp_dir: str
+
+    :returns: Path to the output clipped GeoTIFF.
+    :rtype: str
+    """
+    from qgis.core import QgsRectangle
+    import processing
+
+    _configure_processing()
+
+    minx, miny, maxx, maxy = bbox
+    extent = QgsRectangle(minx, miny, maxx, maxy)
+
+    # Use QgsRectangle to normalize the extents. 
+    projwin = f"{extent.xMinimum()},{extent.yMaximum()},{extent.xMaximum()},{extent.yMinimum()}"
+
+    out_path = os.path.join(temp_dir, f"{uuid.uuid4().hex}.tif")
+
+    params = {
+        "INPUT": input_path,
+        "PROJWIN": projwin,
+        "NODATA": None,
+        "OPTIONS": "",
+        "DATA_TYPE": 0,  # use input data type
+        "EXTRA": "",
+        "OUTPUT": out_path,
+    }
+    processing.run("gdal:cliprasterbyextent", params)
+
+    return out_path
