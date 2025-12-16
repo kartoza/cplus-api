@@ -11,6 +11,7 @@ from uuid import UUID
 import boto3
 import math
 import rasterio
+import rasterio.warp
 from rasterio.coords import BoundingBox
 import requests
 from botocore.client import Config
@@ -20,6 +21,8 @@ from django.contrib.sites.models import Site
 from drf_yasg import openapi
 from rasterio.windows import Window
 from rest_framework.exceptions import PermissionDenied
+from shapely.geometry import box, mapping, shape
+
 
 from core.models.preferences import SitePreferences
 from cplus_api.models.scenario import ScenarioTask
@@ -417,6 +420,19 @@ def clip_raster(file_path: str, bbox: typing.List[float], temp_dir) -> str:
         raster_bbox = BoundingBox(*raster_bounds)
 
         input_bbox = BoundingBox(*bbox)
+
+        # Expecting bounding box in EPSG:4326
+        if src.crs != "EPSG:4326":
+            source_polygon = mapping(box(*bbox))
+            transformed_geom = rasterio.warp.transform_geom(
+                "EPSG:4326",
+                src.crs,
+                source_polygon
+            )
+            polygon = shape(transformed_geom)
+            input_bbox = BoundingBox(*polygon.bounds)
+
+            minx, miny, maxx, maxy = polygon.bounds
 
         # Check if bbox intersects raster
         intersects = not (
