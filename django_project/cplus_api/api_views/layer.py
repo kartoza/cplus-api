@@ -10,7 +10,6 @@ from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.conf import settings
-from django.http import FileResponse
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from cplus_api.models.layer import (
@@ -44,10 +43,6 @@ from cplus_api.utils.api_helper import (
     complete_multipart_upload,
     abort_multipart_upload,
     clip_raster
-)
-from cplus_api.utils.qgis_helper import (
-    qgis_application, 
-    clip_raster_by_bbox_qgis
 )
 
 
@@ -1092,7 +1087,10 @@ class StoredCarbonDownload(APIView):
         bbox = validate_bbox(request.query_params.get('bbox'))
 
         basename = os.path.basename(stored_layer.file.name)
-        base_dir = os.path.join(settings.TEMPORARY_LAYER_DIR, 'stored_carbon_layer')
+        base_dir = os.path.join(
+            settings.TEMPORARY_LAYER_DIR,
+            'stored_carbon_layer'
+        )
         os.makedirs(base_dir, exist_ok=True)
 
         file_path = os.path.join(base_dir, basename)
@@ -1111,7 +1109,6 @@ class StoredCarbonDownload(APIView):
             file_name=os.path.basename(file_path),
             size=os.path.getsize(file_path)
         )
-        
         try:
             os.chmod(file_path, 0o644)
         except Exception:
@@ -1124,7 +1121,7 @@ class StoredCarbonDownload(APIView):
             rel_path = os.path.basename(file_path)
 
         file_name = os.path.basename(file_path)
-        
+
         headers = {
             'Content-Type': 'application/octet-stream',
             'X-Accel-Redirect': f"/userfiles/{rel_path}",

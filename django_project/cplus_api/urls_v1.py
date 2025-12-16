@@ -79,7 +79,7 @@ layer_urls = [
         DefaultLayerDownload.as_view(),
         name="default-priority-layer-download",
     ),
-   path(
+    path(
         "stored_carbon/download/",
         StoredCarbonDownload.as_view(),
         name="stored-carbon-download",

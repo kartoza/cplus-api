@@ -1110,7 +1110,12 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
             privacy_type=InputLayer.PrivacyTypes.COMMON,
             component_type=InputLayer.ComponentTypes.STORED_CARBON
         )
-        file_path = absolute_path('cplus_api', 'tests', 'data', 'stored_carbon_layer.tif')
+        file_path = absolute_path(
+            'cplus_api',
+            'tests',
+            'data',
+            'stored_carbon_layer.tif'
+        )
         self.store_layer_file(stored_layer, file_path, stored_layer.name)
         request = self.factory.get(
             f"{reverse('v1:stored-carbon-download')}?bbox={bbox}",

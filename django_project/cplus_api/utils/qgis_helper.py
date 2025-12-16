@@ -87,7 +87,6 @@ def _configure_processing():
         import processing  # noqa: F401
         from qgis.analysis import QgsNativeAlgorithms
         QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
-        # Sdd GDAL provider 
         try:
             from processing.algs.gdal.GdalAlgorithmProvider import (
                 GdalAlgorithmProvider,
@@ -109,10 +108,10 @@ def clip_raster_by_bbox_qgis(input_path: str, bbox, temp_dir: str) -> str:
     """
     Clip a raster using QGIS Processing - GDAL: cliprasterbyextent.
 
-    Note: This function must be called within a qgis_application() 
+    Note: This function must be called within a qgis_application()
     context.
 
-    :param input_path: path to input raster which should be in 
+    :param input_path: path to input raster which should be in
     EPSG:4326.
     :type input_path: str
 
@@ -133,9 +132,13 @@ def clip_raster_by_bbox_qgis(input_path: str, bbox, temp_dir: str) -> str:
     minx, miny, maxx, maxy = bbox
     extent = QgsRectangle(minx, miny, maxx, maxy)
 
-    # Use QgsRectangle to normalize the extents. 
-    projwin = f"{extent.xMinimum()},{extent.yMaximum()},{extent.xMaximum()},{extent.yMinimum()}"
-
+    # Use QgsRectangle to normalize the extents.
+    projwin = (
+        f"{extent.xMinimum()},"
+        f"{extent.yMaximum()},"
+        f"{extent.xMaximum()},"
+        f"{extent.yMinimum()}"
+    )
     out_path = os.path.join(temp_dir, f"{uuid.uuid4().hex}.tif")
 
     params = {
