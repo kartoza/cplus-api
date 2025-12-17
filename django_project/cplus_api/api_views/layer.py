@@ -1041,3 +1041,90 @@ class DefaultLayerDownload(APIView):
             data={'detail': 'Default layer is not available.'},
             status=404
         )
+
+
+class StoredCarbonDownload(APIView):
+    """API to clip and download the stored carbon layer."""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    @swagger_auto_schema(
+        operation_id='stored-carbon-download',
+        operation_description='Clip and download the stored carbon dataset.',
+        tags=[LAYER_API_TAG],
+        manual_parameters=[PARAM_BBOX_IN_QUERY],
+        responses={
+            200: openapi.Response(description='Binary response'),
+            400: APIErrorSerializer,
+            404: APIErrorSerializer
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        from django.core.exceptions import MultipleObjectsReturned
+
+        if 'bbox' not in request.query_params:
+            return Response(
+                data={'detail': 'Query parameter "bbox" is required.'},
+                status=400
+            )
+
+        try:
+            stored_layer = get_object_or_404(
+                InputLayer,
+                component_type=InputLayer.ComponentTypes.STORED_CARBON
+            )
+        except MultipleObjectsReturned:
+            stored_layer = InputLayer.objects.filter(
+                component_type=InputLayer.ComponentTypes.STORED_CARBON
+            ).first()
+
+        if not stored_layer or not stored_layer.is_available():
+            return Response(
+                data={'detail': 'Stored carbon layer is not available.'},
+                status=404
+            )
+
+        bbox = validate_bbox(request.query_params.get('bbox'))
+
+        basename = os.path.basename(stored_layer.file.name)
+        base_dir = os.path.join(
+            settings.TEMPORARY_LAYER_DIR,
+            'stored_carbon_layer'
+        )
+        os.makedirs(base_dir, exist_ok=True)
+
+        file_path = os.path.join(base_dir, basename)
+        if not os.path.exists(file_path):
+            file_path = stored_layer.download_to_working_directory(
+                settings.TEMPORARY_LAYER_DIR
+            )
+
+        file_path = clip_raster(
+            file_path=file_path,
+            bbox=bbox,
+            temp_dir=settings.TEMPORARY_LAYER_DIR
+        )
+
+        TemporaryLayer.objects.create(
+            file_name=os.path.basename(file_path),
+            size=os.path.getsize(file_path)
+        )
+        try:
+            os.chmod(file_path, 0o644)
+        except Exception:
+            pass
+
+        # Build X-Accel-Redirect path relative to alias root
+        try:
+            rel_path = os.path.relpath(file_path, settings.TEMPORARY_LAYER_DIR)
+        except ValueError:
+            rel_path = os.path.basename(file_path)
+
+        file_name = os.path.basename(file_path)
+
+        headers = {
+            'Content-Type': 'application/octet-stream',
+            'X-Accel-Redirect': f"/userfiles/{rel_path}",
+            'Content-Disposition': f'attachment; filename="{file_name}"',
+        }
+        return Response(status=200, headers=headers)

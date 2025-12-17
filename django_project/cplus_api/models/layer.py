@@ -106,6 +106,7 @@ class InputLayer(BaseLayer):
         SIEVE_MASK_LAYER = 'sieve_mask_layer', _('sieve_mask_layer')
         MASK_LAYER = 'mask_layer', _('mask_layer')
         REFERENCE_LAYER = 'reference_layer', _('reference_layer')
+        STORED_CARBON = 'stored_carbon', _('stored_carbon')
 
     class PrivacyTypes(models.TextChoices):
         PRIVATE = 'private', _('private')

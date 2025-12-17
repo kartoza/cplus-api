@@ -12,6 +12,7 @@ from cplus_api.api_views.layer import (
     DefaultLayerList,
     ReferenceLayerDownload,
     DefaultLayerDownload,
+    StoredCarbonDownload,
 )
 from cplus_api.api_views.scenario import (
     ScenarioAnalysisSubmit,
@@ -77,6 +78,11 @@ layer_urls = [
         "priority_layer/<uuid:layer_uuid>/download/",
         DefaultLayerDownload.as_view(),
         name="default-priority-layer-download",
+    ),
+    path(
+        "stored_carbon/download/",
+        StoredCarbonDownload.as_view(),
+        name="stored-carbon-download",
     ),
 ]
 

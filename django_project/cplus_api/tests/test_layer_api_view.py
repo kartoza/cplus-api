@@ -27,7 +27,8 @@ from cplus_api.api_views.layer import (
     FetchLayerByClientId,
     DefaultLayerList,
     ReferenceLayerDownload,
-    DefaultLayerDownload
+    DefaultLayerDownload,
+    StoredCarbonDownload
 )
 from cplus_api.models.profile import UserProfile
 from cplus_api.utils.api_helper import convert_size
@@ -1101,3 +1102,37 @@ class TestLayerAPIView(BaseAPIViewTransactionTest):
         request.user = self.superuser
         response = view(request, **kwargs)
         self.assertEqual(response.status_code, 400)
+
+    def test_stored_carbon_download(self):
+        bbox = '29.134295060,-31.158062261,29.279926683,-31.094568889'
+        view = StoredCarbonDownload.as_view()
+        stored_layer = InputLayerF.create(
+            privacy_type=InputLayer.PrivacyTypes.COMMON,
+            component_type=InputLayer.ComponentTypes.STORED_CARBON
+        )
+        file_path = absolute_path(
+            'cplus_api',
+            'tests',
+            'data',
+            'stored_carbon_layer.tif'
+        )
+        self.store_layer_file(stored_layer, file_path, stored_layer.name)
+        request = self.factory.get(
+            f"{reverse('v1:stored-carbon-download')}?bbox={bbox}",
+            format='json'
+        )
+        request.resolver_match = FakeResolverMatchV1
+        response = view(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('X-Accel-Redirect', response.headers)
+
+        file_path = os.path.join(
+            settings.TEMPORARY_LAYER_DIR,
+            response.headers['X-Accel-Redirect'].replace('/userfiles/', '')
+        )
+        self.assertTrue(os.path.exists(file_path))
+
+        import rasterio
+        with rasterio.open(file_path) as ds:
+            bbox_polygon = Polygon.from_bbox(ds.bounds)
+            self.assertTrue(bbox_polygon.area > 0)
