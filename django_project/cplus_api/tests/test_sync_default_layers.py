@@ -286,7 +286,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         """
         nature_base_url = (
             "https://content.ncsmap.org/items/spatial_metadata?limit=-1&sort=title&filter[status][_in]=published&"  # noqa
-            "fields=id,title,short_summary,download_links,cog_url,date_updated,action"
+            "fields=id,title,short_summary,download_links,cog_url,date_updated,action" # noqa
         )
         with requests_mock.Mocker() as rm:
             rm.get(
