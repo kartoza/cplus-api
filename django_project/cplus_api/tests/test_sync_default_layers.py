@@ -305,7 +305,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
                             ],
                             "cog_url": "https://kartoza.com/total_ncs.tif",
                             "date_updated": "2024-08-28T18:59:51.419Z",
-                            "action": -1
+                            "action": "undefined"
                         },
                         {
                             "id": 15,
@@ -319,7 +319,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
                             ],
                             "cog_url": "https://kartoza.com/test_pathway_naturebase.tif",  # noqa
                             "date_updated": "2024-08-28T18:55:55.936Z",
-                            "action": 0
+                            "action": "protect"
                         },
                         {
                             "id": 5,
@@ -333,7 +333,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
                             ],
                             "cog_url": None,
                             "date_updated": "2024-08-28T18:57:00.867Z",
-                            "action": 0
+                            "action": "protect"
                         }
                     ]
                 }
