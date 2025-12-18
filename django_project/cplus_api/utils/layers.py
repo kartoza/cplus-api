@@ -177,7 +177,7 @@ class ProcessFile:
                             layer
                         )
                     self.input_layer.source = self.source
-                    self.input_layer.action = self.file['action']
+                    self.input_layer.action = self.file.get('action', -1)
                     self.input_layer.save()
 
     def handle_nature_base(self, file_path):
