@@ -177,6 +177,7 @@ class ProcessFile:
                             layer
                         )
                     self.input_layer.source = self.source
+                    self.input_layer.action = self.file['action']
                     self.input_layer.save()
 
     def handle_nature_base(self, file_path):
@@ -298,7 +299,7 @@ def sync_nature_base():
     url = (
         "https://content.ncsmap.org/items/spatial_metadata?limit=-1&sort="
         "title&filter[status][_in]=published&fields=id,title,short_summary,"
-        "download_links,cog_url,date_updated"
+        "download_links,cog_url,date_updated,action"
     )
     response = requests.get(url)
 
@@ -310,6 +311,14 @@ def sync_nature_base():
                     result['date_updated']
                 )
                 url = result['cog_url'] or result['download_links'][0]['url']
+                action = -1
+                if result.get('action') == "protect":
+                    action = 0
+                elif result.get('action') == "restore":
+                    action = 1
+                elif result.get('action') == "manage":
+                    action = 2
+
                 file = {
                     "Key": (
                         f"common_layers/ncs_pathway/"
@@ -320,6 +329,7 @@ def sync_nature_base():
                     "url": url
                 }
                 file.update(result)
+                file["action"] = action
                 ProcessFile(
                     storage,
                     owner,

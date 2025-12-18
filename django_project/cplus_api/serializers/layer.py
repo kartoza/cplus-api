@@ -86,6 +86,14 @@ LAYER_SCHEMA_FIELDS = {
                 InputLayer.LayerSources.NATURE_BASE
             ]
         ),
+        'action': openapi.Schema(
+            title='''Action either Protect (0), Restore (1), Manage (2),
+                Undefined (-1)''',
+            type=openapi.TYPE_INTEGER,
+            enum=[
+                InputLayer.PathwayTypes.PROTECT
+            ]
+        ),
     },
     'required': [
         'filename', 'size', 'uuid', 'layer_type',
@@ -105,7 +113,8 @@ LAYER_SCHEMA_FIELDS = {
         'client_id': '',
         'license': 'CC BY 4.0',
         'version': '1.0.0',
-        'source': InputLayer.LayerSources.NATURE_BASE
+        'source': InputLayer.LayerSources.NATURE_BASE,
+        'action': InputLayer.PathwayTypes.PROTECT
     }
 }
 
@@ -213,7 +222,7 @@ class InputLayerSerializer(serializers.ModelSerializer):
             'created_by', 'layer_type', 'size',
             'url', 'component_type', 'privacy_type',
             'client_id', 'metadata', 'description',
-            'license', 'version', 'source'
+            'license', 'version', 'source', 'action'
         ]
 
 
@@ -475,7 +484,8 @@ class UpdateLayerInputSerializer(serializers.ModelSerializer):
                 'privacy_type': 'common',
                 'client_id': '',
                 'license': 'CC BY 4.0',
-                'version': '1.0.0'
+                'version': '1.0.0',
+                'action': 1
             }
         })
         # Remove filename from the schema and rename it to name
@@ -502,5 +512,5 @@ class UpdateLayerInputSerializer(serializers.ModelSerializer):
         model = InputLayer
         fields = [
             'name', 'layer_type', 'component_type', 'privacy_type',
-            'description', 'license', 'version'
+            'description', 'license', 'version', 'action'
         ]
