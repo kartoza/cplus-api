@@ -117,6 +117,13 @@ class InputLayer(BaseLayer):
         CPLUS = 'cplus', _('CPLUS')
         NATURE_BASE = 'naturebase', _('Naturebase')
 
+    class PathwayTypes(models.IntegerChoices):
+        PROTECT = 0, _('Protect')
+        RESTORE = 1, _('Restore')
+        MANAGE = 2, _('Manage')
+        UNDEFINED = -1, _('Undefined')
+
+
     file = models.FileField(
         upload_to=input_layer_dir_path,
         storage=select_input_layer_storage
@@ -155,6 +162,11 @@ class InputLayer(BaseLayer):
         null=False,
         blank=True,
         default=''
+    )
+
+    action = models.IntegerField(
+        choices=PathwayTypes.choices,
+        default=PathwayTypes.UNDEFINED
     )
 
     source = models.CharField(

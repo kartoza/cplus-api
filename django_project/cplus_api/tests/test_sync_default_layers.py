@@ -286,7 +286,7 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
         """
         nature_base_url = (
             "https://content.ncsmap.org/items/spatial_metadata?limit=-1&sort=title&filter[status][_in]=published&"  # noqa
-            "fields=id,title,short_summary,download_links,cog_url,date_updated"
+            "fields=id,title,short_summary,download_links,cog_url,date_updated,action" # noqa
         )
         with requests_mock.Mocker() as rm:
             rm.get(
@@ -304,7 +304,8 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
                                 }
                             ],
                             "cog_url": "https://kartoza.com/total_ncs.tif",
-                            "date_updated": "2024-08-28T18:59:51.419Z"
+                            "date_updated": "2024-08-28T18:59:51.419Z",
+                            "action": "undefined"
                         },
                         {
                             "id": 15,
@@ -317,7 +318,8 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
                                 }
                             ],
                             "cog_url": "https://kartoza.com/test_pathway_naturebase.tif",  # noqa
-                            "date_updated": "2024-08-28T18:55:55.936Z"
+                            "date_updated": "2024-08-28T18:55:55.936Z",
+                            "action": "protect"
                         },
                         {
                             "id": 5,
@@ -330,7 +332,8 @@ class TestSyncDefaultLayer(BaseAPIViewTransactionTest):
                                 }
                             ],
                             "cog_url": None,
-                            "date_updated": "2024-08-28T18:57:00.867Z"
+                            "date_updated": "2024-08-28T18:57:00.867Z",
+                            "action": "protect"
                         }
                     ]
                 }
